@@ -15,7 +15,14 @@ import catalogRoutes from "./routes/catalog.route.js";
 import homeRoutes from "./routes/home.route.js";
 import couponRoutes from "./routes/coupon.route.js";
 import branchRoutes from "./routes/branches.route.js";
-connectDB();
+import roleRoutes from "./routes/role.route.js";
+import adminRoutes from "./routes/admin.route.js";
+import seedRoles from "./config/seedRoles.js";
+
+connectDB().then(async () => {
+  // Seed default roles on startup
+  await seedRoles();
+});
 
 const app = express();
 
@@ -36,6 +43,8 @@ app.use("/api/v1/catalogs" , catalogRoutes);
 app.use("/api/v1/home" , homeRoutes);
 app.use("/api/v1/coupons" , couponRoutes);
 app.use("/api/v1/branches" , branchRoutes);
+app.use("/api/v1/roles" , roleRoutes);
+app.use("/api/v1/admin" , adminRoutes);
 app.use("/uploads" , express.static(path.join(process.cwd(), "uploads")));
 app.use(errorMiddleware);
 app.listen(PORT, () => {

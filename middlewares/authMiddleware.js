@@ -18,12 +18,24 @@ export const protect = async (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    const user = await User.findById(decoded.id);
+    const user = await User.findById(decoded.id).populate("role");
 
     if (!user) {
       return res
         .status(StatusCodes.UNAUTHORIZED)
         .json({ status: "error", message: "User no longer exists" });
+    }
+
+    if (!user.isActive) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ status: "error", message: "Account is inactive" });
+    }
+
+    if (user.isLocked) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ status: "error", message: "Account is locked" });
     }
 
     req.user = user;
@@ -37,7 +49,7 @@ export const protect = async (req, res, next) => {
 
 export const allowTo = (...roles) => {
     return (req, res, next) => {
-        if (!roles.includes(req.user.role)) {
+        if (!roles.includes(req.user.legacyRole)) {
             return res
                 .status(StatusCodes.FORBIDDEN)
                 .json({ status: "error", message: "Forbidden" });

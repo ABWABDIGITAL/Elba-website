@@ -3,6 +3,7 @@ import { redis } from "../config/redis.js";
 import { BadRequest, NotFound, ServerError } from "../utlis/apiError.js";
 
 const HOME_CACHE_KEY = "home:page";
+const HOME_CACHE_TTL = 3600; // 1 hour in seconds
 
 export const createHomeService = async (payload) => {
   try {
@@ -21,17 +22,17 @@ export const createHomeService = async (payload) => {
 };
 
 export const getHomeService = async () => {
-  // try {
-  //   const cached = await redis.get(HOME_CACHE_KEY);
-  //   if (cached) {
-  //     return {
-  //       fromCache: true,
-  //       data: JSON.parse(cached),
-  //     };
-  //   }
-  // } catch (err) {
-  //   console.error("Redis GET error:", err);
-  // }
+  try {
+    const cached = await redis.get(HOME_CACHE_KEY);
+    if (cached) {
+      return {
+        fromCache: true,
+        data: cached,
+      };
+    }
+  } catch (err) {
+    console.error("Redis GET error:", err);
+  }
 
   const home = await Home.findOne()
     .populate({
@@ -68,7 +69,7 @@ export const getHomeService = async () => {
   if (!home) throw NotFound("Home page not created yet");
 
   try {
-    await redis.set(HOME_CACHE_KEY, JSON.stringify(home));
+    await redis.set(HOME_CACHE_KEY, JSON.stringify(home), { ex: HOME_CACHE_TTL });
   } catch (err) {
     console.error("Redis SET error:", err);
   }

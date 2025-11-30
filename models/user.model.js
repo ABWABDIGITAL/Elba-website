@@ -46,6 +46,12 @@ const userSchema = new mongoose.Schema(
     },
 
     role: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Role",
+      default: null,
+    },
+
+    legacyRole: {
       type: String,
       enum: ["user", "admin", "manager", "superAdmin"],
       default: "user",
@@ -75,6 +81,20 @@ const userSchema = new mongoose.Schema(
     passwordVerified: { type: Boolean, default: false },
 
     isActive: { type: Boolean, default: true },
+
+    lastLogin: { type: Date, default: null },
+
+    loginAttempts: { type: Number, default: 0 },
+
+    lockUntil: { type: Date, default: null },
+
+    profileImage: { type: String, default: null },
+
+    preferences: {
+      language: { type: String, enum: ["en", "ar"], default: "ar" },
+      notifications: { type: Boolean, default: true },
+      emailNotifications: { type: Boolean, default: true },
+    },
   },
   { timestamps: true, versionKey: false }
 );
@@ -96,10 +116,14 @@ userSchema.methods.comparePassword = async function (password) {
 
 userSchema.methods.generateToken = function () {
   return jwt.sign(
-    { id: this._id, role: this.role },
+    { id: this._id, role: this.role, legacyRole: this.legacyRole },
     process.env.JWT_SECRET,
     { expiresIn: "1d" }
   );
 };
+
+userSchema.virtual("isLocked").get(function () {
+  return !!(this.lockUntil && this.lockUntil > Date.now());
+});
 
 export default mongoose.model("User", userSchema);

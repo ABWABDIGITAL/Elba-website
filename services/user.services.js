@@ -104,3 +104,129 @@ export const adminDeleteUserService = async (id) => {
   };
 };
 
+export const adminActivateUserService = async (id) => {
+  if (!id) throw BadRequest("User ID is required");
+
+  const user = await User.findById(id);
+  if (!user) throw NotFound("User not found");
+
+  user.isActive = true;
+  user.lockUntil = null;
+  user.loginAttempts = 0;
+  await user.save();
+
+  return {
+    OK: true,
+    message: "User activated successfully",
+    data: buildAdminUserDTO(user),
+  };
+};
+
+export const adminLockUserService = async (id, lockDuration = 24) => {
+  if (!id) throw BadRequest("User ID is required");
+
+  const user = await User.findById(id);
+  if (!user) throw NotFound("User not found");
+
+  user.lockUntil = new Date(Date.now() + lockDuration * 60 * 60 * 1000);
+  await user.save();
+
+  return {
+    OK: true,
+    message: `User locked for ${lockDuration} hours`,
+    data: buildAdminUserDTO(user),
+  };
+};
+
+export const adminUnlockUserService = async (id) => {
+  if (!id) throw BadRequest("User ID is required");
+
+  const user = await User.findById(id);
+  if (!user) throw NotFound("User not found");
+
+  user.lockUntil = null;
+  user.loginAttempts = 0;
+  await user.save();
+
+  return {
+    OK: true,
+    message: "User unlocked successfully",
+    data: buildAdminUserDTO(user),
+  };
+};
+
+export const adminBulkActionService = async (action, userIds) => {
+  if (!userIds || !Array.isArray(userIds) || userIds.length === 0) {
+    throw BadRequest("User IDs array is required");
+  }
+
+  let updateData = {};
+  let message = "";
+
+  switch (action) {
+    case "activate":
+      updateData = { isActive: true, lockUntil: null, loginAttempts: 0 };
+      message = "Users activated successfully";
+      break;
+    case "deactivate":
+      updateData = { isActive: false };
+      message = "Users deactivated successfully";
+      break;
+    case "unlock":
+      updateData = { lockUntil: null, loginAttempts: 0 };
+      message = "Users unlocked successfully";
+      break;
+    default:
+      throw BadRequest("Invalid action");
+  }
+
+  const result = await User.updateMany(
+    { _id: { $in: userIds } },
+    { $set: updateData }
+  );
+
+  return {
+    OK: true,
+    message,
+    data: {
+      modifiedCount: result.modifiedCount,
+      matchedCount: result.matchedCount,
+    },
+  };
+};
+
+export const getUserStatisticsService = async (userId) => {
+  if (!userId) throw BadRequest("User ID is required");
+
+  const user = await User.findById(userId);
+  if (!user) throw NotFound("User not found");
+
+  // Import Order model here to avoid circular dependency
+  const Order = (await import("../models/order.model.js")).default;
+
+  const [totalOrders, completedOrders, totalSpent] = await Promise.all([
+    Order.countDocuments({ user: userId }),
+    Order.countDocuments({ user: userId, status: "delivered" }),
+    Order.aggregate([
+      { $match: { user: user._id, status: "delivered" } },
+      { $group: { _id: null, total: { $sum: "$totalAmount" } } },
+    ]),
+  ]);
+
+  return {
+    OK: true,
+    data: {
+      user: buildAdminUserDTO(user),
+      statistics: {
+        totalOrders,
+        completedOrders,
+        totalSpent: totalSpent[0]?.total || 0,
+        accountAge: Math.floor(
+          (Date.now() - user.createdAt) / (1000 * 60 * 60 * 24)
+        ),
+        lastLogin: user.lastLogin,
+      },
+    },
+  };
+};
+
