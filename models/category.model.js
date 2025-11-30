@@ -1,44 +1,55 @@
 import mongoose from "mongoose";
+import seoSchema from "./seo.model.js";
 
-const categorySchema = new mongoose.Schema(
+const localizedCategorySchema = new mongoose.Schema(
   {
     name: {
       type: String,
       required: true,
       trim: true,
-      minlength: 3,
+      minlength: 2,
       maxlength: 50,
-      unique: true,
     },
-
     slug: {
       type: String,
       required: true,
       trim: true,
       lowercase: true,
-      unique: true,
       index: true,
     },
+
+    // SEO for each language
+    seo: {
+      type: seoSchema,
+      default: () => ({}),
+    },
+  },
+  { _id: false }
+);
+
+const categorySchema = new mongoose.Schema(
+  {
+    ar: { type: localizedCategorySchema, required: true },
+    en: { type: localizedCategorySchema, required: true },
 
     image: {
       type: String,
       required: true,
     },
 
-    catalog: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Catalog",
-      required: true,
+    type: {
+      type: String,
+      enum: ["Large", "Small"],
+      default: "Large",
     },
 
     productCount: {
       type: Number,
       default: 0,
+      min: 0,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 export default mongoose.model("Category", categorySchema);

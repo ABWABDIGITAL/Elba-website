@@ -2,6 +2,20 @@ import Role from "../models/role.model.js";
 
 const defaultRoles = [
   {
+  name: "user",
+  displayName: {
+    en: "User",
+    ar: "مستخدم",
+  },
+  description: {
+    en: "Default role for registered customers",
+    ar: "الدور الافتراضي للمستخدمين المسجلين",
+  },
+  isSystemRole: true,   // cannot be deleted
+  priority: 1,          // lowest priority among system roles
+  permissions: [],      // no admin access
+},
+  {
     name: "super_admin",
     displayName: {
       en: "Super Admin",

@@ -9,13 +9,13 @@ const multiLangText = {
 const bannerSchema = new mongoose.Schema(
   {
     url: { type: String, required: true },
-    alt: multiLangText,
   },
   { _id: false }
 );
 
 const productRefSchema = new mongoose.Schema(
   {
+    title : multiLangText,
     product: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
@@ -34,7 +34,6 @@ const categoryRef = {
 const productSectionSchema =new mongoose.Schema(
   {
     products: [productRefSchema],
-    viewAllLink: String,
     isActive: { type: Boolean, default: true },
   },
   { _id: false }

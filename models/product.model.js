@@ -1,23 +1,20 @@
+// models/product.model.js
 import mongoose from "mongoose";
 import slugify from "slugify";
 import seoSchema from "./seo.model.js";
 
 const productSchema = new mongoose.Schema(
   {
-    // Language-specific data
+    // ----------------- AR -----------------
     ar: {
-      name: { type: String, required: true, trim: true },
       title: { type: String, required: true, trim: true },
-      slug: { type: String, unique: true, index: true },
-
+      subTitle: { type: String, required: true, trim: true },
       description: [
         {
           title: { type: String, trim: true },
-          subtitle: { type: String, trim: true },
           content: { type: String, trim: true },
         },
       ],
-
       specifications: [
         {
           key: { type: String, trim: true },
@@ -26,56 +23,32 @@ const productSchema = new mongoose.Schema(
           group: { type: String, trim: true },
         },
       ],
-
       features: [{ type: String, trim: true }],
       warranty: { type: String, trim: true },
-
-      images: [
-        {
-          url: String,
-          alt: { type: String, trim: true },
-          isPrimary: { type: Boolean, default: false },
-          order: { type: Number, default: 0 },
-        },
-      ],
-
       details: [
-        {
-          key: { type: String, trim: true },
-          value: { type: String, trim: true },
-        },
+        { key: { type: String, trim: true }, value: { type: String, trim: true } },
       ],
-
       reference: {
-        title: { type: String, trim: true },
-        subtitle: { type: String, trim: true },
-        content: {
-          text: { type: String, trim: true },
-          file: {
-            url: String,
-            filename: String,
-            fileType: String,
-            size: Number,
-          },
+        file: {
+          url: String,
+          filename: String,
+          fileType: String,
+          size: Number,
         },
       },
-
       seo: seoSchema,
     },
 
+    // ----------------- EN -----------------
     en: {
-      name: { type: String, required: true, trim: true },
       title: { type: String, required: true, trim: true },
-      slug: { type: String, unique: true, index: true },
-
+      subTitle: { type: String, required: true, trim: true },
       description: [
         {
           title: { type: String, trim: true },
-          subtitle: { type: String, trim: true },
           content: { type: String, trim: true },
         },
       ],
-
       specifications: [
         {
           key: { type: String, trim: true },
@@ -84,44 +57,31 @@ const productSchema = new mongoose.Schema(
           group: { type: String, trim: true },
         },
       ],
-
       features: [{ type: String, trim: true }],
       warranty: { type: String, trim: true },
-
-      images: [
-        {
-          url: String,
-          alt: { type: String, trim: true },
-          isPrimary: { type: Boolean, default: false },
-          order: { type: Number, default: 0 },
-        },
-      ],
-
       details: [
-        {
-          key: { type: String, trim: true },
-          value: { type: String, trim: true },
-        },
+        { key: { type: String, trim: true }, value: { type: String, trim: true } },
       ],
-
       reference: {
-        title: { type: String, trim: true },
-        subtitle: { type: String, trim: true },
-        content: {
-          text: { type: String, trim: true },
-          file: {
-            url: String,
-            filename: String,
-            fileType: String,
-            size: Number,
-          },
+        file: {
+          url: String,
+          filename: String,
+          fileType: String,
+          size: Number,
         },
       },
-
       seo: seoSchema,
     },
 
-    // Language-independent data
+    // ----------------- GLOBAL -----------------
+    images: [
+      {
+        url: { type: String, required: true },
+      },
+    ],
+
+    slug: { type: String, unique: true, index: true },
+
     sku: {
       type: String,
       required: true,
@@ -191,13 +151,7 @@ const productSchema = new mongoose.Schema(
       lastSyncedAt: Date,
     },
 
-    salesCount: {
-      type: Number,
-      default: 0,
-      min: 0,
-      index: true,
-    },
-
+    salesCount: { type: Number, default: 0, min: 0, index: true },
     ratingsAverage: { type: Number, default: 0, min: 0, max: 5 },
     ratingsQuantity: { type: Number, default: 0 },
 
@@ -235,18 +189,8 @@ const productSchema = new mongoose.Schema(
    SLUG LOGIC
 ----------------------------------- */
 productSchema.pre("save", function (next) {
-  if (this.isModified("en.name") || this.isModified("ar.name")) {
-    if (this.en?.name) {
-      this.en.slug = slugify(this.en.name, { lower: true, strict: true });
-    }
-
-    if (this.ar?.name) {
-      this.ar.slug = this.ar.name
-        .trim()
-        .replace(/\s+/g, "-")
-        .replace(/[^\u0600-\u06FF0-9\-]/g, "")
-        .toLowerCase();
-    }
+  if (this.isModified("sku") && this.sku) {
+    this.slug = slugify(this.sku, { lower: true, strict: true });
   }
   next();
 });
@@ -255,51 +199,64 @@ productSchema.pre("save", function (next) {
    DISCOUNT LOGIC
 ----------------------------------- */
 productSchema.pre("save", function (next) {
-  if (this.discountPrice > 0 && this.discountPrice < this.price) {
-    const discountValue = this.price - this.discountPrice;
+  if (this.price > 0 && this.discountPrice > 0 && this.discountPrice < this.price) {
     this.discountPercentage = Number(
-      ((discountValue / this.price) * 100).toFixed(2)
+      ((this.discountPrice / this.price) * 100).toFixed(2)
     );
   } else {
+    if (!this.discountPrice) this.discountPrice = 0;
     this.discountPercentage = 0;
   }
   next();
 });
 
 /* -----------------------------------
-   FIXED: PROPER NEW DOCUMENT DETECTION
+   DETECT NEW PRODUCT
 ----------------------------------- */
-productSchema.pre("save", function (next) {
-  this._wasNew = this.isNew;
-  next();
+productSchema.post("save", async function (doc) {
+  if (!this._wasNew) return;
+  await safeUpdateCategoryCount(doc.category, +1);
 });
 
 /* -----------------------------------
-   CREATE: UPDATE CATEGORY + CATALOG COUNTS
+   SAFE COUNTER UPDATER
+----------------------------------- */
+async function safeUpdateCategoryCount(categoryId, inc) {
+  if (!categoryId) return;
+
+  const Category = mongoose.model("Category");
+  const cat = await Category.findByIdAndUpdate(
+    categoryId,
+    { $inc: { productCount: inc } },
+    { new: true }
+  );
+
+  if (cat && cat.productCount < 0) {
+    cat.productCount = 0;
+    await cat.save();
+  }
+}
+
+
+/* -----------------------------------
+   CREATE HOOK
 ----------------------------------- */
 productSchema.post("save", async function (doc) {
-  if (!this._wasNew) return; // ONLY when creating a new product
+  if (!this._wasNew) return;
+
+  await safeUpdateCategoryCount(doc.category, +1);
 
   const Category = mongoose.model("Category");
   const Catalog = mongoose.model("Catalog");
 
-  // Increment category
-  const category = await Category.findByIdAndUpdate(
-    doc.category,
-    { $inc: { productCount: 1 } },
-    { new: true }
-  );
-
-  // Increment catalog
+  const category = await Category.findById(doc.category);
   if (category?.catalog) {
-    await Catalog.findByIdAndUpdate(category.catalog, {
-      $inc: { productCount: 1 },
-    });
+    await safeUpdateCategoryCount(category.catalog, +1);
   }
 });
 
 /* -----------------------------------
-   CAPTURE OLD CATEGORY BEFORE UPDATE
+   UPDATE HOOK
 ----------------------------------- */
 productSchema.pre("findOneAndUpdate", async function (next) {
   const existing = await this.model.findOne(this.getQuery()).select("category");
@@ -307,66 +264,56 @@ productSchema.pre("findOneAndUpdate", async function (next) {
   next();
 });
 
-/* -----------------------------------
-   UPDATE: MOVE COUNTS BETWEEN CATEGORIES+CATALOGS
------------------------------------ */
 productSchema.post("findOneAndUpdate", async function (doc) {
   if (!doc) return;
-
-  const Category = mongoose.model("Category");
-  const Catalog = mongoose.model("Catalog");
 
   const oldCat = this._oldCategory;
   const newCat = doc.category?.toString();
 
   if (!oldCat || !newCat || oldCat === newCat) return;
 
-  // Decrement old category
-  const oldCategory = await Category.findByIdAndUpdate(
-    oldCat,
-    { $inc: { productCount: -1 } },
-    { new: true }
-  );
+  await safeUpdateCategoryCount(oldCat, -1);
+  await safeUpdateCategoryCount(newCat, +1);
+});
 
+
+productSchema.post("findOneAndUpdate", async function (doc) {
+  if (!doc) return;
+
+  const oldCat = this._oldCategory;
+  const newCat = doc.category?.toString();
+
+  if (!oldCat || !newCat || oldCat === newCat) return;
+
+  await safeUpdateCategoryCount(oldCat, -1);
+  await safeUpdateCategoryCount(newCat, +1);
+
+  const Category = mongoose.model("Category");
+
+  const oldCategory = await Category.findById(oldCat);
   if (oldCategory?.catalog) {
-    await Catalog.findByIdAndUpdate(oldCategory.catalog, {
-      $inc: { productCount: -1 },
-    });
+    await safeUpdateCategoryCount(oldCategory.catalog, -1);
   }
 
-  // Increment new category
-  const newCategory = await Category.findByIdAndUpdate(
-    newCat,
-    { $inc: { productCount: 1 } },
-    { new: true }
-  );
-
+  const newCategory = await Category.findById(newCat);
   if (newCategory?.catalog) {
-    await Catalog.findByIdAndUpdate(newCategory.catalog, {
-      $inc: { productCount: 1 },
-    });
+    await safeUpdateCategoryCount(newCategory.catalog, +1);
   }
 });
 
 /* -----------------------------------
-   DELETE: DECREMENT COUNTS
+   DELETE HOOK
 ----------------------------------- */
 productSchema.post("findOneAndDelete", async function (doc) {
   if (!doc?.category) return;
 
+  await safeUpdateCategoryCount(doc.category, -1);
+
   const Category = mongoose.model("Category");
-  const Catalog = mongoose.model("Catalog");
 
-  const category = await Category.findByIdAndUpdate(
-    doc.category,
-    { $inc: { productCount: -1 } },
-    { new: true }
-  );
-
+  const category = await Category.findById(doc.category);
   if (category?.catalog) {
-    await Catalog.findByIdAndUpdate(category.catalog, {
-      $inc: { productCount: -1 },
-    });
+    await safeUpdateCategoryCount(category.catalog, -1);
   }
 });
 
@@ -383,10 +330,7 @@ productSchema.virtual("finalPrice").get(function () {
 productSchema.virtual("installments").get(function () {
   const price = this.finalPrice;
   return {
-    tabby: {
-      payLaterDays: 14,
-      plans: { 4: Number((price / 4).toFixed(2)) },
-    },
+    tabby: { payLaterDays: 14, plans: { 4: Number((price / 4).toFixed(2)) } },
     tamara: {
       payLaterDays: 30,
       plans: {
@@ -397,4 +341,7 @@ productSchema.virtual("installments").get(function () {
   };
 });
 
+/* -----------------------------------
+   EXPORT (ONLY ONCE)
+----------------------------------- */
 export default mongoose.model("Product", productSchema);

@@ -1,4 +1,5 @@
 import User from "../models/user.model.js";
+import Role from "../models/role.model.js";
 import { sendCodeEmail } from "../utlis/sendEmail.js";
 import {
   BadRequest,
@@ -31,6 +32,8 @@ export const registerService = async ({
   phone,
   address
 }) => {
+  const userRole = await Role.findOne({ name: "user" });
+  console.log(userRole)
 
   if (!name || !email || !password || !confirmPassword || !phone) {
     throw BadRequest("All fields are required");
@@ -57,7 +60,7 @@ export const registerService = async ({
     email: normalizedEmail,
     password,
     phone: normalizedPhone,
-    role: role || "user",
+    role: userRole._id || "user",
     address: normalizedAddress,
   });
 
@@ -123,7 +126,7 @@ export const forgetPassword = async (email) => {
 
   const normalizedEmail = email.toLowerCase().trim();
   const user = await User.findOne({ email: normalizedEmail });
-
+  console.log(user)
   if (!user) throw NotFound("User not found");
 
   const resetCode = Math.floor(100000 + Math.random() * 900000).toString();

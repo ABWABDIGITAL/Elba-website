@@ -1,3 +1,4 @@
+// services/product.services.js
 import Product from "../models/product.model.js";
 import Category from "../models/category.model.js";
 import slugify from "slugify";
@@ -9,42 +10,40 @@ import ApiError, {
 import ApiFeatures from "../utlis/apiFeatures.js";
 
 /* --------------------------------------------------
-   DTO BUILDERS (Updated for new localized structure)
+   DTO BUILDERS (aligned with new model)
 --------------------------------------------------- */
 export const buildCompareDTO = (p) => {
   if (!p) return null;
   return {
     id: p._id,
     ar: {
-      name: p.ar?.name,
       title: p.ar?.title,
-      slug: p.ar?.slug,
+      subTitle: p.ar?.subTitle,
       description: p.ar?.description,
-      details: p.ar?.details,
-      seo: p.ar?.seo,
-      images: p.ar?.images,
-      features: p.ar?.features,
       specifications: p.ar?.specifications,
+      details: p.ar?.details,
+      features: p.ar?.features,
       warranty: p.ar?.warranty,
       reference: p.ar?.reference,
+      seo: p.ar?.seo,
     },
     en: {
-      name: p.en?.name,
       title: p.en?.title,
-      slug: p.en?.slug,
+      subTitle: p.en?.subTitle,
       description: p.en?.description,
-      details: p.en?.details,
-      seo: p.en?.seo,
-      images: p.en?.images,
-      features: p.en?.features,
       specifications: p.en?.specifications,
+      details: p.en?.details,
+      features: p.en?.features,
       warranty: p.en?.warranty,
       reference: p.en?.reference,
+      seo: p.en?.seo,
     },
+    images: p.images || [],
     sku: p.sku,
+    slug: p.slug,
     price: p.price,
-    discountPercentage: p.discountPercentage,
     discountPrice: p.discountPrice,
+    discountPercentage: p.discountPercentage,
     finalPrice: p.finalPrice,
     stock: p.stock,
     status: p.status,
@@ -64,15 +63,18 @@ export const buildGetAllproductDTO = (p) => {
   return {
     id: p._id,
     ar: {
-      name: p.ar?.name,
-      images: p.ar?.images,
+      title: p.ar?.title,
     },
     en: {
-      name: p.en?.name,
-      images: p.en?.images,
+      title: p.en?.title,
     },
+    images: p.images || [],
     sku: p.sku,
+    slug: p.slug,
     price: p.price,
+    discountPrice: p.discountPrice,
+    discountPercentage: p.discountPercentage,
+    finalPrice: p.finalPrice,
   };
 };
 
@@ -81,45 +83,43 @@ export const buildProductDTO = (p) => {
   return {
     id: p._id,
     ar: {
-      name: p.ar?.name,
       title: p.ar?.title,
-      slug: p.ar?.slug,
+      subTitle: p.ar?.subTitle,
       description: p.ar?.description,
       specifications: p.ar?.specifications,
       details: p.ar?.details,
       seo: p.ar?.seo,
       reference: p.ar?.reference,
-      images: p.ar?.images,
       features: p.ar?.features,
       warranty: p.ar?.warranty,
     },
     en: {
-      name: p.en?.name,
       title: p.en?.title,
-      slug: p.en?.slug,
+      subTitle: p.en?.subTitle,
       description: p.en?.description,
       specifications: p.en?.specifications,
       details: p.en?.details,
       seo: p.en?.seo,
       reference: p.en?.reference,
-      images: p.en?.images,
       features: p.en?.features,
       warranty: p.en?.warranty,
     },
+    images: p.images || [],
     sku: p.sku,
+    slug: p.slug,
     price: p.price,
-    discountPercentage: p.discountPercentage,
     discountPrice: p.discountPrice,
+    discountPercentage: p.discountPercentage,
     finalPrice: p.finalPrice,
     stock: p.stock,
     status: p.status,
-    modelNumber: p.modelNumber,
     category: p.category,
     brand: p.brand,
     ratingsAverage: p.ratingsAverage,
     ratingsQuantity: p.ratingsQuantity,
     views: p.views,
     salesCount: p.salesCount,
+    tags: p.tags || [],
   };
 };
 
@@ -133,59 +133,58 @@ export const validateProductDomain = (product) => {
   if (product.discountPercentage < 0 || product.discountPercentage > 100)
     errors.push("discountPercentage must be between 0 and 100");
   if (product.stock < 0) errors.push("stock must be >= 0");
+  if (product.discountPrice < 0) errors.push("discountPrice must be >= 0");
+  if (product.discountPrice > product.price)
+    errors.push("discountPrice cannot be greater than price");
 
   if (errors.length) throw BadRequest("Product validation failed", errors);
 };
 
 /* --------------------------------------------------
-   SLUG LOGIC (Updated for new localized structure)
+   SLUG LOGIC HELPER (kept for compatibility)
+   - لا نستخدمه للـ ar/en الآن، فقط يمكن استخدامه لو احتجت لاحقاً
 --------------------------------------------------- */
 const applySlugIfMissing = (data) => {
-  // Generate English slug if name exists but slug doesn't
-  if (data.en?.name && !data.en?.slug) {
-    if (!data.en) data.en = {};
-    data.en.slug = slugify(data.en.name, { lower: true, strict: true });
-  }
-
-  // Generate Arabic slug if name exists but slug doesn't
-  if (data.ar?.name && !data.ar?.slug) {
-    if (!data.ar) data.ar = {};
-    data.ar.slug = data.ar.name
-      .trim()
-      .replace(/\s+/g, "-")
-      .replace(/[^\u0600-\u06FF0-9\-]/g, "")
-      .toLowerCase();
+  // slug root from SKU لو حابب تبنيه من البيانات قبل الـ save
+  if (!data.slug && data.sku) {
+    data.slug = slugify(String(data.sku), { lower: true, strict: true });
   }
 };
 
 /* --------------------------------------------------
-   PRICING LOGIC (FINAL VERSION)
+   PRICING LOGIC
+   discountPrice = discount VALUE
 --------------------------------------------------- */
 function applyPricingLogic(data) {
   const price = data.price;
 
-  // لو مفيش price مش هنحسب حاجة
   if (price == null) return;
 
-  // لو فيه discountPrice → finalPrice = price - discountPrice
+  // لو فيه discountPrice (قيمة الخصم)
   if (data.discountPrice != null) {
-    data.finalPrice = price - data.discountPrice;
+    if (data.discountPrice < 0) data.discountPrice = 0;
+    if (data.discountPrice > price) data.discountPrice = price;
+
+    data.finalPrice = Number((price - data.discountPrice).toFixed(2));
     data.discountPercentage = Number(
       ((data.discountPrice / price) * 100).toFixed(2)
     );
     return;
   }
 
-  // لو فيه discountPercentage → احسب discountPrice + finalPrice
+  // لو فيه discountPercentage
   if (data.discountPercentage != null) {
+    if (data.discountPercentage < 0) data.discountPercentage = 0;
+    if (data.discountPercentage > 100) data.discountPercentage = 100;
+
     data.discountPrice = Number(
       ((price * data.discountPercentage) / 100).toFixed(2)
     );
-    data.finalPrice = price - data.discountPrice;
+    data.finalPrice = Number((price - data.discountPrice).toFixed(2));
     return;
   }
 
-  // لو مافيش خصم → finalPrice = price
+  // لا يوجد خصم
   data.discountPrice = 0;
   data.discountPercentage = 0;
   data.finalPrice = price;
@@ -205,7 +204,7 @@ export const createProductService = async (data) => {
     const product = new Product(data);
     validateProductDomain(product);
 
-    await product.save(); // triggers hooks
+    await product.save();
 
     return {
       OK: true,
@@ -219,7 +218,7 @@ export const createProductService = async (data) => {
 };
 
 /* --------------------------------------------------
-   UPDATE PRODUCT (Triggers Hooks Correctly)
+   UPDATE PRODUCT
 --------------------------------------------------- */
 export const updateProductService = async (id, data) => {
   try {
@@ -240,6 +239,8 @@ export const updateProductService = async (id, data) => {
     );
 
     if (!updated) throw NotFound("Product not found");
+
+    validateProductDomain(updated);
 
     return {
       OK: true,
@@ -359,13 +360,37 @@ export const getCompareProductsService = async (skus) => {
 };
 
 /* --------------------------------------------------
-   BEST SELLING BY CATEGORY
+   HELPER: GET CATEGORY + ALL DESCENDANTS
+   (يفترض وجود field: parent في Category)
+--------------------------------------------------- */
+const getCategoryTreeIds = async (rootCategoryId) => {
+  const ids = new Set();
+  const queue = [rootCategoryId];
+
+  while (queue.length) {
+    const current = queue.shift();
+    const currentId = current.toString();
+    if (ids.has(currentId)) continue;
+
+    ids.add(currentId);
+
+    const children = await Category.find({ parent: current }).select("_id");
+    children.forEach((c) => queue.push(c._id));
+  }
+
+  return Array.from(ids);
+};
+
+/* --------------------------------------------------
+   BEST SELLING BY CATEGORY (FULL TREE)
 --------------------------------------------------- */
 export const getBestSellingByCategoryService = async (categoryId, query) => {
   try {
     const { top } = query;
 
-    let mongooseQuery = Product.find({ category: categoryId })
+    const categoryIds = await getCategoryTreeIds(categoryId);
+
+    let mongooseQuery = Product.find({ category: { $in: categoryIds } })
       .populate("category", "name slug")
       .populate("brand", "name slug");
 
@@ -383,7 +408,7 @@ export const getBestSellingByCategoryService = async (categoryId, query) => {
 
     const features = new ApiFeatures(mongooseQuery, query, {
       allowedFilterFields: ["brand", "status"],
-      searchFields: ["en.name", "ar.name", "sku"],
+      searchFields: ["en.title", "ar.title", "sku"],
     })
       .filter()
       .search()
@@ -395,7 +420,10 @@ export const getBestSellingByCategoryService = async (categoryId, query) => {
     );
 
     const items = await features.mongooseQuery;
-    const total = await Product.countDocuments(features.getFilter());
+    const total = await Product.countDocuments({
+      ...features.getFilter(),
+      category: { $in: categoryIds },
+    });
 
     return {
       OK: true,
@@ -434,7 +462,7 @@ export const getBestOffersService = async (query) => {
 
     const features = new ApiFeatures(mongooseQuery, query, {
       allowedFilterFields: ["category", "brand", "status"],
-      searchFields: ["en.name", "ar.name", "sku"],
+      searchFields: ["en.title", "ar.title", "sku"],
     })
       .filter()
       .search()
@@ -467,7 +495,8 @@ export const getProductsByCatalog = async (catalogId) => {
   try {
     const categories = await Category.find({ catalog: catalogId }).select("_id");
 
-    if (!categories.length) throw NotFound("Categories not found for this catalog");
+    if (!categories.length)
+      throw NotFound("Categories not found for this catalog");
 
     const categoryIds = categories.map((c) => c._id);
 
@@ -518,7 +547,7 @@ export const getProductsByTagService = async (tag, query) => {
 
     const features = new ApiFeatures(mongooseQuery, query, {
       allowedFilterFields: ["category", "brand", "status"],
-      searchFields: ["en.name", "ar.name", "sku"],
+      searchFields: ["en.title", "ar.title", "sku"],
     })
       .filter()
       .search()
@@ -527,7 +556,10 @@ export const getProductsByTagService = async (tag, query) => {
       .paginate();
 
     const items = await features.mongooseQuery;
-    const total = await Product.countDocuments({ ...features.getFilter(), tags: tag });
+    const total = await Product.countDocuments({
+      ...features.getFilter(),
+      tags: tag,
+    });
 
     return {
       OK: true,
@@ -563,19 +595,22 @@ export const getProductsByTagsService = async (tags, query) => {
 
     const tagArray = Array.isArray(tags) ? tags : tags.split(",");
 
-    const invalidTags = tagArray.filter(t => !validTags.includes(t));
+    const invalidTags = tagArray.filter((t) => !validTags.includes(t));
     if (invalidTags.length > 0) {
-      throw BadRequest(`Invalid tags: ${invalidTags.join(", ")}. Valid tags: ${validTags.join(", ")}`);
+      throw BadRequest(
+        `Invalid tags: ${invalidTags.join(
+          ", "
+        )}. Valid tags: ${validTags.join(", ")}`
+      );
     }
 
-    // Products that have ALL specified tags
     let mongooseQuery = Product.find({ tags: { $all: tagArray } })
       .populate("category", "en.name ar.name en.slug ar.slug")
       .populate("brand", "en.name ar.name en.slug ar.slug");
 
     const features = new ApiFeatures(mongooseQuery, query, {
       allowedFilterFields: ["category", "brand", "status"],
-      searchFields: ["en.name", "ar.name", "sku"],
+      searchFields: ["en.title", "ar.title", "sku"],
     })
       .filter()
       .search()
@@ -584,7 +619,10 @@ export const getProductsByTagsService = async (tags, query) => {
       .paginate();
 
     const items = await features.mongooseQuery;
-    const total = await Product.countDocuments({ ...features.getFilter(), tags: { $all: tagArray } });
+    const total = await Product.countDocuments({
+      ...features.getFilter(),
+      tags: { $all: tagArray },
+    });
 
     return {
       OK: true,
@@ -656,7 +694,11 @@ export const getAvailableTagsService = async () => {
 /* --------------------------------------------------
    BULK UPDATE PRODUCT TAGS
 --------------------------------------------------- */
-export const bulkUpdateProductTagsService = async (productIds, tagsToAdd, tagsToRemove) => {
+export const bulkUpdateProductTagsService = async (
+  productIds,
+  tagsToAdd,
+  tagsToRemove
+) => {
   try {
     const validTags = [
       "best_seller",
@@ -674,16 +716,18 @@ export const bulkUpdateProductTagsService = async (productIds, tagsToAdd, tagsTo
     ];
 
     if (tagsToAdd) {
-      const invalidAdd = tagsToAdd.filter(t => !validTags.includes(t));
+      const invalidAdd = tagsToAdd.filter((t) => !validTags.includes(t));
       if (invalidAdd.length > 0) {
         throw BadRequest(`Invalid tags to add: ${invalidAdd.join(", ")}`);
       }
     }
 
     if (tagsToRemove) {
-      const invalidRemove = tagsToRemove.filter(t => !validTags.includes(t));
+      const invalidRemove = tagsToRemove.filter((t) => !validTags.includes(t));
       if (invalidRemove.length > 0) {
-        throw BadRequest(`Invalid tags to remove: ${invalidRemove.join(", ")}`);
+        throw BadRequest(
+          `Invalid tags to remove: ${invalidRemove.join(", ")}`
+        );
       }
     }
 

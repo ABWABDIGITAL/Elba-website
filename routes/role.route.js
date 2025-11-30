@@ -37,11 +37,11 @@ router.post(
   createRole
 );
 
-// Get all roles (any authenticated user can view roles)
-router.get("/", getAllRoles);
 
 // Get specific role by ID
 router.get("/:id", validateRoleId, getRoleById);
+// Get all roles (any authenticated user can view roles)
+router.get("/", getAllRoles);
 
 // Update role
 router.put(

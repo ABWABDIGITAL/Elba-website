@@ -20,7 +20,7 @@ import adminRoutes from "./routes/admin.route.js";
 import seedRoles from "./config/seedRoles.js";
 
 connectDB().then(async () => {
-  // Seed default roles on startup
+//   Seed default roles on startup
   await seedRoles();
 });
 
@@ -32,15 +32,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/v1/auth" , authRoutes);
+app.use("/api/v1/home" , homeRoutes);
+app.use("/api/v1/products" , productRoutes);
 app.use("/api/v1/categories" , categoryRoutes);
 app.use("/api/v1/brands" , brandRoutes);
-app.use("/api/v1/products" , productRoutes);
 app.use("/api/v1/users" , userRoutes);
 app.use("/api/v1/reviews" , reviewRoutes);
 app.use("/api/v1/cart" , cartRoutes);
 app.use("/api/v1/orders" , orderRoutes);
 app.use("/api/v1/catalogs" , catalogRoutes);
-app.use("/api/v1/home" , homeRoutes);
 app.use("/api/v1/coupons" , couponRoutes);
 app.use("/api/v1/branches" , branchRoutes);
 app.use("/api/v1/roles" , roleRoutes);

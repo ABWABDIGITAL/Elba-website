@@ -79,8 +79,6 @@ const roleSchema = new mongoose.Schema(
   }
 );
 
-roleSchema.index({ name: 1, isActive: 1 });
-
 roleSchema.pre("findOneAndDelete", async function (next) {
   const role = await this.model.findOne(this.getQuery());
 
