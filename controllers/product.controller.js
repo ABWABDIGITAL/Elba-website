@@ -8,7 +8,11 @@ import {
   getCompareProductsService,
   getBestSellingByCategoryService,
   getBestOffersService,
-  getProductsByCatalog
+  getProductsByCatalog,
+  getProductsByTagService,
+  getProductsByTagsService,
+  getAvailableTagsService,
+  bulkUpdateProductTagsService,
 } from "../services/product.services.js";
 
 import { StatusCodes } from "http-status-codes";
@@ -368,6 +372,67 @@ export const getProductsByCatalogController = async (req, res, next) => {
   try {
     const { catalogId } = req.params;
     const result = await getProductsByCatalog(catalogId);
+    res.status(StatusCodes.OK).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET PRODUCTS BY SINGLE TAG
+// Route: GET /products/tag/:tag
+export const getProductsByTag = async (req, res, next) => {
+  try {
+    const { tag } = req.params;
+    const result = await getProductsByTagService(tag, req.query);
+    res.status(StatusCodes.OK).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET PRODUCTS BY MULTIPLE TAGS
+// Route: GET /products/tags?tags=best_seller,hot
+export const getProductsByTags = async (req, res, next) => {
+  try {
+    const { tags } = req.query;
+    if (!tags) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        OK: false,
+        message: "Tags query parameter is required",
+      });
+    }
+    const result = await getProductsByTagsService(tags, req.query);
+    res.status(StatusCodes.OK).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// GET ALL AVAILABLE TAGS
+// Route: GET /products/tags/available
+export const getAvailableTags = async (req, res, next) => {
+  try {
+    const result = await getAvailableTagsService();
+    res.status(StatusCodes.OK).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// BULK UPDATE PRODUCT TAGS
+// Route: POST /products/tags/bulk-update
+export const bulkUpdateProductTags = async (req, res, next) => {
+  try {
+    const { productIds, tagsToAdd, tagsToRemove } = req.body;
+
+    if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        OK: false,
+        message: "productIds array is required",
+      });
+    }
+
+    const result = await bulkUpdateProductTagsService(productIds, tagsToAdd, tagsToRemove);
     res.status(StatusCodes.OK).json(result);
   } catch (err) {
     next(err);

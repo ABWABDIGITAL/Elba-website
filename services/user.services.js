@@ -47,7 +47,7 @@ export const adminGetUserByIdService = async (id) => {
   };
 };
 
-export const adminUpdateUserService = async (id, data, adminRole) => {
+export const adminUpdateUserService = async (id, data, adminRole, file = null) => {
   if (!id) throw BadRequest("User ID is required");
 
   const user = await User.findById(id);
@@ -71,6 +71,11 @@ export const adminUpdateUserService = async (id, data, adminRole) => {
     if (exists && exists._id.toString() !== id.toString()) {
       throw BadRequest("Email already used by another user");
     }
+  }
+
+  // Handle profile image upload
+  if (file) {
+    data.profileImage = `/${file.path.replace(/\\/g, "/")}`;
   }
 
   // Prevent direct manipulation of sensitive fields

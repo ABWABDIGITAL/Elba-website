@@ -48,6 +48,7 @@ export const buildCompareDTO = (p) => {
     finalPrice: p.finalPrice,
     stock: p.stock,
     status: p.status,
+    tags: p.tags || [],
     modelNumber: p.modelNumber,
     category: p.category,
     brand: p.brand,
@@ -486,3 +487,248 @@ export const getProductsByCatalog = async (catalogId) => {
     throw ServerError("Failed to get products", err);
   }
 };
+
+/* --------------------------------------------------
+   GET PRODUCTS BY TAG
+--------------------------------------------------- */
+export const getProductsByTagService = async (tag, query) => {
+  try {
+    const validTags = [
+      "best_seller",
+      "hot",
+      "new_arrival",
+      "trending",
+      "featured",
+      "limited_edition",
+      "on_sale",
+      "clearance",
+      "top_rated",
+      "eco_friendly",
+      "exclusive",
+      "recommended",
+    ];
+
+    if (!validTags.includes(tag)) {
+      throw BadRequest(`Invalid tag. Valid tags: ${validTags.join(", ")}`);
+    }
+
+    let mongooseQuery = Product.find({ tags: tag })
+      .populate("category", "en.name ar.name en.slug ar.slug")
+      .populate("brand", "en.name ar.name en.slug ar.slug");
+
+    const features = new ApiFeatures(mongooseQuery, query, {
+      allowedFilterFields: ["category", "brand", "status"],
+      searchFields: ["en.name", "ar.name", "sku"],
+    })
+      .filter()
+      .search()
+      .sort()
+      .limitFields()
+      .paginate();
+
+    const items = await features.mongooseQuery;
+    const total = await Product.countDocuments({ ...features.getFilter(), tags: tag });
+
+    return {
+      OK: true,
+      message: `Products with tag '${tag}' fetched successfully`,
+      data: items.map(buildProductDTO),
+      pagination: features.buildPaginationResult(total),
+    };
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw ServerError("Failed to get products by tag", err);
+  }
+};
+
+/* --------------------------------------------------
+   GET PRODUCTS BY MULTIPLE TAGS
+--------------------------------------------------- */
+export const getProductsByTagsService = async (tags, query) => {
+  try {
+    const validTags = [
+      "best_seller",
+      "hot",
+      "new_arrival",
+      "trending",
+      "featured",
+      "limited_edition",
+      "on_sale",
+      "clearance",
+      "top_rated",
+      "eco_friendly",
+      "exclusive",
+      "recommended",
+    ];
+
+    const tagArray = Array.isArray(tags) ? tags : tags.split(",");
+
+    const invalidTags = tagArray.filter(t => !validTags.includes(t));
+    if (invalidTags.length > 0) {
+      throw BadRequest(`Invalid tags: ${invalidTags.join(", ")}. Valid tags: ${validTags.join(", ")}`);
+    }
+
+    // Products that have ALL specified tags
+    let mongooseQuery = Product.find({ tags: { $all: tagArray } })
+      .populate("category", "en.name ar.name en.slug ar.slug")
+      .populate("brand", "en.name ar.name en.slug ar.slug");
+
+    const features = new ApiFeatures(mongooseQuery, query, {
+      allowedFilterFields: ["category", "brand", "status"],
+      searchFields: ["en.name", "ar.name", "sku"],
+    })
+      .filter()
+      .search()
+      .sort()
+      .limitFields()
+      .paginate();
+
+    const items = await features.mongooseQuery;
+    const total = await Product.countDocuments({ ...features.getFilter(), tags: { $all: tagArray } });
+
+    return {
+      OK: true,
+      message: `Products with tags fetched successfully`,
+      data: items.map(buildProductDTO),
+      pagination: features.buildPaginationResult(total),
+    };
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw ServerError("Failed to get products by tags", err);
+  }
+};
+
+/* --------------------------------------------------
+   GET ALL AVAILABLE TAGS WITH COUNTS
+--------------------------------------------------- */
+export const getAvailableTagsService = async () => {
+  try {
+    const tagStats = await Product.aggregate([
+      { $unwind: "$tags" },
+      {
+        $group: {
+          _id: "$tags",
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { count: -1 },
+      },
+    ]);
+
+    const allTags = [
+      "best_seller",
+      "hot",
+      "new_arrival",
+      "trending",
+      "featured",
+      "limited_edition",
+      "on_sale",
+      "clearance",
+      "top_rated",
+      "eco_friendly",
+      "exclusive",
+      "recommended",
+    ];
+
+    const tagData = allTags.map((tag) => {
+      const stat = tagStats.find((s) => s._id === tag);
+      return {
+        tag,
+        count: stat ? stat.count : 0,
+        displayName: {
+          en: tag.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+          ar: getArabicTagName(tag),
+        },
+      };
+    });
+
+    return {
+      OK: true,
+      message: "Available tags fetched successfully",
+      data: tagData,
+    };
+  } catch (err) {
+    throw ServerError("Failed to get available tags", err);
+  }
+};
+
+/* --------------------------------------------------
+   BULK UPDATE PRODUCT TAGS
+--------------------------------------------------- */
+export const bulkUpdateProductTagsService = async (productIds, tagsToAdd, tagsToRemove) => {
+  try {
+    const validTags = [
+      "best_seller",
+      "hot",
+      "new_arrival",
+      "trending",
+      "featured",
+      "limited_edition",
+      "on_sale",
+      "clearance",
+      "top_rated",
+      "eco_friendly",
+      "exclusive",
+      "recommended",
+    ];
+
+    if (tagsToAdd) {
+      const invalidAdd = tagsToAdd.filter(t => !validTags.includes(t));
+      if (invalidAdd.length > 0) {
+        throw BadRequest(`Invalid tags to add: ${invalidAdd.join(", ")}`);
+      }
+    }
+
+    if (tagsToRemove) {
+      const invalidRemove = tagsToRemove.filter(t => !validTags.includes(t));
+      if (invalidRemove.length > 0) {
+        throw BadRequest(`Invalid tags to remove: ${invalidRemove.join(", ")}`);
+      }
+    }
+
+    const updateOps = {};
+    if (tagsToAdd && tagsToAdd.length > 0) {
+      updateOps.$addToSet = { tags: { $each: tagsToAdd } };
+    }
+    if (tagsToRemove && tagsToRemove.length > 0) {
+      updateOps.$pull = { tags: { $in: tagsToRemove } };
+    }
+
+    const result = await Product.updateMany(
+      { _id: { $in: productIds } },
+      updateOps
+    );
+
+    return {
+      OK: true,
+      message: "Product tags updated successfully",
+      data: {
+        modifiedCount: result.modifiedCount,
+        matchedCount: result.matchedCount,
+      },
+    };
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw ServerError("Failed to bulk update product tags", err);
+  }
+};
+
+// Helper function for Arabic tag names
+function getArabicTagName(tag) {
+  const arabicNames = {
+    best_seller: "الأكثر مبيعاً",
+    hot: "ساخن",
+    new_arrival: "وصل حديثاً",
+    trending: "رائج",
+    featured: "مميز",
+    limited_edition: "إصدار محدود",
+    on_sale: "تخفيضات",
+    clearance: "تصفية",
+    top_rated: "الأعلى تقييماً",
+    eco_friendly: "صديق للبيئة",
+    exclusive: "حصري",
+    recommended: "موصى به",
+  };
+  return arabicNames[tag] || tag;
+}

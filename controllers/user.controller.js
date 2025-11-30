@@ -32,7 +32,12 @@ export const adminGetUserById = async (req, res, next) => {
 
 export const adminUpdateUser = async (req, res, next) => {
   try {
-    const result = await adminUpdateUserService(req.params.id, req.body, req.user.role);
+    const result = await adminUpdateUserService(
+      req.params.id,
+      req.body,
+      req.user.legacyRole,
+      req.file
+    );
     res.status(StatusCodes.OK).json(result);
   } catch (err) {
     next(err);

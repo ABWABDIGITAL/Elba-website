@@ -19,6 +19,8 @@ import {
 } from "../validators/role.validators.js";
 import { protect } from "../middlewares/authMiddleware.js";
 import { requirePermission, isSuperAdmin } from "../middlewares/permission.middleware.js";
+import upload from "../middlewares/uploadMiddleware.js";
+import parseNestedJson from "../middlewares/ParseNestedDot.js";
 
 const router = express.Router();
 
@@ -29,6 +31,8 @@ router.use(protect);
 router.post(
   "/",
   requirePermission("roles", "create"),
+  upload({ folder: "roles" }).none(),
+  parseNestedJson,
   validateCreateRole,
   createRole
 );
@@ -43,6 +47,8 @@ router.get("/:id", validateRoleId, getRoleById);
 router.put(
   "/:id",
   requirePermission("roles", "update"),
+  upload({ folder: "roles" }).none(),
+  parseNestedJson,
   validateUpdateRole,
   updateRole
 );
@@ -59,6 +65,8 @@ router.delete(
 router.post(
   "/assign",
   requirePermission("roles", "update"),
+  upload({ folder: "roles" }).none(),
+  parseNestedJson,
   validateAssignRole,
   assignRoleToUser
 );
@@ -75,6 +83,8 @@ router.get(
 router.post(
   "/:id/clone",
   requirePermission("roles", "create"),
+  upload({ folder: "roles" }).none(),
+  parseNestedJson,
   validateCloneRole,
   cloneRole
 );

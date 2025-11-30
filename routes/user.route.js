@@ -13,6 +13,8 @@ import {
 
 import { protect, allowTo } from "../middlewares/authMiddleware.js";
 import { requirePermission } from "../middlewares/permission.middleware.js";
+import upload from "../middlewares/uploadMiddleware.js";
+import parseNestedJson from "../middlewares/ParseNestedDot.js";
 
 const router = express.Router();
 
@@ -29,7 +31,13 @@ router.get("/:id", requirePermission("users", "read"), adminGetUserById);
 router.get("/:id/statistics", requirePermission("users", "read"), getUserStatistics);
 
 // Update user (requires users:update permission)
-router.put("/:id", requirePermission("users", "update"), adminUpdateUser);
+router.put(
+  "/:id",
+  requirePermission("users", "update"),
+  upload({ folder: "users" }).single("profileImage"),
+  parseNestedJson,
+  adminUpdateUser
+);
 
 // Deactivate user (requires users:delete permission)
 router.delete("/:id", requirePermission("users", "delete"), adminDeleteUser);
@@ -38,12 +46,24 @@ router.delete("/:id", requirePermission("users", "delete"), adminDeleteUser);
 router.patch("/:id/activate", requirePermission("users", "update"), adminActivateUser);
 
 // Lock user account (requires users:update permission)
-router.patch("/:id/lock", requirePermission("users", "update"), adminLockUser);
+router.patch(
+  "/:id/lock",
+  requirePermission("users", "update"),
+  upload({ folder: "users" }).none(),
+  parseNestedJson,
+  adminLockUser
+);
 
 // Unlock user account (requires users:update permission)
 router.patch("/:id/unlock", requirePermission("users", "update"), adminUnlockUser);
 
 // Bulk actions on users (requires users:update permission)
-router.post("/bulk-action", requirePermission("users", "update"), adminBulkAction);
+router.post(
+  "/bulk-action",
+  requirePermission("users", "update"),
+  upload({ folder: "users" }).none(),
+  parseNestedJson,
+  adminBulkAction
+);
 
 export default router;

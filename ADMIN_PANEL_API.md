@@ -6,10 +6,11 @@ This document provides comprehensive documentation for the Admin Panel API with 
 
 1. [Overview](#overview)
 2. [Authentication](#authentication)
-3. [Role Management](#role-management)
-4. [User Management](#user-management)
-5. [Analytics & Dashboard](#analytics--dashboard)
-6. [Permissions System](#permissions-system)
+3. [FormData Usage](#formdata-usage)
+4. [Role Management](#role-management)
+5. [User Management](#user-management)
+6. [Analytics & Dashboard](#analytics--dashboard)
+7. [Permissions System](#permissions-system)
 
 ---
 
@@ -22,6 +23,7 @@ The Admin Panel provides a comprehensive role-based access control (RBAC) system
 - **Action-Level Permissions**: Control CRUD operations (create, read, update, delete, export, import)
 - **Pre-configured Roles**: 7 default roles including Super Admin, Admin, Manager, Content Manager, Sales Manager, Customer Support, and Viewer
 - **Redis Caching**: All frequently accessed data is cached for optimal performance
+- **FormData Support**: All POST/PUT/PATCH endpoints accept FormData for file uploads and nested data
 
 ---
 
@@ -33,6 +35,72 @@ All admin panel endpoints require authentication using Bearer tokens.
 
 ```
 Authorization: Bearer <your_jwt_token>
+Content-Type: multipart/form-data (for POST/PUT/PATCH requests)
+```
+
+---
+
+## FormData Usage
+
+All POST, PUT, and PATCH endpoints accept `multipart/form-data` instead of JSON. This allows for file uploads and handles nested objects using dot notation.
+
+### Nested Object Notation
+
+Use dot notation for nested objects:
+
+```javascript
+// Instead of JSON:
+{
+  "displayName": {
+    "en": "Admin",
+    "ar": "مدير"
+  }
+}
+
+// Use FormData with dot notation:
+formData.append("displayName.en", "Admin");
+formData.append("displayName.ar", "مدير");
+```
+
+### Array Notation
+
+For arrays, use bracket notation with indices:
+
+```javascript
+// For permissions array:
+formData.append("permissions[0].resource", "users");
+formData.append("permissions[0].actions.create", "true");
+formData.append("permissions[0].actions.read", "true");
+formData.append("permissions[1].resource", "products");
+formData.append("permissions[1].actions.create", "true");
+```
+
+### File Uploads
+
+Upload files using the appropriate field name:
+
+```javascript
+formData.append("profileImage", fileInput.files[0]);
+```
+
+### JavaScript Example
+
+```javascript
+const formData = new FormData();
+formData.append("name", "inventory_manager");
+formData.append("displayName.en", "Inventory Manager");
+formData.append("displayName.ar", "مدير المخزون");
+formData.append("permissions[0].resource", "products");
+formData.append("permissions[0].actions.create", "true");
+formData.append("permissions[0].actions.read", "true");
+
+fetch('/api/v1/roles', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer ' + token
+  },
+  body: formData
+});
 ```
 
 ### User Roles
@@ -59,45 +127,37 @@ Base URL: `/api/v1/roles`
 
 **Permission Required**: `roles:create`
 
-**Request Body**:
-```json
-{
-  "name": "inventory_manager",
-  "displayName": {
-    "en": "Inventory Manager",
-    "ar": "مدير المخزون"
-  },
-  "description": {
-    "en": "Manages product inventory and stock",
-    "ar": "يدير مخزون المنتجات والمخزون"
-  },
-  "permissions": [
-    {
-      "resource": "products",
-      "actions": {
-        "create": true,
-        "read": true,
-        "update": true,
-        "delete": false,
-        "export": true,
-        "import": true
-      }
-    },
-    {
-      "resource": "categories",
-      "actions": {
-        "create": false,
-        "read": true,
-        "update": false,
-        "delete": false,
-        "export": false,
-        "import": false
-      }
-    }
-  ],
-  "priority": 65,
-  "isActive": true
-}
+**Content-Type**: `multipart/form-data`
+
+**Request Body** (FormData):
+```javascript
+const formData = new FormData();
+formData.append("name", "inventory_manager");
+formData.append("displayName.en", "Inventory Manager");
+formData.append("displayName.ar", "مدير المخزون");
+formData.append("description.en", "Manages product inventory and stock");
+formData.append("description.ar", "يدير مخزون المنتجات والمخزون");
+
+// First permission
+formData.append("permissions[0].resource", "products");
+formData.append("permissions[0].actions.create", "true");
+formData.append("permissions[0].actions.read", "true");
+formData.append("permissions[0].actions.update", "true");
+formData.append("permissions[0].actions.delete", "false");
+formData.append("permissions[0].actions.export", "true");
+formData.append("permissions[0].actions.import", "true");
+
+// Second permission
+formData.append("permissions[1].resource", "categories");
+formData.append("permissions[1].actions.create", "false");
+formData.append("permissions[1].actions.read", "true");
+formData.append("permissions[1].actions.update", "false");
+formData.append("permissions[1].actions.delete", "false");
+formData.append("permissions[1].actions.export", "false");
+formData.append("permissions[1].actions.import", "false");
+
+formData.append("priority", "65");
+formData.append("isActive", "true");
 ```
 
 **Available Resources**:
@@ -203,16 +263,20 @@ Base URL: `/api/v1/roles`
 
 **Permission Required**: `roles:update`
 
-**Request Body** (all fields optional):
-```json
-{
-  "displayName": {
-    "en": "Updated Role Name"
-  },
-  "permissions": [...],
-  "priority": 70,
-  "isActive": true
-}
+**Content-Type**: `multipart/form-data`
+
+**Request Body** (FormData - all fields optional):
+```javascript
+const formData = new FormData();
+formData.append("displayName.en", "Updated Role Name");
+formData.append("displayName.ar", "اسم الدور المحدث");
+formData.append("priority", "70");
+formData.append("isActive", "true");
+
+// Update permissions if needed
+formData.append("permissions[0].resource", "products");
+formData.append("permissions[0].actions.create", "true");
+// ... add more as needed
 ```
 
 **Note**: System roles cannot have their `isSystemRole` status changed.
@@ -241,12 +305,13 @@ Base URL: `/api/v1/roles`
 
 **Permission Required**: `roles:update`
 
-**Request Body**:
-```json
-{
-  "userId": "60d5ec49f1b2c72b8c8e4a1c",
-  "roleId": "60d5ec49f1b2c72b8c8e4a1b"
-}
+**Content-Type**: `multipart/form-data`
+
+**Request Body** (FormData):
+```javascript
+const formData = new FormData();
+formData.append("userId", "60d5ec49f1b2c72b8c8e4a1c");
+formData.append("roleId", "60d5ec49f1b2c72b8c8e4a1b");
 ```
 
 **Response**:
@@ -307,11 +372,12 @@ Base URL: `/api/v1/roles`
 
 **Permission Required**: `roles:create`
 
-**Request Body**:
-```json
-{
-  "newRoleName": "custom_admin"
-}
+**Content-Type**: `multipart/form-data`
+
+**Request Body** (FormData):
+```javascript
+const formData = new FormData();
+formData.append("newRoleName", "custom_admin");
 ```
 
 **Response**:
@@ -436,20 +502,32 @@ Base URL: `/api/v1/users`
 
 **Permission Required**: `users:update`
 
-**Request Body** (all fields optional):
-```json
-{
-  "name": "John Updated",
-  "email": "john.updated@example.com",
-  "phone": "+966501234567",
-  "address": "Jeddah",
-  "isActive": true
+**Content-Type**: `multipart/form-data`
+
+**Request Body** (FormData - all fields optional):
+```javascript
+const formData = new FormData();
+formData.append("name", "John Updated");
+formData.append("email", "john.updated@example.com");
+formData.append("phone", "+966501234567");
+formData.append("address", "Jeddah");
+formData.append("isActive", "true");
+
+// Optional: Upload profile image
+if (profileImageFile) {
+  formData.append("profileImage", profileImageFile);
 }
+
+// Optional: Update preferences
+formData.append("preferences.language", "en");
+formData.append("preferences.notifications", "true");
+formData.append("preferences.emailNotifications", "false");
 ```
 
 **Note**:
 - Admins cannot change user passwords
 - Only SuperAdmin can change roles
+- Profile image will be uploaded to `/uploads/users/`
 
 **Response**:
 ```json
@@ -506,14 +584,13 @@ Base URL: `/api/v1/users`
 
 **Permission Required**: `users:update`
 
-**Request Body**:
-```json
-{
-  "lockDuration": 24
-}
-```
+**Content-Type**: `multipart/form-data`
 
-**lockDuration**: Hours to lock the account (default: 24)
+**Request Body** (FormData):
+```javascript
+const formData = new FormData();
+formData.append("lockDuration", "24"); // Hours to lock the account (default: 24)
+```
 
 **Response**:
 ```json
@@ -549,16 +626,22 @@ Base URL: `/api/v1/users`
 
 **Permission Required**: `users:update`
 
-**Request Body**:
-```json
-{
-  "action": "activate",
-  "userIds": [
-    "60d5ec49f1b2c72b8c8e4a1c",
-    "60d5ec49f1b2c72b8c8e4a1d",
-    "60d5ec49f1b2c72b8c8e4a1e"
-  ]
-}
+**Content-Type**: `multipart/form-data`
+
+**Request Body** (FormData):
+```javascript
+const formData = new FormData();
+formData.append("action", "activate");
+formData.append("userIds[0]", "60d5ec49f1b2c72b8c8e4a1c");
+formData.append("userIds[1]", "60d5ec49f1b2c72b8c8e4a1d");
+formData.append("userIds[2]", "60d5ec49f1b2c72b8c8e4a1e");
+
+// Or as a JSON string
+// formData.append("userIds", JSON.stringify([
+//   "60d5ec49f1b2c72b8c8e4a1c",
+//   "60d5ec49f1b2c72b8c8e4a1d",
+//   "60d5ec49f1b2c72b8c8e4a1e"
+// ]));
 ```
 
 **Available Actions**:
@@ -914,64 +997,101 @@ All endpoints return consistent error responses:
 
 ### Creating a Custom "Marketing Manager" Role
 
-```bash
-POST /api/v1/roles
-Authorization: Bearer <token>
+```javascript
+const formData = new FormData();
+formData.append("name", "marketing_manager");
+formData.append("displayName.en", "Marketing Manager");
+formData.append("displayName.ar", "مدير التسويق");
+formData.append("description.en", "Manages marketing campaigns and promotions");
+formData.append("description.ar", "يدير الحملات التسويقية والعروض الترويجية");
 
-{
-  "name": "marketing_manager",
-  "displayName": {
-    "en": "Marketing Manager",
-    "ar": "مدير التسويق"
+// Products permission
+formData.append("permissions[0].resource", "products");
+formData.append("permissions[0].actions.create", "false");
+formData.append("permissions[0].actions.read", "true");
+formData.append("permissions[0].actions.update", "true");
+formData.append("permissions[0].actions.delete", "false");
+
+// Coupons permission
+formData.append("permissions[1].resource", "coupons");
+formData.append("permissions[1].actions.create", "true");
+formData.append("permissions[1].actions.read", "true");
+formData.append("permissions[1].actions.update", "true");
+formData.append("permissions[1].actions.delete", "true");
+
+// Home permission
+formData.append("permissions[2].resource", "home");
+formData.append("permissions[2].actions.create", "false");
+formData.append("permissions[2].actions.read", "true");
+formData.append("permissions[2].actions.update", "true");
+formData.append("permissions[2].actions.delete", "false");
+
+// Analytics permission
+formData.append("permissions[3].resource", "analytics");
+formData.append("permissions[3].actions.create", "false");
+formData.append("permissions[3].actions.read", "true");
+formData.append("permissions[3].actions.update", "false");
+formData.append("permissions[3].actions.delete", "false");
+formData.append("permissions[3].actions.export", "true");
+
+formData.append("priority", "68");
+formData.append("isActive", "true");
+
+// Make request
+fetch('/api/v1/roles', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer ' + token
   },
-  "description": {
-    "en": "Manages marketing campaigns and promotions",
-    "ar": "يدير الحملات التسويقية والعروض الترويجية"
-  },
-  "permissions": [
-    {
-      "resource": "products",
-      "actions": { "create": false, "read": true, "update": true, "delete": false }
-    },
-    {
-      "resource": "coupons",
-      "actions": { "create": true, "read": true, "update": true, "delete": true }
-    },
-    {
-      "resource": "home",
-      "actions": { "create": false, "read": true, "update": true, "delete": false }
-    },
-    {
-      "resource": "analytics",
-      "actions": { "create": false, "read": true, "update": false, "delete": false, "export": true }
-    }
-  ],
-  "priority": 68,
-  "isActive": true
-}
+  body: formData
+});
 ```
 
 ### Bulk Activating Users
 
-```bash
-POST /api/v1/users/bulk-action
-Authorization: Bearer <token>
+```javascript
+const formData = new FormData();
+formData.append("action", "activate");
+formData.append("userIds[0]", "60d5ec49f1b2c72b8c8e4a1c");
+formData.append("userIds[1]", "60d5ec49f1b2c72b8c8e4a1d");
+formData.append("userIds[2]", "60d5ec49f1b2c72b8c8e4a1e");
 
-{
-  "action": "activate",
-  "userIds": [
-    "60d5ec49f1b2c72b8c8e4a1c",
-    "60d5ec49f1b2c72b8c8e4a1d",
-    "60d5ec49f1b2c72b8c8e4a1e"
-  ]
-}
+fetch('/api/v1/users/bulk-action', {
+  method: 'POST',
+  headers: {
+    'Authorization': 'Bearer ' + token
+  },
+  body: formData
+});
 ```
 
 ### Getting Dashboard Analytics
 
-```bash
-GET /api/v1/admin/analytics/dashboard
-Authorization: Bearer <token>
+```javascript
+fetch('/api/v1/admin/analytics/dashboard', {
+  method: 'GET',
+  headers: {
+    'Authorization': 'Bearer ' + token
+  }
+});
+```
+
+### Updating User with Profile Image
+
+```javascript
+const formData = new FormData();
+formData.append("name", "John Doe");
+formData.append("email", "john@example.com");
+formData.append("phone", "+966501234567");
+formData.append("profileImage", fileInput.files[0]); // File from input
+
+fetch('/api/v1/users/60d5ec49f1b2c72b8c8e4a1c', {
+  method: 'PUT',
+  headers: {
+    'Authorization': 'Bearer ' + token
+  },
+  body: formData
+});
 ```
 
 ---

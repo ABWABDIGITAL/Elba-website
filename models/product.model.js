@@ -203,6 +203,26 @@ const productSchema = new mongoose.Schema(
 
     isFav: { type: Boolean, default: false },
     views: { type: Number, default: 0 },
+
+    tags: {
+      type: [String],
+      enum: [
+        "best_seller",
+        "hot",
+        "new_arrival",
+        "trending",
+        "featured",
+        "limited_edition",
+        "on_sale",
+        "clearance",
+        "top_rated",
+        "eco_friendly",
+        "exclusive",
+        "recommended",
+      ],
+      default: [],
+      index: true,
+    },
   },
   {
     timestamps: true,
