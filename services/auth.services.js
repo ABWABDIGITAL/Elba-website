@@ -1,31 +1,71 @@
 import User from "../models/user.model.js";
-import sendEmail from "../utlis/sendEmail.js";
+import { sendCodeEmail } from "../utlis/sendEmail.js";
+import {
+  BadRequest,
+  NotFound,
+  ServerError,
+} from "../utlis/apiError.js";
 import crypto from "crypto";
 
+/* ==========================================================
+   USER DTO
+========================================================== */
 const buildUserDTO = (user) => ({
   id: user._id,
   name: user.name,
   email: user.email,
+  phone: user.phone,
+  address: user.address,
   role: user.role,
 });
 
-export const registerService = async ({ name, email, password, role }) => {
-  if (!name || !email || !password) {
-    return { OK: false, error: "All fields are required" };
+/* ==========================================================
+   REGISTER SERVICE (FIXED)
+========================================================== */
+export const registerService = async ({
+  name,
+  email,
+  password,
+  confirmPassword,
+  role,
+  phone,
+  address
+}) => {
+
+  if (!name || !email || !password || !confirmPassword || !phone) {
+    throw BadRequest("All fields are required");
   }
 
-  const normalizedEmail = email.toLowerCase();
-  const existingUser = await User.findOne({ email: normalizedEmail });
-
-  if (existingUser) {
-    return { OK: false, error: "Email is already in use" };
+  if (password !== confirmPassword) {
+    throw BadRequest("Passwords do not match");
   }
 
-  const newUser = await User.create({ name, email: normalizedEmail, password, role });
+  const normalizedEmail = email.toLowerCase().trim();
+  const normalizedPhone = phone.trim();
+  const normalizedAddress = address?.trim();
+
+  // Double check for duplicates
+  const emailExists = await User.findOne({ email: normalizedEmail });
+  if (emailExists) throw BadRequest("Email already registered");
+
+  const phoneExists = await User.findOne({ phone: normalizedPhone });
+  if (phoneExists) throw BadRequest("Phone already registered");
+
+  // NEVER save confirmPassword to DB
+  const newUser = await User.create({
+    name,
+    email: normalizedEmail,
+    password,
+    phone: normalizedPhone,
+    role: role || "user",
+    address: normalizedAddress,
+  });
+
   const token = newUser.generateToken();
 
   return {
     OK: true,
+    message: "User registered successfully",
     data: {
       user: buildUserDTO(newUser),
       token,
@@ -33,48 +73,58 @@ export const registerService = async ({ name, email, password, role }) => {
   };
 };
 
-export const loginService = async ({ email, password }) => {
-  if (!email || !password) {
-    return { OK: false, error: "All fields are required" };
+/* ==========================================================
+   LOGIN SERVICE (PHONE ONLY — FIXED)
+========================================================== */
+export const loginService = async ({ phone, password }) => {
+  if (!phone || !password) {
+    throw BadRequest("Phone and password are required");
   }
 
-  const normalizedEmail = email.toLowerCase();
-  const existingUser = await User.findOne({ email: normalizedEmail }).select("+password");
+  const normalizedPhone = phone.trim();
 
-  if (!existingUser) {
-    return { OK: false, error: "Invalid email or password" };
-  }
+  const user = await User.findOne({ phone: normalizedPhone }).select("+password");
 
-  const isMatch = await existingUser.comparePassword(password);
-  if (!isMatch) {
-    return { OK: false, error: "Invalid email or password" };
-  }
+  if (!user) throw NotFound("User not found");
 
-  const token = existingUser.generateToken();
+  // check user active
+  if (!user.isActive) throw BadRequest("Account is deactivated");
+
+  const isMatch = await user.comparePassword(password);
+  if (!isMatch) throw BadRequest("Invalid phone or password");
+
+  const token = user.generateToken();
 
   return {
     OK: true,
+    message: "User logged in successfully",
     data: {
-      user: buildUserDTO(existingUser),
+      user: buildUserDTO(user),
       token,
     },
   };
 };
 
+/* ==========================================================
+   LOGOUT SERVICE
+========================================================== */
 export const logoutService = async () => {
   return {
     OK: true,
-    data: {
-      message: "Logged out successfully",
-    },
+    message: "Logged out successfully",
   };
 };
 
+/* ==========================================================
+   FORGET PASSWORD (EMAIL BASED) — FIXED
+========================================================== */
 export const forgetPassword = async (email) => {
-  if (!email) return { OK: false, error: "Email is required" };
+  if (!email) throw BadRequest("Email is required");
 
-  const user = await User.findOne({ email });
-  if (!user) return { OK: false, error: "User not found" };
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail });
+
+  if (!user) throw NotFound("User not found");
 
   const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
   const hashedCode = crypto.createHash("sha256").update(resetCode).digest("hex");
@@ -84,58 +134,55 @@ export const forgetPassword = async (email) => {
   user.passwordVerified = false;
 
   await user.save();
-  console.log("REAL CODE:", resetCode);
-  console.log("HASHED CODE:", hashedCode);
-
-  const msg = `Hi ${user.name}, your password reset code is: ${resetCode}`;
 
   try {
-    await sendEmail({
-      email,
-      subject: "Reset Password",
-      message: msg,
-    });
-
-    return { OK: true, data: { message: "Password reset code sent successfully" } };
-  } catch (error) {
-    return { OK: false, error: "Failed to send password reset code" };
+    await sendCodeEmail(user.email, resetCode, "Reset Password", user.name);
+    return { OK: true, data: { message: "Password reset code sent" } };
+  } catch (err) {
+    throw ServerError("Email sending failed");
   }
 };
 
+/* ==========================================================
+   VERIFY RESET PASSWORD (FIXED)
+========================================================== */
 export const verifyResetPassword = async (email, code) => {
-  if (!email || !code) return { OK: false, error: "Email and code are required" };
+  if (!email || !code) throw BadRequest("Email and code are required");
 
-  const user = await User.findOne({ email });
-  if (!user) return { OK: false, error: "User not found" };
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail });
 
-  const hashedCode = crypto.createHash("sha256").update(code).digest("hex");
-  console.log("USER HASH:", user.resetPasswordCode);
-  console.log("VERIFIED HASH:", hashedCode);
+  if (!user) throw NotFound("User not found");
 
-  if (user.resetPasswordCode !== hashedCode) {
-    return { OK: false, error: "Invalid reset password code" };
-  }
+  const hashed = crypto.createHash("sha256").update(code).digest("hex");
 
-  if (user.resetPasswordExpire < Date.now()) {
-    return { OK: false, error: "Reset password code expired" };
-  }
+  if (user.resetPasswordCode !== hashed)
+    throw BadRequest("Invalid reset code");
+
+  if (user.resetPasswordExpire < Date.now())
+    throw BadRequest("Reset code expired");
 
   user.passwordVerified = true;
   await user.save();
 
-
-  return { OK: true, data: { message: "Password reset code verified successfully" } };
+  return { OK: true, data: { message: "Reset code verified" } };
 };
 
-export const resetPassword = async (email, newPassword) => {
-  if (!email || !newPassword) return { OK: false, error: "Email and password are required" };
+/* ==========================================================
+   RESET PASSWORD (FIXED)
+========================================================== */
+export const resetPassword = async (email, newPassword , confirmPassword) => {
+  if (!email || !newPassword ||!confirmPassword)
+    throw BadRequest("Email and new password required");
+  if (newPassword !== confirmPassword)
+    throw BadRequest("Passwords do not match");
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail });
 
-  const user = await User.findOne({ email });
-  if (!user) return { OK: false, error: "User not found" };
+  if (!user) throw NotFound("User not found");
 
-  if (!user.passwordVerified) {
-    return { OK: false, error: "Password reset code not verified" };
-  }
+  if (!user.passwordVerified)
+    throw BadRequest("Reset code not verified");
 
   user.password = newPassword;
   user.resetPasswordCode = null;
@@ -144,5 +191,5 @@ export const resetPassword = async (email, newPassword) => {
 
   await user.save();
 
-  return { OK: true, data: { message: "Password reset successfully" } };
+  return { OK: true, data: { message: "Password reset successful" } };
 };

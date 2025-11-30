@@ -2,22 +2,29 @@ import Category from "../models/category.model.js";
 import slugify from "slugify";
 import path from "path";
 import fs from "fs";
-
-export const createCategory = async ({ name, image }) => {
+import ApiError, {
+  BadRequest,
+  Forbidden,
+  NotFound,
+  ServerError,
+} from "../utlis/apiError.js";
+import ApiFeatures from "../utlis/apiFeatures.js";
+export const createCategory = async ({ name, image , catalog }) => {
   try {
-    if (!name || !image) {
-      return { OK: false, error: "Name and image are required" };
+    if (!name || !image || !catalog) {
+      return { OK: false, error: "Name , image and catalog are required" };
     }
 
     const exists = await Category.findOne({ name });
     if (exists) {
-      return { OK: false, error: "Category already exists" };
+      throw BadRequest("category already exit")
     }
 
     const category = await Category.create({
       name,
       slug: slugify(name),
       image,
+      catalog,
     });
 
     return { OK: true, data: category };
@@ -29,7 +36,10 @@ export const createCategory = async ({ name, image }) => {
 
 export const getCategories = async () => {
   try {
-    const categories = await Category.find({});
+    const categories = await Category.find({}).populate({
+      path: "catalog",
+      select: "name slug productCount"
+    });
     return { OK: true, data: categories };
   } catch (err) {
     return { OK: false, error: "Server error" };
@@ -41,7 +51,10 @@ export const getCategory = async ({ id }) => {
   try {
     if (!id) return { OK: false, error: "ID is required" };
 
-    const category = await Category.findById(id);
+    const category = await Category.findById(id).populate({
+      path: "catalog",
+      select: "name slug"
+    });
     if (!category) return { OK: false, error: "Category not found" };
 
     return { OK: true, data: category };
@@ -50,7 +63,7 @@ export const getCategory = async ({ id }) => {
   }
 };
 
-export const updateCategory = async ({ id, name, image }) => {
+export const updateCategory = async ({ id, name, image , catalog}) => {
   try {
     if (!id) return { OK: false, error: "ID is required" };
     if (!name || !image) return { OK: false, error: "Name and image are required" };
@@ -68,7 +81,7 @@ export const updateCategory = async ({ id, name, image }) => {
     category.name = name;
     category.slug = slugify(name, { lower: true });
     category.image = image;
-
+    category.catalog = catalog;
     await category.save();
 
     return { OK: true, data: category };

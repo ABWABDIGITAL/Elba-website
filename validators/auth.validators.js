@@ -1,48 +1,92 @@
+// validators/auth.validators.js
+
 import { body } from "express-validator";
 import validatorMiddleware from "../middlewares/validatorMiddleware.js";
 import User from "../models/user.model.js";
-export const validateRegister = [
-    body("name")
-    .trim()
-    .notEmpty().withMessage("Name is required")
-    .isLength({ min: 3 }).withMessage("Name must be at least 3 characters")
-    .isLength({ max: 50 }).withMessage("Name must be less than 50 characters"),
 
-    body("email")
-    .trim()
-    .notEmpty().withMessage("Email is required")
-    .isEmail().withMessage("Email is invalid")
+/* ---------------------------------------
+   REGISTER VALIDATOR (Correct)
+---------------------------------------- */
+export const validateRegister = [
+  body("name")
+    .notEmpty().withMessage("Name is required")
+    .isLength({ min: 3, max: 50 }),
+
+  body("email")
+    .notEmpty().isEmail()
+    .withMessage("Valid email required")
     .bail()
-    .custom(async (value) => {
-      const normalizedEmail = value.toLowerCase();
-      const user = await User.findOne({ email: normalizedEmail });
-      if (user) throw new Error("Email is already in use");
+    .custom(async (email) => {
+      const exists = await User.findOne({ email: email.toLowerCase() });
+      if (exists) throw new Error("Email already registered");
       return true;
     }),
 
-    body("password")
-    .notEmpty().withMessage("Password is required")
-    .isLength({ min: 6 }).withMessage("Password must be at least 6 characters"),
+  body("password")
+    .notEmpty().isLength({ min: 6 }),
 
-    body("confirm_password")
-    .notEmpty().withMessage("Confirm password is required")
-    .custom((value , { req }) => {
-        if (value !== req.body.password) throw new Error("Passwords do not match");
-        return true;
+  body("confirmPassword")
+    .notEmpty()
+    .custom((value, { req }) => {
+      if (value !== req.body.password)
+        throw new Error("Passwords do not match");
+      return true;
     }),
 
-    body("role")
-    .isIn(["user", "admin" , "manager"]).withMessage("Role is invalid"),
-    validatorMiddleware,
+  body("phone")
+    .notEmpty()
+    .matches(/^((\+9665\d{8})|(05\d{8}))$/)
+    .withMessage("Invalid Saudi phone number")
+    .bail()
+    .custom(async (phone) => {
+      const exists = await User.findOne({ phone });
+      if (exists) throw new Error("Phone already registered");
+      return true;
+    }),
+
+  validatorMiddleware,
 ];
 
+/* ---------------------------------------
+   LOGIN VALIDATOR (PHONE ONLY)
+---------------------------------------- */
 export const validateLogin = [
-    body("email")
-    .notEmpty().withMessage("Email is required")
-    .isEmail().withMessage("Email is invalid"),
+  body("phone")
+    .notEmpty().withMessage("Phone is required")
+    .matches(/^((\+9665\d{8})|(05\d{8}))$/)
+    .withMessage("Invalid Saudi phone number"),
 
-    body("password")
+  body("password")
     .notEmpty().withMessage("Password is required"),
 
-    validatorMiddleware,
+  validatorMiddleware,
+];
+export const validateForgetPassword = [
+  body("email")
+    .notEmpty().isEmail()
+    .withMessage("Valid email required"),
+  validatorMiddleware,
+];
+
+export const validateVerifyReset = [
+  body("email")
+    .notEmpty().isEmail(),
+  body("code")
+    .notEmpty().isLength({ min: 6, max: 6 }),
+  validatorMiddleware,
+];
+
+export const validateResetPassword = [
+  body("email")
+    .notEmpty().isEmail(),
+  body("newPassword")
+    .notEmpty().isLength({ min: 6 }),
+  body("confirmPassword")
+    .custom((value, { req }) => {
+      if (value !== req.body.newPassword) {
+        throw new Error("Passwords do not match");
+      }
+      return true;
+    }),
+  validatorMiddleware,
 ];

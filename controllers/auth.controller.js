@@ -9,110 +9,132 @@ import {
 
 import { StatusCodes } from "http-status-codes";
 
+/* ==========================================================
+   REGISTER CONTROLLER (FIXED)
+========================================================== */
+export const registerController = async (req, res, next) => {
+  try {
+    const {
+      name,
+      email,
+      password,
+      confirmPassword,
+      role,
+      phone,
+      address
+    } = req.body;
 
-export const registerController = async (req, res) => {
-  const { name, email, password, role } = req.body;
-
-  const result = await registerService({ name, email, password, role });
-
-  if (!result.OK) {
-    return res.status(StatusCodes.BAD_REQUEST).json({
-      status: "error",
-      message: result.error,
+    const result = await registerService({
+      name,
+      email,
+      password,
+      confirmPassword,
+      role,
+      phone,
+      address
     });
-  }
 
-  return res.status(StatusCodes.CREATED).json({
-    status: "success",
-    message: "User registered successfully",
-    token: result.data.token,
-    user: result.data.user,
-  });
+    return res.status(StatusCodes.CREATED).json({
+      status: "success",
+      message: "User registered successfully",
+      data: result.data,
+    });
+
+  } catch (err) {
+    next(err);
+  }
 };
 
+/* ==========================================================
+   LOGIN CONTROLLER (PHONE ONLY — FIXED)
+========================================================== */
+export const loginController = async (req, res, next) => {
+  try {
+    const { phone, password } = req.body;
 
-export const loginController = async (req, res) => {
-  const { email, password } = req.body;
+    const result = await loginService({ phone, password });
 
-  const result = await loginService({ email, password });
-
-  if (!result.OK) {
-    return res.status(StatusCodes.BAD_REQUEST).json({
-      status: "error",
-      message: result.error,
+    return res.status(StatusCodes.OK).json({
+      status: "success",
+      message: "User logged in successfully",
+      data: result.data,
     });
-  }
 
-  return res.status(StatusCodes.OK).json({
-    status: "success",
-    message: "User logged in successfully",
-    user: result.data.user,
-    token: result.data.token,
-  });
+  } catch (err) {
+    next(err);
+  }
 };
 
+/* ==========================================================
+   LOGOUT CONTROLLER
+========================================================== */
+export const logoutController = async (req, res, next) => {
+  try {
+    await logoutService();
 
-export const logoutController = async (req, res) => {
-  const result = await logoutService();
+    return res.status(StatusCodes.OK).json({
+      status: "success",
+      message: "User logged out successfully",
+    });
 
-  return res.status(StatusCodes.OK).json({
-    status: "success",
-    message: "User logged out successfully",
-  });
+  } catch (err) {
+    next(err);
+  }
 };
 
+/* ==========================================================
+   FORGET PASSWORD CONTROLLER
+========================================================== */
+export const forgetPasswordController = async (req, res, next) => {
+  try {
+    const { email } = req.body;
 
-export const forgetPasswordController = async (req, res) => {
-  const { email } = req.body;
-  const result = await forgetPassword(email);
+    const result = await forgetPassword(email);
 
-  if (!result.OK) {
-    return res.status(StatusCodes.BAD_REQUEST).json({
-      status: "error",
-      message: result.error,
+    return res.status(StatusCodes.OK).json({
+      status: "success",
+      message: result.data.message,
     });
-  }
 
-  return res.status(StatusCodes.OK).json({
-    status: "success",
-    message: result.data.message,
-  });
+  } catch (err) {
+    next(err);
+  }
 };
 
+/* ==========================================================
+   VERIFY RESET PASSWORD CONTROLLER
+========================================================== */
+export const verifyResetPasswordController = async (req, res, next) => {
+  try {
+    const { email, code } = req.body;
 
-export const verifyResetPasswordController = async (req, res) => {
-  const { email, code } = req.body;
+    await verifyResetPassword(email, code);
 
-  const result = await verifyResetPassword(email, code);
-
-  if (!result.OK) {
-    return res.status(StatusCodes.BAD_REQUEST).json({
-      status: "error",
-      message: result.error,
+    return res.status(StatusCodes.OK).json({
+      status: "success",
+      message: "Reset code verified successfully",
     });
-  }
 
-  return res.status(StatusCodes.OK).json({
-    status: "success",
-    message: "Password reset code verified successfully",
-  });
+  } catch (err) {
+    next(err);
+  }
 };
 
+/* ==========================================================
+   RESET PASSWORD CONTROLLER
+========================================================== */
+export const resetPasswordController = async (req, res, next) => {
+  try {
+    const { email, newPassword , confirmPassword} = req.body;
 
-export const resetPasswordController = async (req, res) => {
-  const { email, newPassword } = req.body;
+    await resetPassword(email, newPassword , confirmPassword);
 
-  const result = await resetPassword(email, newPassword);
-
-  if (!result.OK) {
-    return res.status(StatusCodes.BAD_REQUEST).json({
-      status: "error",
-      message: result.error,
+    return res.status(StatusCodes.OK).json({
+      status: "success",
+      message: "Password reset successfully",
     });
-  }
 
-  return res.status(StatusCodes.OK).json({
-    status: "success",
-    message: "Password reset successfully",
-  });
+  } catch (err) {
+    next(err);
+  }
 };

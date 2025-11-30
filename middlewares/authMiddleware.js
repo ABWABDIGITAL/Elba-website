@@ -13,7 +13,7 @@ export const protect = async (req, res, next) => {
     if (!token) {
       return res
         .status(StatusCodes.UNAUTHORIZED)
-        .json({ success: false, message: "Unauthorized: No token provided" });
+        .json({ status: "error", message: "Unauthorized: No token provided" });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -23,7 +23,7 @@ export const protect = async (req, res, next) => {
     if (!user) {
       return res
         .status(StatusCodes.UNAUTHORIZED)
-        .json({ success: false, message: "User no longer exists" });
+        .json({ status: "error", message: "User no longer exists" });
     }
 
     req.user = user;
@@ -31,7 +31,7 @@ export const protect = async (req, res, next) => {
   } catch (error) {
     return res
       .status(StatusCodes.UNAUTHORIZED)
-      .json({ success: false, message: "Invalid or expired token" });
+      .json({ status: "error", message: "Invalid or expired token" });
   }
 };
 
@@ -40,7 +40,7 @@ export const allowTo = (...roles) => {
         if (!roles.includes(req.user.role)) {
             return res
                 .status(StatusCodes.FORBIDDEN)
-                .json({ success: false, message: "Forbidden" });
+                .json({ status: "error", message: "Forbidden" });
         }
         next();
     };

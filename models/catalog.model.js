@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const categorySchema = new mongoose.Schema(
+const catalogSchema = new mongoose.Schema(
   {
     name: {
       type: String,
@@ -25,10 +25,10 @@ const categorySchema = new mongoose.Schema(
       required: true,
     },
 
-    catalog: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Catalog",
-      required: true,
+    type: {
+      type: String,
+      enum: ["Large", "Small"],
+      default: "Large",
     },
 
     productCount: {
@@ -41,4 +41,4 @@ const categorySchema = new mongoose.Schema(
   }
 );
 
-export default mongoose.model("Category", categorySchema);
+export default mongoose.model("Catalog", catalogSchema);

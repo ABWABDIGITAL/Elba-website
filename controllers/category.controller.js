@@ -8,7 +8,7 @@ import {
 import { StatusCodes } from "http-status-codes";
 import slugify from "slugify";
 export const createCategoryController = async (req, res) => {
-  const { name} = req.body;
+  const { name , catalog } = req.body;
   if(!req.file){
     return res.status(StatusCodes.BAD_REQUEST).json({
       status: "error",
@@ -20,6 +20,7 @@ export const createCategoryController = async (req, res) => {
     name,
     slug: slugify(name),
     image: imageUrl,
+    catalog,
   });
   if (!result.OK) {
     return res
@@ -72,7 +73,7 @@ export const getCategoryController = async (req, res) => {
 export const updateCategoryController = async (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
-
+  const { catalog } = req.body;
   if (!req.file) {
     return res.status(StatusCodes.BAD_REQUEST).json({
       status: "error",
@@ -87,6 +88,7 @@ export const updateCategoryController = async (req, res) => {
     name,
     slug: name ? slugify(name) : undefined,
     image: imageURL,
+    catalog,
   });
 
   if (!result.OK) {

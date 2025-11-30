@@ -5,7 +5,7 @@ import slugify from "slugify";
 export const validateCreateCategory = [
   body("name")
     .trim()
-    .notEmpty().withMessage("Name is required")
+    .notEmpty().withMessage("Please enter a category name")
     .isLength({ min: 3 }).withMessage("Name must be at least 3 characters")
     .isLength({ max: 50 }).withMessage("Name must be less than 50 characters")
     .custom(async (val, { req }) => {
@@ -13,16 +13,16 @@ export const validateCreateCategory = [
         name: { $regex: `^${val}$`, $options: "i" }
       });
       if (exists) {
-        throw new Error("Category name already exists");
+        throw new Error("Category name already exists Please try again with another name");
       }
 
       if (!req.file) {
-        throw new Error("Image is required");
+        throw new Error("Image is required Please try again with image");
       }
       
       const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
       if (!allowedTypes.includes(req.file.mimetype)) {
-        throw new Error("Only images are allowed (jpeg, png, jpg, webp)");
+        throw new Error("Only images are allowed (jpeg, png, jpg, webp) Please try again with this extensions.");
       }
 
       req.body.slug = slugify(val, { lower: true });
@@ -33,7 +33,7 @@ export const validateCreateCategory = [
 
 
 export const validateUpdateCategory = [
-  param("id").isMongoId().withMessage("Invalid Category ID"),
+  param("id").isMongoId().withMessage("Invalid Category ID Please try again with valid ID"),
 
   body("name")
     .optional()
@@ -47,7 +47,7 @@ export const validateUpdateCategory = [
           _id: { $ne: req.params.id }
         });
         if (exists) {
-          throw new Error("Another category with this name already exists");
+          throw new Error("Another category with this name already exists Please try again with another name");
         }
         req.body.slug = slugify(val, { lower: true });
       }
@@ -55,7 +55,7 @@ export const validateUpdateCategory = [
       if (req.file) {
         const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
         if (!allowedTypes.includes(req.file.mimetype)) {
-          throw new Error("Only images are allowed");
+          throw new Error("Only images are allowed (jpeg, png, jpg, webp) Please try again with this extensions.");
         }
       }
 
@@ -67,11 +67,11 @@ export const validateUpdateCategory = [
 
 
 export const validateDeleteCategory = [
-    param("id").isMongoId().withMessage("Invalid Category ID"),
+    param("id").isMongoId().withMessage("Invalid Category ID Please try again with valid ID"),
     validatorMiddleware,
 ];
 
 export const validateGetCategory = [
-    param("id").isMongoId().withMessage("Invalid Category ID"),
+    param("id").isMongoId().withMessage("Invalid Category ID Please try again with valid ID"),
     validatorMiddleware,
 ];
