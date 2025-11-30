@@ -1,5 +1,8 @@
 import express from "express";
 import { protect, allowTo } from "../middlewares/authMiddleware.js";
+import { requirePermission } from "../middlewares/permission.middleware.js";
+import upload from "../middlewares/uploadMiddleware.js";
+import parseNestedJson from "../middlewares/ParseNestedDot.js";
 import {
   createOrderController,
   getUserOrdersController,
@@ -10,6 +13,9 @@ import {
   updatePaymentStatusController,
   updateTrackingInfoController,
   getOrderStatsController,
+  bulkUpdateOrderStatusController,
+  bulkExportOrdersController,
+  getOrderAnalyticsController,
 } from "../controllers/order.controller.js";
 
 const router = express.Router();
@@ -62,6 +68,29 @@ router.put(
   "/admin/:orderId/payment",
   allowTo("admin", "superAdmin"),
   updatePaymentStatusController
+);
+
+// Bulk update order status (admin only)
+router.post(
+  "/admin/bulk-update-status",
+  requirePermission("orders", "update"),
+  upload({ folder: "orders" }).none(),
+  parseNestedJson,
+  bulkUpdateOrderStatusController
+);
+
+// Bulk export orders (admin only)
+router.get(
+  "/admin/export",
+  requirePermission("orders", "export"),
+  bulkExportOrdersController
+);
+
+// Get order analytics (admin only)
+router.get(
+  "/admin/analytics",
+  requirePermission("analytics", "read"),
+  getOrderAnalyticsController
 );
 
 export default router;

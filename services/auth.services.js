@@ -7,6 +7,7 @@ import {
   ServerError,
 } from "../utlis/apiError.js";
 import crypto from "crypto";
+import { sendRegistrationWhatsApp } from "./whatsapp.services.js";
 
 /* ==========================================================
    USER DTO
@@ -65,6 +66,11 @@ export const registerService = async ({
   });
 
   const token = newUser.generateToken();
+
+  // Send WhatsApp welcome notification (async, don't wait)
+  sendRegistrationWhatsApp(newUser).catch(err => {
+    console.error("Failed to send registration WhatsApp:", err);
+  });
 
   return {
     OK: true,

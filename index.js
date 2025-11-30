@@ -17,11 +17,23 @@ import couponRoutes from "./routes/coupon.route.js";
 import branchRoutes from "./routes/branches.route.js";
 import roleRoutes from "./routes/role.route.js";
 import adminRoutes from "./routes/admin.route.js";
+import notificationRoutes from "./routes/notification.route.js";
+import blogRoutes from "./routes/blog.route.js";
+import staticPageRoutes from "./routes/staticPage.route.js";
 import seedRoles from "./config/seedRoles.js";
+import runSeeder from "./config/seeder.js";
+
+// Set to true to run seeder on startup (disable after first run)
+const RUN_SEEDER = process.env.RUN_SEEDER === "true";
 
 connectDB().then(async () => {
 //   Seed default roles on startup
   await seedRoles();
+
+//   Run comprehensive seeder if enabled
+  if (RUN_SEEDER) {
+    await runSeeder();
+  }
 });
 
 const app = express();
@@ -45,6 +57,9 @@ app.use("/api/v1/coupons" , couponRoutes);
 app.use("/api/v1/branches" , branchRoutes);
 app.use("/api/v1/roles" , roleRoutes);
 app.use("/api/v1/admin" , adminRoutes);
+app.use("/api/v1/notifications" , notificationRoutes);
+app.use("/api/v1/blogs" , blogRoutes);
+app.use("/api/v1/pages" , staticPageRoutes);
 app.use("/uploads" , express.static(path.join(process.cwd(), "uploads")));
 app.use(errorMiddleware);
 app.listen(PORT, () => {

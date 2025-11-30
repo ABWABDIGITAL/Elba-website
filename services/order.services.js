@@ -2,8 +2,10 @@ import Order from "../models/order.model.js";
 import Cart from "../models/cart.model.js";
 import Product from "../models/product.model.js";
 import Coupon from "../models/coupon.model.js";
+import User from "../models/user.model.js";
 import { BadRequest, NotFound, ServerError, Forbidden } from "../utlis/apiError.js";
 import mongoose from "mongoose";
+import { sendOrderUpdateWhatsApp } from "./whatsapp.services.js";
 
 /* --------------------------------------------------
    HELPER FUNCTIONS
@@ -305,7 +307,7 @@ export const getAllOrdersService = async (query) => {
 --------------------------------------------------- */
 export const updateOrderStatusService = async (orderId, status, note = null) => {
   try {
-    const order = await Order.findById(orderId);
+    const order = await Order.findById(orderId).populate("user");
     if (!order) {
       throw NotFound("Order not found");
     }
@@ -344,6 +346,14 @@ export const updateOrderStatusService = async (orderId, status, note = null) => 
     }
 
     await order.save();
+
+    // Send WhatsApp notification for important status changes
+    if (["confirmed", "shipped", "delivered", "cancelled"].includes(status)) {
+      const user = order.user._id ? order.user : await User.findById(order.user);
+      sendOrderUpdateWhatsApp(order, user, status).catch(err => {
+        console.error("Failed to send order update WhatsApp:", err);
+      });
+    }
 
     return {
       OK: true,
@@ -540,5 +550,295 @@ export const getOrderStatsService = async () => {
     };
   } catch (err) {
     throw ServerError("Failed to get order statistics", err);
+  }
+};
+
+/* --------------------------------------------------
+   BULK UPDATE ORDER STATUS (ADMIN)
+--------------------------------------------------- */
+export const bulkUpdateOrderStatusService = async (orderIds, status, note = null) => {
+  try {
+    const validStatuses = ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"];
+    if (!validStatuses.includes(status)) {
+      throw BadRequest(`Invalid status: ${status}`);
+    }
+
+    const orders = await Order.find({
+      _id: { $in: orderIds },
+      isActive: true,
+    }).populate("user");
+
+    if (orders.length === 0) {
+      throw NotFound("No orders found");
+    }
+
+    const results = {
+      success: [],
+      failed: [],
+    };
+
+    for (const order of orders) {
+      try {
+        const validTransitions = {
+          pending: ["confirmed", "cancelled"],
+          confirmed: ["processing", "cancelled"],
+          processing: ["shipped", "cancelled"],
+          shipped: ["delivered"],
+          delivered: ["returned"],
+          cancelled: [],
+          returned: [],
+        };
+
+        if (!validTransitions[order.orderStatus]?.includes(status)) {
+          results.failed.push({
+            orderId: order._id,
+            orderNumber: order.orderNumber,
+            reason: `Cannot transition from ${order.orderStatus} to ${status}`,
+          });
+          continue;
+        }
+
+        order.orderStatus = status;
+
+        if (status === "shipped") {
+          order.shippedAt = new Date();
+        } else if (status === "delivered") {
+          order.deliveredAt = new Date();
+          order.paymentStatus = "paid";
+        } else if (status === "cancelled") {
+          order.cancelledAt = new Date();
+        }
+
+        if (note) {
+          order.statusHistory[order.statusHistory.length - 1].note = note;
+        }
+
+        await order.save();
+
+        // Send WhatsApp notification
+        if (["confirmed", "shipped", "delivered", "cancelled"].includes(status)) {
+          const user = order.user._id ? order.user : await User.findById(order.user);
+          sendOrderUpdateWhatsApp(order, user, status).catch(err => {
+            console.error("Failed to send order update WhatsApp:", err);
+          });
+        }
+
+        results.success.push({
+          orderId: order._id,
+          orderNumber: order.orderNumber,
+        });
+      } catch (err) {
+        results.failed.push({
+          orderId: order._id,
+          orderNumber: order.orderNumber,
+          reason: err.message,
+        });
+      }
+    }
+
+    return {
+      OK: true,
+      message: `Bulk update completed: ${results.success.length} successful, ${results.failed.length} failed`,
+      data: results,
+    };
+  } catch (err) {
+    if (err.name === "ApiError" || err instanceof BadRequest || err instanceof NotFound) {
+      throw err;
+    }
+    throw ServerError("Failed to bulk update orders", err);
+  }
+};
+
+/* --------------------------------------------------
+   BULK EXPORT ORDERS (ADMIN)
+--------------------------------------------------- */
+export const bulkExportOrdersService = async (filters = {}) => {
+  try {
+    const {
+      status,
+      paymentStatus,
+      startDate,
+      endDate,
+      minAmount,
+      maxAmount,
+    } = filters;
+
+    const query = { isActive: true };
+
+    if (status) query.orderStatus = status;
+    if (paymentStatus) query.paymentStatus = paymentStatus;
+    if (startDate || endDate) {
+      query.createdAt = {};
+      if (startDate) query.createdAt.$gte = new Date(startDate);
+      if (endDate) query.createdAt.$lte = new Date(endDate);
+    }
+    if (minAmount || maxAmount) {
+      query.totalPrice = {};
+      if (minAmount) query.totalPrice.$gte = parseFloat(minAmount);
+      if (maxAmount) query.totalPrice.$lte = parseFloat(maxAmount);
+    }
+
+    const orders = await Order.find(query)
+      .populate("user", "name email phone")
+      .populate("orderItems.product", "en.name ar.name sku")
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Transform to export format (CSV-friendly)
+    const exportData = orders.map(order => ({
+      orderNumber: order.orderNumber,
+      customerName: order.user?.name || "N/A",
+      customerPhone: order.user?.phone || "N/A",
+      customerEmail: order.user?.email || "N/A",
+      orderDate: order.createdAt,
+      orderStatus: order.orderStatus,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      subtotal: order.subtotal,
+      tax: order.tax,
+      shipping: order.shipping,
+      discount: order.discount,
+      totalPrice: order.totalPrice,
+      itemsCount: order.orderItems.length,
+      shippingAddress: `${order.shippingAddress.street}, ${order.shippingAddress.city}, ${order.shippingAddress.region}`,
+      shippingPhone: order.shippingAddress.phone,
+    }));
+
+    return {
+      OK: true,
+      message: `Exported ${exportData.length} orders`,
+      data: exportData,
+      totalRecords: exportData.length,
+    };
+  } catch (err) {
+    throw ServerError("Failed to export orders", err);
+  }
+};
+
+/* --------------------------------------------------
+   GET ORDER ANALYTICS (ADMIN)
+--------------------------------------------------- */
+export const getOrderAnalyticsService = async (startDate, endDate) => {
+  try {
+    const matchStage = { isActive: true };
+
+    if (startDate || endDate) {
+      matchStage.createdAt = {};
+      if (startDate) matchStage.createdAt.$gte = new Date(startDate);
+      if (endDate) matchStage.createdAt.$lte = new Date(endDate);
+    }
+
+    const analytics = await Order.aggregate([
+      { $match: matchStage },
+      {
+        $facet: {
+          overview: [
+            {
+              $group: {
+                _id: null,
+                totalOrders: { $sum: 1 },
+                totalRevenue: { $sum: "$totalPrice" },
+                avgOrderValue: { $avg: "$totalPrice" },
+                totalItems: { $sum: { $size: "$orderItems" } },
+              },
+            },
+          ],
+          byStatus: [
+            {
+              $group: {
+                _id: "$orderStatus",
+                count: { $sum: 1 },
+                revenue: { $sum: "$totalPrice" },
+              },
+            },
+            { $sort: { count: -1 } },
+          ],
+          byPaymentMethod: [
+            {
+              $group: {
+                _id: "$paymentMethod",
+                count: { $sum: 1 },
+                revenue: { $sum: "$totalPrice" },
+              },
+            },
+          ],
+          byPaymentStatus: [
+            {
+              $group: {
+                _id: "$paymentStatus",
+                count: { $sum: 1 },
+                revenue: { $sum: "$totalPrice" },
+              },
+            },
+          ],
+          dailyOrders: [
+            {
+              $group: {
+                _id: {
+                  year: { $year: "$createdAt" },
+                  month: { $month: "$createdAt" },
+                  day: { $dayOfMonth: "$createdAt" },
+                },
+                orders: { $sum: 1 },
+                revenue: { $sum: "$totalPrice" },
+              },
+            },
+            { $sort: { "_id.year": 1, "_id.month": 1, "_id.day": 1 } },
+            { $limit: 30 },
+          ],
+          topCustomers: [
+            {
+              $group: {
+                _id: "$user",
+                orders: { $sum: 1 },
+                totalSpent: { $sum: "$totalPrice" },
+              },
+            },
+            { $sort: { totalSpent: -1 } },
+            { $limit: 10 },
+            {
+              $lookup: {
+                from: "users",
+                localField: "_id",
+                foreignField: "_id",
+                as: "customer",
+              },
+            },
+            { $unwind: "$customer" },
+            {
+              $project: {
+                _id: 1,
+                name: "$customer.name",
+                phone: "$customer.phone",
+                orders: 1,
+                totalSpent: 1,
+              },
+            },
+          ],
+        },
+      },
+    ]);
+
+    const result = {
+      overview: analytics[0].overview[0] || {
+        totalOrders: 0,
+        totalRevenue: 0,
+        avgOrderValue: 0,
+        totalItems: 0,
+      },
+      byStatus: analytics[0].byStatus,
+      byPaymentMethod: analytics[0].byPaymentMethod,
+      byPaymentStatus: analytics[0].byPaymentStatus,
+      dailyOrders: analytics[0].dailyOrders,
+      topCustomers: analytics[0].topCustomers,
+    };
+
+    return {
+      OK: true,
+      message: "Order analytics retrieved successfully",
+      data: result,
+    };
+  } catch (err) {
+    throw ServerError("Failed to get order analytics", err);
   }
 };

@@ -8,6 +8,9 @@ import {
   updatePaymentStatusService,
   updateTrackingInfoService,
   getOrderStatsService,
+  bulkUpdateOrderStatusService,
+  bulkExportOrdersService,
+  getOrderAnalyticsService,
 } from "../services/order.services.js";
 import { StatusCodes } from "http-status-codes";
 
@@ -148,6 +151,49 @@ export const updateTrackingInfoController = async (req, res, next) => {
 export const getOrderStatsController = async (req, res, next) => {
   try {
     const result = await getOrderStatsService();
+
+    res.status(StatusCodes.OK).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* --------------------------------------------------
+   BULK UPDATE ORDER STATUS (ADMIN)
+--------------------------------------------------- */
+export const bulkUpdateOrderStatusController = async (req, res, next) => {
+  try {
+    const { orderIds, status, note } = req.body;
+
+    const result = await bulkUpdateOrderStatusService(orderIds, status, note);
+
+    res.status(StatusCodes.OK).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* --------------------------------------------------
+   BULK EXPORT ORDERS (ADMIN)
+--------------------------------------------------- */
+export const bulkExportOrdersController = async (req, res, next) => {
+  try {
+    const filters = req.query;
+    const result = await bulkExportOrdersService(filters);
+
+    res.status(StatusCodes.OK).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* --------------------------------------------------
+   GET ORDER ANALYTICS (ADMIN)
+--------------------------------------------------- */
+export const getOrderAnalyticsController = async (req, res, next) => {
+  try {
+    const { startDate, endDate } = req.query;
+    const result = await getOrderAnalyticsService(startDate, endDate);
 
     res.status(StatusCodes.OK).json(result);
   } catch (err) {
