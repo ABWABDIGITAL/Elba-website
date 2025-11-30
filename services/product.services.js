@@ -9,15 +9,38 @@ import ApiError, {
 import ApiFeatures from "../utlis/apiFeatures.js";
 
 /* --------------------------------------------------
-   DTO BUILDERS
+   DTO BUILDERS (Updated for new localized structure)
 --------------------------------------------------- */
 export const buildCompareDTO = (p) => {
   if (!p) return null;
   return {
     id: p._id,
-    name: p.name,
-    title: p.title,
-    slug: p.slug,
+    ar: {
+      name: p.ar?.name,
+      title: p.ar?.title,
+      slug: p.ar?.slug,
+      description: p.ar?.description,
+      details: p.ar?.details,
+      seo: p.ar?.seo,
+      images: p.ar?.images,
+      features: p.ar?.features,
+      specifications: p.ar?.specifications,
+      warranty: p.ar?.warranty,
+      reference: p.ar?.reference,
+    },
+    en: {
+      name: p.en?.name,
+      title: p.en?.title,
+      slug: p.en?.slug,
+      description: p.en?.description,
+      details: p.en?.details,
+      seo: p.en?.seo,
+      images: p.en?.images,
+      features: p.en?.features,
+      specifications: p.en?.specifications,
+      warranty: p.en?.warranty,
+      reference: p.en?.reference,
+    },
     sku: p.sku,
     price: p.price,
     discountPercentage: p.discountPercentage,
@@ -26,19 +49,12 @@ export const buildCompareDTO = (p) => {
     stock: p.stock,
     status: p.status,
     modelNumber: p.modelNumber,
-    description: p.description,
-    details: p.details,
-    seo: p.seo,
     category: p.category,
     brand: p.brand,
-    images: p.images,
     ratingsAverage: p.ratingsAverage,
     ratingsQuantity: p.ratingsQuantity,
     views: p.views,
     salesCount: p.salesCount,
-    features: p.features,
-    specifications: p.specifications,
-    warranty: p.warranty,
   };
 };
 
@@ -46,10 +62,16 @@ export const buildGetAllproductDTO = (p) => {
   if (!p) return null;
   return {
     id: p._id,
-    name: p.name,
+    ar: {
+      name: p.ar?.name,
+      images: p.ar?.images,
+    },
+    en: {
+      name: p.en?.name,
+      images: p.en?.images,
+    },
     sku: p.sku,
     price: p.price,
-    images: p.images,
   };
 };
 
@@ -57,9 +79,32 @@ export const buildProductDTO = (p) => {
   if (!p) return null;
   return {
     id: p._id,
-    name: p.name,
-    title: p.title,
-    slug: p.slug,
+    ar: {
+      name: p.ar?.name,
+      title: p.ar?.title,
+      slug: p.ar?.slug,
+      description: p.ar?.description,
+      specifications: p.ar?.specifications,
+      details: p.ar?.details,
+      seo: p.ar?.seo,
+      reference: p.ar?.reference,
+      images: p.ar?.images,
+      features: p.ar?.features,
+      warranty: p.ar?.warranty,
+    },
+    en: {
+      name: p.en?.name,
+      title: p.en?.title,
+      slug: p.en?.slug,
+      description: p.en?.description,
+      specifications: p.en?.specifications,
+      details: p.en?.details,
+      seo: p.en?.seo,
+      reference: p.en?.reference,
+      images: p.en?.images,
+      features: p.en?.features,
+      warranty: p.en?.warranty,
+    },
     sku: p.sku,
     price: p.price,
     discountPercentage: p.discountPercentage,
@@ -68,14 +113,8 @@ export const buildProductDTO = (p) => {
     stock: p.stock,
     status: p.status,
     modelNumber: p.modelNumber,
-    description: p.description,
-    specifications: p.specifications,
-    details: p.details,
-    seo: p.seo,
     category: p.category,
     brand: p.brand,
-    reference: p.reference,
-    images: p.images,
     ratingsAverage: p.ratingsAverage,
     ratingsQuantity: p.ratingsQuantity,
     views: p.views,
@@ -98,19 +137,23 @@ export const validateProductDomain = (product) => {
 };
 
 /* --------------------------------------------------
-   SLUG LOGIC
+   SLUG LOGIC (Updated for new localized structure)
 --------------------------------------------------- */
 const applySlugIfMissing = (data) => {
-  if (!data.slug && data.name) {
-    const slug = {};
-    if (data.name.en) slug.en = slugify(data.name.en, { lower: true });
-    if (data.name.ar)
-      slug.ar = slugify(data.name.ar, {
-        lower: true,
-        strict: false,
-        locale: "ar",
-      }).replace(/[^\u0600-\u06FF0-9\-]/g, "");
-    data.slug = slug;
+  // Generate English slug if name exists but slug doesn't
+  if (data.en?.name && !data.en?.slug) {
+    if (!data.en) data.en = {};
+    data.en.slug = slugify(data.en.name, { lower: true, strict: true });
+  }
+
+  // Generate Arabic slug if name exists but slug doesn't
+  if (data.ar?.name && !data.ar?.slug) {
+    if (!data.ar) data.ar = {};
+    data.ar.slug = data.ar.name
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/[^\u0600-\u06FF0-9\-]/g, "")
+      .toLowerCase();
   }
 };
 
@@ -339,7 +382,7 @@ export const getBestSellingByCategoryService = async (categoryId, query) => {
 
     const features = new ApiFeatures(mongooseQuery, query, {
       allowedFilterFields: ["brand", "status"],
-      searchFields: ["name.en", "name.ar", "sku"],
+      searchFields: ["en.name", "ar.name", "sku"],
     })
       .filter()
       .search()
@@ -390,7 +433,7 @@ export const getBestOffersService = async (query) => {
 
     const features = new ApiFeatures(mongooseQuery, query, {
       allowedFilterFields: ["category", "brand", "status"],
-      searchFields: ["name.en", "name.ar", "sku"],
+      searchFields: ["en.name", "ar.name", "sku"],
     })
       .filter()
       .search()

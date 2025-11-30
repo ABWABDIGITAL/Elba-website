@@ -26,57 +26,43 @@ const safeJSON = (value) => {
   }
 };
 
-const localized = (req, base, fallback = {}) => ({
-  en: req.body?.[`${base}.en`] ?? fallback.en ?? "",
-  ar: req.body?.[`${base}.ar`] ?? fallback.ar ?? "",
-});
+// ----- Normalizers for complex fields (Updated for new structure) -----
 
-// ----- Normalizers for complex fields -----
-
-const normalizeDescription = (raw) => {
+const normalizeDescriptionForLang = (raw) => {
   if (!Array.isArray(raw)) return [];
   return raw.map((item) => ({
-    title: {
-      en: item?.title?.en || "",
-      ar: item?.title?.ar || "",
-    },
-    subtitle: {
-      en: item?.subtitle?.en || "",
-      ar: item?.subtitle?.ar || "",
-    },
-    content: {
-      en: item?.content?.en || "",
-      ar: item?.content?.ar || "",
-    },
+    title: item?.title || "",
+    subtitle: item?.subtitle || "",
+    content: item?.content || "",
   }));
 };
 
-const normalizeSpecifications = (raw) => {
+const normalizeSpecificationsForLang = (raw) => {
   if (!Array.isArray(raw)) return [];
   return raw.map((item) => ({
-    key: { en: item?.key?.en || "", ar: item?.key?.ar || "" },
-    value: { en: item?.value?.en || "", ar: item?.value?.ar || "" },
-    unit: { en: item?.unit?.en || "", ar: item?.unit?.ar || "" },
-    group: { en: item?.group?.en || "", ar: item?.group?.ar || "" },
+    key: item?.key || "",
+    value: item?.value || "",
+    unit: item?.unit || "",
+    group: item?.group || "",
   }));
 };
 
-const normalizeDetails = (raw) => {
+const normalizeDetailsForLang = (raw) => {
   if (!Array.isArray(raw)) return [];
   return raw.map((item) => ({
-    key: { en: item?.key?.en || "", ar: item?.key?.ar || "" },
-    value: { en: item?.value?.en || "", ar: item?.value?.ar || "" },
+    key: item?.key || "",
+    value: item?.value || "",
   }));
 };
 
-const normalizeReference = (req) => {
+const normalizeReferenceForLang = (req, lang) => {
   const file = req?.files?.reference?.[0];
 
   return {
-    title: localized(req, "reference.title"),
-    subtitle: localized(req, "reference.subtitle"),
+    title: req.body?.[lang]?.reference?.title || "",
+    subtitle: req.body?.[lang]?.reference?.subtitle || "",
     content: {
-      text: localized(req, "reference.content.text"),
+      text: req.body?.[lang]?.reference?.content?.text || "",
       file: file
         ? {
             url: `/uploads/products/reference/${file.filename}`,
@@ -89,12 +75,12 @@ const normalizeReference = (req) => {
   };
 };
 
-const normalizeImages = (req) => {
+const normalizeImagesForLang = (req, lang) => {
   if (!req.files?.images) return [];
 
   return req.files.images.map((file, i) => ({
     url: `/uploads/products/images/${file.filename}`,
-    alt: localized(req, `images[${i}].alt`),
+    alt: req.body?.[lang]?.images?.[i]?.alt || "",
     isPrimary: i === 0,
     order: i + 1,
   }));
@@ -105,115 +91,165 @@ const normalizeImages = (req) => {
 ----------------------------------------------------- */
 
 const normalizeCreatePayload = (req) => {
-  // Start with the original request body
-  const payload = { ...req.body };
+  const payload = {};
 
-  // Ensure required localized fields are preserved
-  if (!payload.name) payload.name = {};
-  if (!payload.title) payload.title = {};
-  if (!payload.warranty) payload.warranty = {};
+  // Build English localized data
+  payload.en = {
+    name: req.body.en?.name || "",
+    title: req.body.en?.title || "",
+    warranty: req.body.en?.warranty || "",
+  };
 
-  // Only override if values exist in the request
-  if (req.body.name?.en || req.body.name?.ar) {
-    payload.name = {
-      en: req.body.name.en || '',
-      ar: req.body.name.ar || ''
-    };
+  if (req.body.en?.description) {
+    payload.en.description = normalizeDescriptionForLang(safeJSON(req.body.en.description));
   }
 
-  if (req.body.title?.en || req.body.title?.ar) {
-    payload.title = {
-      en: req.body.title.en || '',
-      ar: req.body.title.ar || ''
-    };
+  if (req.body.en?.specifications) {
+    payload.en.specifications = normalizeSpecificationsForLang(safeJSON(req.body.en.specifications));
   }
 
-  if (req.body.warranty?.en || req.body.warranty?.ar) {
-    payload.warranty = {
-      en: req.body.warranty.en || '',
-      ar: req.body.warranty.ar || ''
-    };
+  if (req.body.en?.details) {
+    payload.en.details = normalizeDetailsForLang(safeJSON(req.body.en.details));
   }
 
-  // Handle reference object
-  if (!payload.reference) payload.reference = {};
-  if (!payload.reference.title) payload.reference.title = {};
-  if (!payload.reference.subtitle) payload.reference.subtitle = {};
-
-  if (req.body.reference?.title?.en || req.body.reference?.title?.ar) {
-    payload.reference.title = {
-      en: req.body.reference?.title?.en || '',
-      ar: req.body.reference?.title?.ar || ''
-    };
+  if (req.body.en?.features) {
+    payload.en.features = Array.isArray(req.body.en.features) ? req.body.en.features : [];
   }
 
-  if (req.body.reference?.subtitle?.en || req.body.reference?.subtitle?.ar) {
-    payload.reference.subtitle = {
-      en: req.body.reference?.subtitle?.en || '',
-      ar: req.body.reference?.subtitle?.ar || ''
-    };
+  if (req.body.en?.reference || req.files?.reference) {
+    payload.en.reference = normalizeReferenceForLang(req, 'en');
   }
 
-  // Process other fields only if they exist
-  if (req.body.description) {
-    payload.description = normalizeDescription(safeJSON(req.body.description));
+  if (req.files?.images) {
+    payload.en.images = normalizeImagesForLang(req, 'en');
   }
 
-  if (req.body.specifications) {
-    payload.specifications = normalizeSpecifications(safeJSON(req.body.specifications));
+  // Build Arabic localized data
+  payload.ar = {
+    name: req.body.ar?.name || "",
+    title: req.body.ar?.title || "",
+    warranty: req.body.ar?.warranty || "",
+  };
+
+  if (req.body.ar?.description) {
+    payload.ar.description = normalizeDescriptionForLang(safeJSON(req.body.ar.description));
   }
 
-  if (req.body.details) {
-    payload.details = normalizeDetails(safeJSON(req.body.details));
+  if (req.body.ar?.specifications) {
+    payload.ar.specifications = normalizeSpecificationsForLang(safeJSON(req.body.ar.specifications));
   }
 
-  // Only normalize images if they exist
-  if (req.files || req.body.images) {
-    payload.images = normalizeImages(req);
+  if (req.body.ar?.details) {
+    payload.ar.details = normalizeDetailsForLang(safeJSON(req.body.ar.details));
   }
+
+  if (req.body.ar?.features) {
+    payload.ar.features = Array.isArray(req.body.ar.features) ? req.body.ar.features : [];
+  }
+
+  if (req.body.ar?.reference || req.files?.reference) {
+    payload.ar.reference = normalizeReferenceForLang(req, 'ar');
+  }
+
+  if (req.files?.images) {
+    payload.ar.images = normalizeImagesForLang(req, 'ar');
+  }
+
+  // Add language-independent fields
+  if (req.body.sku) payload.sku = req.body.sku;
+  if (req.body.modelNumber) payload.modelNumber = req.body.modelNumber;
+  if (req.body.price !== undefined) payload.price = Number(req.body.price);
+  if (req.body.discountPrice !== undefined) payload.discountPrice = Number(req.body.discountPrice);
+  if (req.body.discountPercentage !== undefined) payload.discountPercentage = Number(req.body.discountPercentage);
+  if (req.body.currencyCode) payload.currencyCode = req.body.currencyCode;
+  if (req.body.stock !== undefined) payload.stock = Number(req.body.stock);
+  if (req.body.status) payload.status = req.body.status;
+  if (req.body.category) payload.category = req.body.category;
+  if (req.body.brand) payload.brand = req.body.brand;
 
   return payload;
 };
 
 const normalizeUpdatePayload = (req) => {
-  const payload = { ...req.body };
+  const payload = {};
 
-  // Partial localized updates
-  if (req.body["name.en"] || req.body["name.ar"]) {
-    payload.name = localized(req, "name");
+  // Update English localized fields if provided
+  if (req.body.en) {
+    payload.en = {};
+
+    if (req.body.en.name) payload.en.name = req.body.en.name;
+    if (req.body.en.title) payload.en.title = req.body.en.title;
+    if (req.body.en.warranty) payload.en.warranty = req.body.en.warranty;
+
+    if (req.body.en.description) {
+      payload.en.description = normalizeDescriptionForLang(safeJSON(req.body.en.description));
+    }
+
+    if (req.body.en.specifications) {
+      payload.en.specifications = normalizeSpecificationsForLang(safeJSON(req.body.en.specifications));
+    }
+
+    if (req.body.en.details) {
+      payload.en.details = normalizeDetailsForLang(safeJSON(req.body.en.details));
+    }
+
+    if (req.body.en.features) {
+      payload.en.features = Array.isArray(req.body.en.features) ? req.body.en.features : [];
+    }
+
+    if (req.body.en.reference || req.files?.reference) {
+      payload.en.reference = normalizeReferenceForLang(req, 'en');
+    }
+
+    if (req.files?.images) {
+      payload.en.images = normalizeImagesForLang(req, 'en');
+    }
   }
 
-  if (req.body["title.en"] || req.body["title.ar"]) {
-    payload.title = localized(req, "title");
+  // Update Arabic localized fields if provided
+  if (req.body.ar) {
+    payload.ar = {};
+
+    if (req.body.ar.name) payload.ar.name = req.body.ar.name;
+    if (req.body.ar.title) payload.ar.title = req.body.ar.title;
+    if (req.body.ar.warranty) payload.ar.warranty = req.body.ar.warranty;
+
+    if (req.body.ar.description) {
+      payload.ar.description = normalizeDescriptionForLang(safeJSON(req.body.ar.description));
+    }
+
+    if (req.body.ar.specifications) {
+      payload.ar.specifications = normalizeSpecificationsForLang(safeJSON(req.body.ar.specifications));
+    }
+
+    if (req.body.ar.details) {
+      payload.ar.details = normalizeDetailsForLang(safeJSON(req.body.ar.details));
+    }
+
+    if (req.body.ar.features) {
+      payload.ar.features = Array.isArray(req.body.ar.features) ? req.body.ar.features : [];
+    }
+
+    if (req.body.ar.reference || req.files?.reference) {
+      payload.ar.reference = normalizeReferenceForLang(req, 'ar');
+    }
+
+    if (req.files?.images) {
+      payload.ar.images = normalizeImagesForLang(req, 'ar');
+    }
   }
 
-  if (req.body["warranty.en"] || req.body["warranty.ar"]) {
-    payload.warranty = localized(req, "warranty");
-  }
-
-  if (req.body.description) {
-    payload.description = normalizeDescription(
-      safeJSON(req.body.description)
-    );
-  }
-
-  if (req.body.specifications) {
-    payload.specifications = normalizeSpecifications(
-      safeJSON(req.body.specifications)
-    );
-  }
-
-  if (req.body.details) {
-    payload.details = normalizeDetails(safeJSON(req.body.details));
-  }
-
-  if (req.files?.reference) {
-    payload.reference = normalizeReference(req);
-  }
-
-  if (req.files?.images) {
-    payload.images = normalizeImages(req);
-  }
+  // Update language-independent fields if provided
+  if (req.body.sku) payload.sku = req.body.sku;
+  if (req.body.modelNumber) payload.modelNumber = req.body.modelNumber;
+  if (req.body.price !== undefined) payload.price = Number(req.body.price);
+  if (req.body.discountPrice !== undefined) payload.discountPrice = Number(req.body.discountPrice);
+  if (req.body.discountPercentage !== undefined) payload.discountPercentage = Number(req.body.discountPercentage);
+  if (req.body.currencyCode) payload.currencyCode = req.body.currencyCode;
+  if (req.body.stock !== undefined) payload.stock = Number(req.body.stock);
+  if (req.body.status) payload.status = req.body.status;
+  if (req.body.category) payload.category = req.body.category;
+  if (req.body.brand) payload.brand = req.body.brand;
 
   return payload;
 };

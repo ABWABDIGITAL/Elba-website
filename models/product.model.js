@@ -2,21 +2,126 @@ import mongoose from "mongoose";
 import slugify from "slugify";
 import seoSchema from "./seo.model.js";
 
-const localizedString = {
-  en: { type: String, required: true, trim: true },
-  ar: { type: String, required: true, trim: true },
-};
-
 const productSchema = new mongoose.Schema(
   {
-    name: localizedString,
-    title: localizedString,
+    // Language-specific data
+    ar: {
+      name: { type: String, required: true, trim: true },
+      title: { type: String, required: true, trim: true },
+      slug: { type: String, unique: true, index: true },
 
-    slug: {
-      en: { type: String, unique: true, index: true },
-      ar: { type: String, unique: true, index: true },
+      description: [
+        {
+          title: { type: String, trim: true },
+          subtitle: { type: String, trim: true },
+          content: { type: String, trim: true },
+        },
+      ],
+
+      specifications: [
+        {
+          key: { type: String, trim: true },
+          value: { type: String, trim: true },
+          unit: { type: String, trim: true },
+          group: { type: String, trim: true },
+        },
+      ],
+
+      features: [{ type: String, trim: true }],
+      warranty: { type: String, trim: true },
+
+      images: [
+        {
+          url: String,
+          alt: { type: String, trim: true },
+          isPrimary: { type: Boolean, default: false },
+          order: { type: Number, default: 0 },
+        },
+      ],
+
+      details: [
+        {
+          key: { type: String, trim: true },
+          value: { type: String, trim: true },
+        },
+      ],
+
+      reference: {
+        title: { type: String, trim: true },
+        subtitle: { type: String, trim: true },
+        content: {
+          text: { type: String, trim: true },
+          file: {
+            url: String,
+            filename: String,
+            fileType: String,
+            size: Number,
+          },
+        },
+      },
+
+      seo: seoSchema,
     },
 
+    en: {
+      name: { type: String, required: true, trim: true },
+      title: { type: String, required: true, trim: true },
+      slug: { type: String, unique: true, index: true },
+
+      description: [
+        {
+          title: { type: String, trim: true },
+          subtitle: { type: String, trim: true },
+          content: { type: String, trim: true },
+        },
+      ],
+
+      specifications: [
+        {
+          key: { type: String, trim: true },
+          value: { type: String, trim: true },
+          unit: { type: String, trim: true },
+          group: { type: String, trim: true },
+        },
+      ],
+
+      features: [{ type: String, trim: true }],
+      warranty: { type: String, trim: true },
+
+      images: [
+        {
+          url: String,
+          alt: { type: String, trim: true },
+          isPrimary: { type: Boolean, default: false },
+          order: { type: Number, default: 0 },
+        },
+      ],
+
+      details: [
+        {
+          key: { type: String, trim: true },
+          value: { type: String, trim: true },
+        },
+      ],
+
+      reference: {
+        title: { type: String, trim: true },
+        subtitle: { type: String, trim: true },
+        content: {
+          text: { type: String, trim: true },
+          file: {
+            url: String,
+            filename: String,
+            fileType: String,
+            size: Number,
+          },
+        },
+      },
+
+      seo: seoSchema,
+    },
+
+    // Language-independent data
     sku: {
       type: String,
       required: true,
@@ -27,25 +132,6 @@ const productSchema = new mongoose.Schema(
     },
 
     modelNumber: { type: String, trim: true },
-
-    description: [
-      {
-        title: localizedString,
-        subtitle: localizedString,
-        content: localizedString,
-      },
-    ],
-
-    specifications: [
-      {
-        key: localizedString,
-        value: localizedString,
-        unit: localizedString,
-        group: localizedString,
-      },
-    ],
-
-    features: [localizedString],
 
     price: { type: Number, required: true, min: 0 },
 
@@ -75,49 +161,12 @@ const productSchema = new mongoose.Schema(
       default: "SAR",
     },
 
-    warranty: localizedString,
-
     stock: { type: Number, required: true, min: 0 },
 
     status: {
       type: String,
       enum: ["active", "inactive", "out_of_stock", "coming_soon"],
       default: "active",
-    },
-
-    seo: seoSchema,
-
-    images: [
-      {
-        url: String,
-        alt: localizedString,
-        isPrimary: { type: Boolean, default: false },
-        order: { type: Number, default: 0 },
-      },
-    ],
-
-    details: [
-      {
-        key: localizedString,
-        value: localizedString,
-      },
-    ],
-
-    reference: {
-      title: localizedString,
-      subtitle: localizedString,
-      content: {
-        text: {
-          en: { type: String, trim: true },
-          ar: { type: String, trim: true },
-        },
-        file: {
-          url: String,
-          filename: String,
-          fileType: String,
-          size: Number,
-        },
-      },
     },
 
     category: {
@@ -166,13 +215,13 @@ const productSchema = new mongoose.Schema(
    SLUG LOGIC
 ----------------------------------- */
 productSchema.pre("save", function (next) {
-  if (this.isModified("name")) {
-    if (this.name?.en) {
-      this.slug.en = slugify(this.name.en, { lower: true, strict: true });
+  if (this.isModified("en.name") || this.isModified("ar.name")) {
+    if (this.en?.name) {
+      this.en.slug = slugify(this.en.name, { lower: true, strict: true });
     }
 
-    if (this.name?.ar) {
-      this.slug.ar = this.name.ar
+    if (this.ar?.name) {
+      this.ar.slug = this.ar.name
         .trim()
         .replace(/\s+/g, "-")
         .replace(/[^\u0600-\u06FF0-9\-]/g, "")

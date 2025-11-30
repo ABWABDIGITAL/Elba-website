@@ -9,20 +9,27 @@ const handleValidation = (req, res, next) => {
   next();
 };
 
-const localizedStringRules = (field) => [
-  body(`${field}.en`)
-    .notEmpty().withMessage(`${field}.en is required`)
-    .isString().withMessage(`${field}.en must be string`),
-
-  body(`${field}.ar`)
-    .notEmpty().withMessage(`${field}.ar is required`)
-    .isString().withMessage(`${field}.ar must be string`),
+// Validation rules for nested localized content under en/ar top-level keys
+const localizedFieldRules = (lang, field) => [
+  body(`${lang}.${field}`)
+    .notEmpty().withMessage(`${lang}.${field} is required`)
+    .isString().withMessage(`${lang}.${field} must be string`),
 ];
 
 export const validateCreateProduct = [
-  ...localizedStringRules("name"),
-  ...localizedStringRules("title"),
+  // English localized fields
+  ...localizedFieldRules("en", "name"),
+  ...localizedFieldRules("en", "title"),
 
+  // Arabic localized fields
+  ...localizedFieldRules("ar", "name"),
+  ...localizedFieldRules("ar", "title"),
+
+  // Optional localized fields
+  body("en.warranty").optional().isString(),
+  body("ar.warranty").optional().isString(),
+
+  // Language-independent fields
   body("sku")
     .notEmpty().withMessage("sku is required")
     .isString(),
@@ -51,14 +58,6 @@ export const validateCreateProduct = [
     .optional()
     .isIn(["SAR", "USD", "AED"])
     .withMessage("currencyCode must be SAR|USD|AED"),
-
-  body("warranty.en")
-    .optional()
-    .isString(),
-
-  body("warranty.ar")
-    .optional()
-    .isString(),
 
   body("stock")
     .notEmpty().withMessage("stock is required")

@@ -40,27 +40,27 @@ export const getHomeService = async () => {
     })
     .populate({
       path: "bestOffers.products.product",
-      select: "name slug price discountPrice finalPrice images brand rating",
+      select: "en.name en.slug ar.name ar.slug price discountPrice finalPrice en.images ar.images brand rating",
     })
     .populate({
       path: "bestSelling1.products.product",
-      select: "name slug price discountPrice finalPrice images brand rating",
+      select: "en.name en.slug ar.name ar.slug price discountPrice finalPrice en.images ar.images brand rating",
     })
     .populate({
       path: "bestSelling2.products.product",
-      select: "name slug price discountPrice finalPrice images brand rating",
+      select: "en.name en.slug ar.name ar.slug price discountPrice finalPrice en.images ar.images brand rating",
     })
     .populate({
       path: "bestSelling3.products.product",
-      select: "name slug price discountPrice finalPrice images brand rating",
+      select: "en.name en.slug ar.name ar.slug price discountPrice finalPrice en.images ar.images brand rating",
     })
     .populate({
       path: "bestSelling4.products.product",
-      select: "name slug price discountPrice finalPrice images brand rating",
+      select: "en.name en.slug ar.name ar.slug price discountPrice finalPrice en.images ar.images brand rating",
     })
     .populate({
       path: "bestSelling5.products.product",
-      select: "name slug price discountPrice finalPrice images brand rating",
+      select: "en.name en.slug ar.name ar.slug price discountPrice finalPrice en.images ar.images brand rating",
     })
 
     .lean();
