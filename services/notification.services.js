@@ -5,6 +5,28 @@ const NOTIFICATIONS_CACHE_PREFIX = "notifications:user:";
 const CACHE_TTL = 300; // 5 minutes
 
 /* --------------------------------------------------
+   BUILD NOTIFICATION DTO
+--------------------------------------------------- */
+const buildNotificationDTO = (notification, language = "ar") => {
+  const langData = notification[language] || notification.ar;
+
+  return {
+    id: notification._id,
+    title: langData.title,
+    message: langData.message,
+    type: notification.type,
+    priority: notification.priority,
+    inApp: notification.inApp,
+    whatsapp: notification.whatsapp,
+    relatedDocument: notification.relatedDocument,
+    relatedModel: notification.relatedModel,
+    metadata: notification.metadata,
+    createdAt: notification.createdAt,
+    updatedAt: notification.updatedAt,
+  };
+};
+
+/* --------------------------------------------------
    GET USER NOTIFICATIONS
 --------------------------------------------------- */
 export const getUserNotificationsService = async (userId, query = {}) => {
@@ -15,6 +37,7 @@ export const getUserNotificationsService = async (userId, query = {}) => {
       type,
       read,
       priority,
+      language = "ar",
     } = query;
 
     const skip = (page - 1) * limit;
@@ -26,7 +49,7 @@ export const getUserNotificationsService = async (userId, query = {}) => {
     if (priority) filter.priority = priority;
 
     // Try cache
-    const cacheKey = `${NOTIFICATIONS_CACHE_PREFIX}${userId}:${JSON.stringify(filter)}:${page}:${limit}`;
+    const cacheKey = `${NOTIFICATIONS_CACHE_PREFIX}${userId}:${JSON.stringify(filter)}:${page}:${limit}:${language}`;
     const cached = await redis.get(cacheKey);
     if (cached) {
       return { fromCache: true, data: cached };
@@ -42,8 +65,11 @@ export const getUserNotificationsService = async (userId, query = {}) => {
     const total = await Notification.countDocuments(filter);
     const unreadCount = await Notification.getUnreadCount(userId);
 
+    // Transform notifications with language-specific data
+    const transformedNotifications = notifications.map(n => buildNotificationDTO(n, language));
+
     const result = {
-      notifications,
+      notifications: transformedNotifications,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -83,10 +109,10 @@ export const getUnreadCountService = async (userId) => {
   }
 };
 
-/* --------------------------------------------------
+/*----------------------------------------------------
    MARK NOTIFICATION AS READ
---------------------------------------------------- */
-export const markAsReadService = async (notificationId, userId) => {
+-----------------------------------------------------*/
+export const markAsReadService = async (notificationId, userId, language = "ar") => {
   try {
     const notification = await Notification.findOne({
       _id: notificationId,
@@ -107,15 +133,15 @@ export const markAsReadService = async (notificationId, userId) => {
       await redis.del(...keys);
     }
 
-    return notification;
+    return buildNotificationDTO(notification.toObject(), language);
   } catch (error) {
     throw new Error(`Mark as read error: ${error.message}`);
   }
 };
 
-/* --------------------------------------------------
+/*----------------------------------------------------
    MARK ALL AS READ
---------------------------------------------------- */
+-----------------------------------------------------*/
 export const markAllAsReadService = async (userId) => {
   try {
     await Notification.markAllAsRead(userId);
@@ -134,10 +160,10 @@ export const markAllAsReadService = async (userId) => {
   }
 };
 
-/* --------------------------------------------------
+/*----------------------------------------------------
    DELETE NOTIFICATION
---------------------------------------------------- */
-export const deleteNotificationService = async (notificationId, userId) => {
+-----------------------------------------------------*/
+export const deleteNotificationService = async (notificationId, userId, language = "ar") => {
   try {
     const notification = await Notification.findOneAndDelete({
       _id: notificationId,
@@ -155,15 +181,15 @@ export const deleteNotificationService = async (notificationId, userId) => {
       await redis.del(...keys);
     }
 
-    return notification;
+    return buildNotificationDTO(notification.toObject(), language);
   } catch (error) {
     throw new Error(`Delete notification error: ${error.message}`);
   }
 };
 
-/* --------------------------------------------------
+/*----------------------------------------------------
    DELETE ALL NOTIFICATIONS
---------------------------------------------------- */
+-----------------------------------------------------*/
 export const deleteAllNotificationsService = async (userId) => {
   try {
     await Notification.deleteMany({ user: userId });
@@ -181,9 +207,9 @@ export const deleteAllNotificationsService = async (userId) => {
   }
 };
 
-/* --------------------------------------------------
+/*----------------------------------------------------
    CREATE NOTIFICATION (INTERNAL)
---------------------------------------------------- */
+-----------------------------------------------------*/
 export const createNotificationService = async (notificationData) => {
   try {
     const notification = await Notification.create(notificationData);
@@ -201,9 +227,9 @@ export const createNotificationService = async (notificationData) => {
   }
 };
 
-/* --------------------------------------------------
+/*----------------------------------------------------
    BULK CREATE NOTIFICATIONS
---------------------------------------------------- */
+-----------------------------------------------------*/
 export const bulkCreateNotificationsService = async (notifications) => {
   try {
     const created = await Notification.insertMany(notifications);
@@ -224,9 +250,9 @@ export const bulkCreateNotificationsService = async (notifications) => {
   }
 };
 
-/* --------------------------------------------------
+/*----------------------------------------------------
    GET NOTIFICATION STATISTICS (ADMIN)
---------------------------------------------------- */
+-----------------------------------------------------*/
 export const getNotificationStatsService = async () => {
   try {
     const cacheKey = "admin:notification:stats";

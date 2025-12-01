@@ -4,6 +4,7 @@ import Brand from "../models/brand.model.js";
 import Product from "../models/product.model.js";
 import Blog from "../models/blog.model.js";
 import StaticPage from "../models/staticPage.model.js";
+import Branch from "../models/branches.model.js";
 import User from "../models/user.model.js";
 import Role from "../models/role.model.js";
 
@@ -1711,6 +1712,410 @@ const seedStaticPages = async () => {
 };
 
 /* --------------------------------------------------
+   SEED BRANCHES
+--------------------------------------------------- */
+const seedBranches = async () => {
+  const standardWorkingHours = {
+    sat: { open: "09:00", close: "22:00", isClosed: false },
+    sun: { open: "09:00", close: "22:00", isClosed: false },
+    mon: { open: "09:00", close: "22:00", isClosed: false },
+    tue: { open: "09:00", close: "22:00", isClosed: false },
+    wed: { open: "09:00", close: "22:00", isClosed: false },
+    thu: { open: "09:00", close: "22:00", isClosed: false },
+    fri: { open: "16:00", close: "22:00", isClosed: false },
+  };
+
+  const branches = [
+    // Riyadh Branches
+    {
+      ar: {
+        name: "فرع الرياض - العليا",
+        address: "طريق الملك فهد، حي العليا، الرياض 12211",
+        city: "الرياض",
+        region: "منطقة الرياض",
+        services: [
+          "مبيعات",
+          "خدمة ما بعد البيع",
+          "الصيانة",
+          "قطع الغيار",
+          "التركيب المنزلي",
+        ],
+        description: "فرعنا الرئيسي في الرياض يقع في قلب حي العليا التجاري، يضم أحدث الأجهزة المنزلية وفريق متخصص من الخبراء.",
+      },
+      en: {
+        name: "Riyadh Branch - Al Olaya",
+        address: "King Fahd Road, Al Olaya District, Riyadh 12211",
+        city: "Riyadh",
+        region: "Riyadh Region",
+        services: [
+          "Sales",
+          "After-sales Service",
+          "Maintenance",
+          "Spare Parts",
+          "Home Installation",
+        ],
+        description: "Our main Riyadh branch located in the heart of Al Olaya commercial district, featuring the latest home appliances and a specialized team of experts.",
+      },
+      regionCode: "riyadh",
+      latitude: 24.7136,
+      longitude: 46.6753,
+      phones: ["+966112345001", "+966112345002"],
+      email: "riyadh.olaya@elba.sa",
+      whatsapp: "+966501234001",
+      workingHours: standardWorkingHours,
+      manager: {
+        name: "محمد العتيبي",
+        phone: "+966501234101",
+        email: "mohammed.alotaibi@elba.sa",
+      },
+      hasParking: true,
+      hasDisabledAccess: true,
+      hasCafeteria: true,
+      hasShowroom: true,
+      images: [
+        {
+          url: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&h=600&fit=crop",
+          alt: "Riyadh Al Olaya Branch Exterior",
+        },
+      ],
+      isFeatured: true,
+      displayOrder: 1,
+      isActive: true,
+    },
+    {
+      ar: {
+        name: "فرع الرياض - الملقا",
+        address: "طريق عثمان بن عفان، حي الملقا، الرياض 13521",
+        city: "الرياض",
+        region: "منطقة الرياض",
+        services: ["مبيعات", "خدمة العملاء", "الصيانة", "التوصيل"],
+        description: "فرع حديث في حي الملقا يوفر تشكيلة واسعة من الأجهزة المنزلية مع خدمة توصيل سريعة.",
+      },
+      en: {
+        name: "Riyadh Branch - Al Malqa",
+        address: "Othman Ibn Affan Road, Al Malqa District, Riyadh 13521",
+        city: "Riyadh",
+        region: "Riyadh Region",
+        services: ["Sales", "Customer Service", "Maintenance", "Delivery"],
+        description: "Modern branch in Al Malqa offering a wide range of home appliances with fast delivery service.",
+      },
+      regionCode: "riyadh",
+      latitude: 24.7858,
+      longitude: 46.6441,
+      phones: ["+966112345003"],
+      email: "riyadh.malqa@elba.sa",
+      whatsapp: "+966501234002",
+      workingHours: standardWorkingHours,
+      manager: {
+        name: "أحمد السالم",
+        phone: "+966501234102",
+        email: "ahmed.alsalem@elba.sa",
+      },
+      hasParking: true,
+      hasDisabledAccess: true,
+      hasCafeteria: false,
+      hasShowroom: true,
+      displayOrder: 2,
+      isActive: true,
+    },
+
+    // Jeddah Branches
+    {
+      ar: {
+        name: "فرع جدة - التحلية",
+        address: "شارع التحلية، حي التحلية، جدة 23424",
+        city: "جدة",
+        region: "منطقة مكة المكرمة",
+        services: [
+          "مبيعات",
+          "خدمة ما بعد البيع",
+          "الصيانة",
+          "قطع الغيار",
+        ],
+        description: "فرع راقي على شارع التحلية الشهير، يقدم أفضل العلامات التجارية العالمية للأجهزة المنزلية.",
+      },
+      en: {
+        name: "Jeddah Branch - Tahlia",
+        address: "Tahlia Street, Tahlia District, Jeddah 23424",
+        city: "Jeddah",
+        region: "Makkah Region",
+        services: ["Sales", "After-sales Service", "Maintenance", "Spare Parts"],
+        description: "Premium branch on the famous Tahlia Street, offering the best international brands of home appliances.",
+      },
+      regionCode: "makkah",
+      latitude: 21.5433,
+      longitude: 39.1728,
+      phones: ["+966122345001", "+966122345002"],
+      email: "jeddah.tahlia@elba.sa",
+      whatsapp: "+966501234003",
+      workingHours: standardWorkingHours,
+      manager: {
+        name: "خالد الغامدي",
+        phone: "+966501234103",
+        email: "khaled.alghamdi@elba.sa",
+      },
+      hasParking: true,
+      hasDisabledAccess: true,
+      hasCafeteria: true,
+      hasShowroom: true,
+      isFeatured: true,
+      displayOrder: 3,
+      isActive: true,
+    },
+    {
+      ar: {
+        name: "فرع جدة - الروضة",
+        address: "شارع الأمير سلطان، حي الروضة، جدة 23431",
+        city: "جدة",
+        region: "منطقة مكة المكرمة",
+        services: ["مبيعات", "الصيانة", "التوصيل السريع"],
+        description: "فرع في حي الروضة يوفر خدمات شاملة مع فريق صيانة متخصص.",
+      },
+      en: {
+        name: "Jeddah Branch - Al Rawdah",
+        address: "Prince Sultan Street, Al Rawdah District, Jeddah 23431",
+        city: "Jeddah",
+        region: "Makkah Region",
+        services: ["Sales", "Maintenance", "Express Delivery"],
+        description: "Branch in Al Rawdah providing comprehensive services with a specialized maintenance team.",
+      },
+      regionCode: "makkah",
+      latitude: 21.5619,
+      longitude: 39.1467,
+      phones: ["+966122345003"],
+      email: "jeddah.rawdah@elba.sa",
+      whatsapp: "+966501234004",
+      workingHours: standardWorkingHours,
+      hasParking: true,
+      hasDisabledAccess: false,
+      hasCafeteria: false,
+      hasShowroom: true,
+      displayOrder: 4,
+      isActive: true,
+    },
+
+    // Dammam Branch
+    {
+      ar: {
+        name: "فرع الدمام - الشاطئ",
+        address: "طريق الملك عبدالله، حي الشاطئ الشرقي، الدمام 32415",
+        city: "الدمام",
+        region: "المنطقة الشرقية",
+        services: [
+          "مبيعات",
+          "خدمة ما بعد البيع",
+          "الصيانة",
+          "التركيب",
+        ],
+        description: "فرع رئيسي في المنطقة الشرقية يخدم مدن الدمام والخبر والظهران.",
+      },
+      en: {
+        name: "Dammam Branch - Ash Shati",
+        address: "King Abdullah Road, Ash Shati Ash Sharqi, Dammam 32415",
+        city: "Dammam",
+        region: "Eastern Region",
+        services: ["Sales", "After-sales Service", "Maintenance", "Installation"],
+        description: "Main branch in the Eastern Province serving Dammam, Khobar, and Dhahran cities.",
+      },
+      regionCode: "eastern",
+      latitude: 26.4367,
+      longitude: 50.1039,
+      phones: ["+966133345001", "+966133345002"],
+      email: "dammam.shati@elba.sa",
+      whatsapp: "+966501234005",
+      workingHours: standardWorkingHours,
+      manager: {
+        name: "سعد الدوسري",
+        phone: "+966501234104",
+        email: "saad.aldosari@elba.sa",
+      },
+      hasParking: true,
+      hasDisabledAccess: true,
+      hasCafeteria: false,
+      hasShowroom: true,
+      isFeatured: true,
+      displayOrder: 5,
+      isActive: true,
+    },
+
+    // Makkah Branch
+    {
+      ar: {
+        name: "فرع مكة المكرمة - العزيزية",
+        address: "شارع إبراهيم الخليل، حي العزيزية، مكة المكرمة 24231",
+        city: "مكة المكرمة",
+        region: "منطقة مكة المكرمة",
+        services: ["مبيعات", "الصيانة", "قطع الغيار"],
+        description: "فرعنا في مكة المكرمة يخدم المواطنين والمقيمين بأحدث الأجهزة المنزلية.",
+      },
+      en: {
+        name: "Makkah Branch - Al Aziziyah",
+        address: "Ibrahim Al Khalil Street, Al Aziziyah, Makkah 24231",
+        city: "Makkah",
+        region: "Makkah Region",
+        services: ["Sales", "Maintenance", "Spare Parts"],
+        description: "Our Makkah branch serving citizens and residents with the latest home appliances.",
+      },
+      regionCode: "makkah",
+      latitude: 21.3891,
+      longitude: 39.8579,
+      phones: ["+966125345001"],
+      email: "makkah.aziziyah@elba.sa",
+      whatsapp: "+966501234006",
+      workingHours: standardWorkingHours,
+      hasParking: true,
+      hasDisabledAccess: true,
+      hasCafeteria: false,
+      hasShowroom: true,
+      displayOrder: 6,
+      isActive: true,
+    },
+
+    // Madinah Branch
+    {
+      ar: {
+        name: "فرع المدينة المنورة - العزيزية",
+        address: "طريق الملك عبدالعزيز، حي العزيزية، المدينة المنورة 42351",
+        city: "المدينة المنورة",
+        region: "منطقة المدينة المنورة",
+        services: ["مبيعات", "خدمة العملاء", "الصيانة"],
+        description: "فرع المدينة المنورة يقدم خدمات متميزة لسكان المدينة.",
+      },
+      en: {
+        name: "Madinah Branch - Al Aziziyah",
+        address: "King Abdulaziz Road, Al Aziziyah, Madinah 42351",
+        city: "Madinah",
+        region: "Madinah Region",
+        services: ["Sales", "Customer Service", "Maintenance"],
+        description: "Madinah branch providing excellent services to city residents.",
+      },
+      regionCode: "madinah",
+      latitude: 24.4672,
+      longitude: 39.6142,
+      phones: ["+966148345001"],
+      email: "madinah.aziziyah@elba.sa",
+      whatsapp: "+966501234007",
+      workingHours: standardWorkingHours,
+      hasParking: true,
+      hasDisabledAccess: true,
+      hasCafeteria: false,
+      hasShowroom: true,
+      displayOrder: 7,
+      isActive: true,
+    },
+
+    // Khobar Branch
+    {
+      ar: {
+        name: "فرع الخبر - الكورنيش",
+        address: "طريق الكورنيش، حي الكورنيش الشمالي، الخبر 34446",
+        city: "الخبر",
+        region: "المنطقة الشرقية",
+        services: ["مبيعات", "الصيانة", "التوصيل"],
+        description: "فرع على كورنيش الخبر مع إطلالة بحرية رائعة ومعرض واسع.",
+      },
+      en: {
+        name: "Khobar Branch - Corniche",
+        address: "Corniche Road, North Corniche District, Khobar 34446",
+        city: "Khobar",
+        region: "Eastern Region",
+        services: ["Sales", "Maintenance", "Delivery"],
+        description: "Branch on Khobar Corniche with beautiful sea view and spacious showroom.",
+      },
+      regionCode: "eastern",
+      latitude: 26.2885,
+      longitude: 50.2080,
+      phones: ["+966138345001"],
+      email: "khobar.corniche@elba.sa",
+      whatsapp: "+966501234008",
+      workingHours: standardWorkingHours,
+      hasParking: true,
+      hasDisabledAccess: true,
+      hasCafeteria: true,
+      hasShowroom: true,
+      displayOrder: 8,
+      isActive: true,
+    },
+
+    // Taif Branch
+    {
+      ar: {
+        name: "فرع الطائف - الشفا",
+        address: "طريق الملك فيصل، حي الشفا، الطائف 26513",
+        city: "الطائف",
+        region: "منطقة مكة المكرمة",
+        services: ["مبيعات", "الصيانة"],
+        description: "فرع الطائف في منطقة الشفا يخدم أهالي الطائف والمصطافين.",
+      },
+      en: {
+        name: "Taif Branch - Ash Shafa",
+        address: "King Faisal Road, Ash Shafa District, Taif 26513",
+        city: "Taif",
+        region: "Makkah Region",
+        services: ["Sales", "Maintenance"],
+        description: "Taif branch in Ash Shafa area serving Taif residents and vacationers.",
+      },
+      regionCode: "makkah",
+      latitude: 21.2622,
+      longitude: 40.4150,
+      phones: ["+966127345001"],
+      email: "taif.shafa@elba.sa",
+      whatsapp: "+966501234009",
+      workingHours: standardWorkingHours,
+      hasParking: true,
+      hasDisabledAccess: false,
+      hasCafeteria: false,
+      hasShowroom: true,
+      displayOrder: 9,
+      isActive: true,
+    },
+
+    // Abha Branch
+    {
+      ar: {
+        name: "فرع أبها - المنسك",
+        address: "طريق الملك فهد، حي المنسك، أبها 62521",
+        city: "أبها",
+        region: "منطقة عسير",
+        services: ["مبيعات", "خدمة العملاء", "الصيانة"],
+        description: "فرع أبها في قلب المدينة يوفر أفضل الأجهزة المنزلية لمنطقة عسير.",
+      },
+      en: {
+        name: "Abha Branch - Al Mansak",
+        address: "King Fahd Road, Al Mansak District, Abha 62521",
+        city: "Abha",
+        region: "Asir Region",
+        services: ["Sales", "Customer Service", "Maintenance"],
+        description: "Abha branch in the heart of the city providing the best home appliances for Asir region.",
+      },
+      regionCode: "asir",
+      latitude: 18.2164,
+      longitude: 42.5053,
+      phones: ["+966172345001"],
+      email: "abha.mansak@elba.sa",
+      whatsapp: "+966501234010",
+      workingHours: standardWorkingHours,
+      hasParking: true,
+      hasDisabledAccess: true,
+      hasCafeteria: false,
+      hasShowroom: true,
+      displayOrder: 10,
+      isActive: true,
+    },
+  ];
+
+  for (const branch of branches) {
+    const existing = await Branch.findOne({
+      "en.name": branch.en.name,
+    });
+    if (!existing) {
+      await Branch.create(branch);
+      console.log(`✓ Created branch: ${branch.en.name}`);
+    }
+  }
+};
+
+/* --------------------------------------------------
    RUN ALL SEEDERS
 --------------------------------------------------- */
 export const runSeeder = async () => {
@@ -1730,6 +2135,9 @@ export const runSeeder = async () => {
     console.log("");
 
     await seedStaticPages();
+    console.log("");
+
+    await seedBranches();
     console.log("");
 
     console.log("✅ Database seeding completed successfully!\n");

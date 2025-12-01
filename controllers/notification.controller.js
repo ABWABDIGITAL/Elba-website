@@ -57,7 +57,8 @@ export const getUnreadCount = async (req, res, next) => {
 export const markAsRead = async (req, res, next) => {
   try {
     const { notificationId } = req.params;
-    const notification = await markAsReadService(notificationId, req.user.id);
+    const { language = "ar" } = req.query;
+    const notification = await markAsReadService(notificationId, req.user.id, language);
 
     res.status(StatusCodes.OK).json({
       OK: true,
@@ -91,20 +92,22 @@ export const markAllAsRead = async (req, res, next) => {
 export const deleteNotification = async (req, res, next) => {
   try {
     const { notificationId } = req.params;
-    await deleteNotificationService(notificationId, req.user.id);
-
+    const { language = "ar" } = req.query;
+    const notification = await deleteNotificationService(notificationId, req.user.id, language);
+  
     res.status(StatusCodes.OK).json({
       OK: true,
       message: "Notification deleted successfully",
+      data: notification,
     });
   } catch (err) {
     next(err);
   }
 };
 
-/* --------------------------------------------------
+/*--------------------------------------------------
    DELETE ALL NOTIFICATIONS
---------------------------------------------------- */
+----------------------------------------------------*/
 export const deleteAllNotifications = async (req, res, next) => {
   try {
     await deleteAllNotificationsService(req.user.id);
@@ -118,9 +121,9 @@ export const deleteAllNotifications = async (req, res, next) => {
   }
 };
 
-/* --------------------------------------------------
+/*----------------------------------------------------
    SEND DISCOUNT NOTIFICATION (ADMIN)
---------------------------------------------------- */
+-----------------------------------------------------*/
 export const sendDiscountNotification = async (req, res, next) => {
   try {
     const { userIds, couponId, broadcast } = req.body;
