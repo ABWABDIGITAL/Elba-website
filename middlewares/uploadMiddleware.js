@@ -1,34 +1,62 @@
-// middlewares/uploadMiddleware.js
 import multer from "multer";
 import path from "path";
 import fs from "fs";
 
-// Image types
-const IMG_MIME = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
-const IMG_EXT = [".jpeg", ".png", ".jpg", ".webp"];
+// ================================
+// MIME & EXTENSION WHITELISTS
+// ================================
 
-// Reference types (PDF, DOC, IMG)
+// Images
+const IMG_MIME = [
+  "image/jpeg",
+  "image/png",
+  "image/jpg",
+  "image/webp",
+  "image/gif",
+];
+
+const IMG_EXT = [
+  ".jpeg",
+  ".png",
+  ".jpg",
+  ".webp",
+  ".gif",
+];
+
+// Videos
+const VIDEO_MIME = ["video/mp4"];
+const VIDEO_EXT = [".mp4"];
+
+// References (PDF + DOC + Images)
 const REF_MIME = [
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "image/jpeg",
-  "image/png",
+  ...IMG_MIME,
 ];
-const REF_EXT = [".pdf", ".doc", ".docx", ".jpeg", ".jpg", ".png"];
 
+const REF_EXT = [
+  ".pdf",
+  ".doc",
+  ".docx",
+  ...IMG_EXT,
+];
+
+// ================================
+// HELPERS
+// ================================
 const ensureDir = (dir) => {
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 };
 
-// لو محتاج ال generic القديم:
+// Generic base uploader
 const baseUpload = ({
   folder,
-  allowedMime = IMG_MIME,
-  allowedExt = IMG_EXT,
-  maxSizeMB = 5,
+  allowedMime,
+  allowedExt,
+  maxSizeMB = 20,
 }) => {
   if (!folder) throw new Error("Upload middleware requires a folder name");
 
@@ -39,17 +67,16 @@ const baseUpload = ({
     destination: (req, file, cb) => cb(null, dir),
     filename: (req, file, cb) => {
       const ext = path.extname(file.originalname).toLowerCase();
-      const name = Date.now() + "-" + Math.round(Math.random() * 1e9);
-      cb(null, `${name}${ext}`);
+      const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      cb(null, `${unique}${ext}`);
     },
   });
 
   const fileFilter = (req, file, cb) => {
-    const mimetype = file.mimetype;
     const ext = path.extname(file.originalname).toLowerCase();
 
-    if (!allowedMime.includes(mimetype)) {
-      return cb(new Error(`Invalid file type: ${mimetype}`), false);
+    if (!allowedMime.includes(file.mimetype)) {
+      return cb(new Error(`Invalid mime type: ${file.mimetype}`), false);
     }
     if (!allowedExt.includes(ext)) {
       return cb(new Error(`Invalid file extension: ${ext}`), false);
@@ -59,27 +86,30 @@ const baseUpload = ({
 
   return multer({
     storage,
+    limits: { fileSize: maxSizeMB * 1024 * 1024 }, // MB limit
     fileFilter,
-    limits: { fileSize: maxSizeMB * 1024 * 1024 },
   });
 };
 
-// لو محتاجهم لخدمات تانية
-export const imageUpload = (folder) =>
-  baseUpload({ folder, allowedMime: IMG_MIME, allowedExt: IMG_EXT, maxSizeMB: 5 });
-
-export const referenceUpload = (folder = "products/reference") =>
-  baseUpload({
+// ================================
+// EXPORT 1: IMAGE + VIDEO UPLOADER (HOME PAGE)
+// ================================
+export const imageUpload = (folder = "home") => {
+  return baseUpload({
     folder,
-    allowedMime: REF_MIME,
-    allowedExt: REF_EXT,
-    maxSizeMB: 10,
+    allowedMime: [...IMG_MIME, ...VIDEO_MIME],
+    allowedExt: [...IMG_EXT, ...VIDEO_EXT],
+    maxSizeMB: 50, // allow large MP4 files
   });
+};
 
-// ====== المهم للـ Product: productMediaUpload ======
+// ================================
+// EXPORT 2: PRODUCT MEDIA UPLOADER
+// ================================
 const productStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     let dir;
+
     if (file.fieldname === "images") {
       dir = "uploads/products/images";
     } else if (file.fieldname === "reference") {
@@ -87,9 +117,11 @@ const productStorage = multer.diskStorage({
     } else {
       dir = "uploads/misc";
     }
+
     ensureDir(dir);
     cb(null, dir);
   },
+
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const name = Date.now() + "-" + Math.round(Math.random() * 1e9);
@@ -98,30 +130,27 @@ const productStorage = multer.diskStorage({
 });
 
 const productFileFilter = (req, file, cb) => {
-  const mimetype = file.mimetype;
   const ext = path.extname(file.originalname).toLowerCase();
 
   let allowedMime = [];
   let allowedExt = [];
 
   if (file.fieldname === "images") {
-    allowedMime = IMG_MIME;
-    allowedExt = IMG_EXT;
+    allowedMime = [...IMG_MIME];
+    allowedExt = [...IMG_EXT];
   } else if (file.fieldname === "reference") {
-    allowedMime = REF_MIME;
-    allowedExt = REF_EXT;
+    allowedMime = [...REF_MIME];
+    allowedExt = [...REF_EXT];
   } else {
     return cb(new Error(`Unexpected field: ${file.fieldname}`), false);
   }
 
-  if (!allowedMime.includes(mimetype)) {
-    return cb(new Error(`Invalid file type for ${file.fieldname}: ${mimetype}`), false);
+  if (!allowedMime.includes(file.mimetype)) {
+    return cb(new Error(`Invalid mime for ${file.fieldname}: ${file.mimetype}`), false);
   }
+
   if (!allowedExt.includes(ext)) {
-    return cb(
-      new Error(`Invalid file extension for ${file.fieldname}: ${ext}`),
-      false
-    );
+    return cb(new Error(`Invalid extension for ${file.fieldname}: ${ext}`), false);
   }
 
   cb(null, true);
@@ -130,8 +159,28 @@ const productFileFilter = (req, file, cb) => {
 export const productMediaUpload = multer({
   storage: productStorage,
   fileFilter: productFileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB per file
+  limits: { fileSize: 20 * 1024 * 1024 }, // 20MB per file
 });
+export const homeUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = "uploads/home";
+      ensureDir(dir);
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname);
+      const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+      cb(null, `${unique}${ext}`);
+    }
+  }),
 
-// default export لو حد بيستخدمه
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB
+  }
+}).any(); // <-- THIS FIXES bannerseller[0][url]
+
+// ================================
+// DEFAULT EXPORT (generic)
+// ================================
 export default baseUpload;

@@ -8,15 +8,17 @@ import {
   getCompareProductsService,
   getBestSellingByCategoryService,
   getBestOffersService,
-  getProductsByCatalog,
+  getProductsByCategory,
   getProductsByTagService,
   getProductsByTagsService,
   getAvailableTagsService,
   bulkUpdateProductTagsService,
+  getCategoryAndProductsByType,
 } from "../services/product.services.js";
 
 import { StatusCodes } from "http-status-codes";
-
+import { ServerError } from "../utlis/apiError.js";
+import Product from "../models/product.model.js";
 /* -----------------------------------------------------
    INTERNAL HELPERS
 ----------------------------------------------------- */
@@ -257,16 +259,22 @@ const normalizeUpdatePayload = (req) => {
     if (req.body.ar.features !== undefined) {
       payload.ar.features = normalizeFeaturesForLang(req.body.ar.features);
     }
+    if (req.body.ar?.catalog) {
+  payload.ar = payload.ar || {};
+  payload.ar.catalog = {
+    pdfUrl: req.body.ar.catalog.pdfUrl
+  };
+}
+
+if (req.body.en?.catalog) {
+  payload.en = payload.en || {};
+  payload.en.catalog = {
+    pdfUrl: req.body.en.catalog.pdfUrl
+  };
+}
   }
 
-  // ---------- Reference file update ----------
-  const reference = normalizeReferenceFile(req);
-  if (reference) {
-    if (!payload.en) payload.en = {};
-    if (!payload.ar) payload.ar = {};
-    payload.en.reference = reference;
-    payload.ar.reference = reference;
-  }
+
 
   // ---------- Global images update ----------
   const images = normalizeImagesGlobal(req);
@@ -358,6 +366,45 @@ export const getProductBySkuController = async (req, res, next) => {
     next(err);
   }
 };
+export const uploadProductManual = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    console.log("DEBUG FILE:", req.file);
+    console.log("DEBUG BODY:", req.body);
+    console.log("DEBUG PARAMS:", req.params);
+
+    if (!req.file) {
+      throw BadRequest("PDF file 'manual' is required");
+    }
+
+    const pdfUrl = `/uploads/products/manuals/${req.file.filename}`;
+
+    const updated = await Product.findByIdAndUpdate(
+      id,
+      {
+        "ar.catalog.pdfUrl": pdfUrl,
+        "en.catalog.pdfUrl": pdfUrl,
+      },
+      { new: true }
+    );
+
+    if (!updated) throw NotFound("Product not found");
+
+    res.json({
+      OK: true,
+      message: "User manual uploaded successfully",
+      data: { pdfUrl },
+    });
+
+  } catch (err) {
+    console.error("UPLOAD MANUAL ERROR FULL:", err);
+    console.error("UPLOAD MANUAL ERROR MESSAGE:", err.message);
+    console.error("UPLOAD MANUAL ERROR NAME:", err.name);
+
+    next(ServerError("Failed to upload user manual", err));
+  }
+};
 
 // COMPARE PRODUCTS BY SKU
 export const getCompareProductsController = async (req, res, next) => {
@@ -399,10 +446,10 @@ export const getBestOffersController = async (req, res, next) => {
 };
 
 // GET PRODUCTS BY CATALOG
-export const getProductsByCatalogController = async (req, res, next) => {
+export const getProductsByCategoryController = async (req, res, next) => {
   try {
-    const { catalogId } = req.params;
-    const result = await getProductsByCatalog(catalogId);
+    const { categoryId } = req.params;
+    const result = await getProductsByCategory(categoryId);
     res.status(StatusCodes.OK).json(result);
   } catch (err) {
     next(err);
@@ -419,7 +466,26 @@ export const getProductsByTag = async (req, res, next) => {
     next(err);
   }
 };
+export const getCategoryWithProductsController = async (req, res) => {
+  try {
+    const { type } = req.params;
 
+    const data = await getCategoryAndProductsByType(type);
+
+    return res.status(200).json({
+      success: true,
+      message: `Categories and products for type: ${type}`,
+      data,
+    });
+
+  } catch (error) {
+    console.error("Controller Error:", error);
+    return res.status(400).json({
+      success: false,
+      message: error.message || "Something went wrong",
+    });
+  }
+};
 // GET PRODUCTS BY MULTIPLE TAGS
 export const getProductsByTags = async (req, res, next) => {
   try {

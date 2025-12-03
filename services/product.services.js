@@ -1,6 +1,7 @@
 // services/product.services.js
 import Product from "../models/product.model.js";
 import Category from "../models/category.model.js";
+import mongoose from "mongoose";
 import slugify from "slugify";
 import ApiError, {
   BadRequest,
@@ -17,22 +18,13 @@ export const buildCompareDTO = (p) => {
   return {
     id: p._id,
     ar: {
-      title: p.ar?.title,
-      subTitle: p.ar?.subTitle,
-      description: p.ar?.description,
       specifications: p.ar?.specifications,
-      details: p.ar?.details,
       features: p.ar?.features,
       warranty: p.ar?.warranty,
-      reference: p.ar?.reference,
       seo: p.ar?.seo,
     },
     en: {
-      title: p.en?.title,
-      subTitle: p.en?.subTitle,
-      description: p.en?.description,
       specifications: p.en?.specifications,
-      details: p.en?.details,
       features: p.en?.features,
       warranty: p.en?.warranty,
       reference: p.en?.reference,
@@ -42,19 +34,11 @@ export const buildCompareDTO = (p) => {
     sku: p.sku,
     slug: p.slug,
     price: p.price,
-    discountPrice: p.discountPrice,
-    discountPercentage: p.discountPercentage,
     finalPrice: p.finalPrice,
     stock: p.stock,
-    status: p.status,
-    tags: p.tags || [],
-    modelNumber: p.modelNumber,
-    category: p.category,
     brand: p.brand,
     ratingsAverage: p.ratingsAverage,
     ratingsQuantity: p.ratingsQuantity,
-    views: p.views,
-    salesCount: p.salesCount,
   };
 };
 
@@ -75,6 +59,8 @@ export const buildGetAllproductDTO = (p) => {
     discountPrice: p.discountPrice,
     discountPercentage: p.discountPercentage,
     finalPrice: p.finalPrice,
+    ratingsAverage:p.ratingsAverage,
+    sizeType:p.sizeTye,
   };
 };
 
@@ -85,24 +71,24 @@ export const buildProductDTO = (p) => {
     ar: {
       title: p.ar?.title,
       subTitle: p.ar?.subTitle,
-      description: p.ar?.description,
-      specifications: p.ar?.specifications,
-      details: p.ar?.details,
-      seo: p.ar?.seo,
-      reference: p.ar?.reference,
       features: p.ar?.features,
+      specifications: p.ar?.specifications,
       warranty: p.ar?.warranty,
+      description: p.ar?.description,
+      details: p.ar?.details,
+      catalog:p.ar?.catalog,
+      seo: p.ar?.seo,
     },
     en: {
       title: p.en?.title,
       subTitle: p.en?.subTitle,
-      description: p.en?.description,
-      specifications: p.en?.specifications,
-      details: p.en?.details,
-      seo: p.en?.seo,
-      reference: p.en?.reference,
       features: p.en?.features,
+      specifications: p.en?.specifications,
       warranty: p.en?.warranty,
+      description: p.en?.description,
+      details: p.en?.details,
+      catalog:p.en?.catalog,
+      seo: p.en?.seo,
     },
     images: p.images || [],
     sku: p.sku,
@@ -117,8 +103,11 @@ export const buildProductDTO = (p) => {
     brand: p.brand,
     ratingsAverage: p.ratingsAverage,
     ratingsQuantity: p.ratingsQuantity,
+    installments:p.installments,
     views: p.views,
+    sizeType:p.sizeType,
     salesCount: p.salesCount,
+    isFav:p.isFav,
     tags: p.tags || [],
   };
 };
@@ -287,8 +276,9 @@ export const getAllProductsService = async (query) => {
 
     const [items, total] = await Promise.all([
       Product.find(filter)
-        .populate("category", "name slug")
-        .populate("brand", "name slug")
+        .populate("category", "ar.name ar.slug en.name en.slug image")
+.populate("brand", "ar.name ar.slug en.name en.slug logo")
+
         .skip(skip)
         .limit(limit)
         .sort({ createdAt: -1 }),
@@ -310,41 +300,74 @@ export const getAllProductsService = async (query) => {
     throw ServerError("Failed to get products", err);
   }
 };
-
-/* --------------------------------------------------
-   GET PRODUCT BY SKU
---------------------------------------------------- */
+    
 export const getProductBySkuService = async (sku) => {
+  const product = await Product.findOneAndUpdate(
+    { sku },
+    { $inc: { views: 1 } },
+    { new: true }
+  )
+  .populate("category", "ar.name ar.slug en.name en.slug image")
+  .populate("brand", "ar.name ar.slug en.name en.slug logo");
+
+  if (!product) throw NotFound("Product not found");
+
+  return {
+    OK: true,
+    message: "Product fetched successfully",
+    data: buildProductDTO(product),
+  };
+};
+export const getCategoryAndProductsByType = async (categoryType) => {
+  if (!categoryType) {
+    throw new Error("categoryType is required");
+  }
+
+  // enforce valid types
+  const allowedTypes = ["Large", "Small"];
+  if (!allowedTypes.includes(categoryType)) {
+    throw new Error(
+      `Invalid category type. Allowed: ${allowedTypes.join(", ")}`
+    );
+  }
+
   try {
-    const product = await Product.findOneAndUpdate(
-      { sku },
-      { $inc: { views: 1 } },
-      { new: true }
-    )
-      .populate("category", "name slug")
-      .populate("brand", "name slug");
+    const data = await Category.aggregate([
+      { $match: { type: categoryType } },
 
-    if (!product) throw NotFound("Product not found");
+      {
+        $lookup: {
+          from: "products",
+          localField: "_id",
+          foreignField: "category",
+          as: "products",
+        },
+      },
 
-    return {
-      OK: true,
-      message: "Product fetched successfully",
-      data: buildProductDTO(product),
-    };
+      // optional: sorting
+      {
+        $addFields: {
+          products: {
+            $sortArray: {
+              input: "$products",
+              sortBy: { createdAt: -1 },
+            },
+          },
+        },
+      },
+    ]);
+
+    return data;
   } catch (err) {
-    if (err instanceof ApiError) throw err;
-    throw ServerError("Failed to get product", err);
+    console.error("Error in getCategoryAndProductsByType:", err);
+    throw new Error("Internal server error");
   }
 };
-
-/* --------------------------------------------------
-   COMPARE PRODUCTS
---------------------------------------------------- */
 export const getCompareProductsService = async (skus) => {
   try {
     const products = await Product.find({ sku: { $in: skus } })
-      .populate("category", "name slug")
-      .populate("brand", "name slug");
+   .populate("category", "ar.name ar.slug en.name en.slug image")
+.populate("brand", "ar.name ar.slug en.name en.slug logo")
 
     if (!products.length) throw NotFound("Products not found");
 
@@ -391,8 +414,8 @@ export const getBestSellingByCategoryService = async (categoryId, query) => {
     const categoryIds = await getCategoryTreeIds(categoryId);
 
     let mongooseQuery = Product.find({ category: { $in: categoryIds } })
-      .populate("category", "name slug")
-      .populate("brand", "name slug");
+      .populate("category", "ar.name ar.slug en.name en.slug image")
+.populate("brand", "ar.name ar.slug en.name en.slug logo")
 
     if (top) {
       const items = await mongooseQuery
@@ -445,8 +468,9 @@ export const getBestOffersService = async (query) => {
     const { top } = query;
 
     let mongooseQuery = Product.find({})
-      .populate("category", "name slug")
-      .populate("brand", "name slug");
+      .populate("category", "ar.name ar.slug en.name en.slug image")
+.populate("brand", "ar.name ar.slug en.name en.slug logo")
+
 
     if (top) {
       const items = await mongooseQuery
@@ -491,31 +515,65 @@ export const getBestOffersService = async (query) => {
 /* --------------------------------------------------
    PRODUCTS BY CATALOG
 --------------------------------------------------- */
-export const getProductsByCatalog = async (catalogId) => {
+export const getProductsByCategory = async (categoryId) => {
   try {
-    const categories = await Category.find({ catalog: catalogId }).select("_id");
 
-    if (!categories.length)
-      throw NotFound("Categories not found for this catalog");
+    console.log("=== getProductsByCategory() START ===");
+    console.log("Incoming categoryId:", categoryId);
 
-    const categoryIds = categories.map((c) => c._id);
+    // 1) Validate categoryId
+    if (!categoryId) {
+      console.log("ERROR: categoryId is missing!");
+      throw BadRequest("categoryId is required");
+    }
 
-    const products = await Product.find({ category: { $in: categoryIds } })
-      .populate("category", "name slug")
-      .populate("brand", "name slug");
+    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
+      console.log("ERROR: invalid ObjectId:", categoryId);
+      throw BadRequest("Invalid categoryId");
+    }
 
-    if (!products.length) throw NotFound("Products not found");
+    // 2) Get category
+    console.log("Finding category by ID...");
+    const category = await Category.findById(categoryId).lean();
+    console.log("Category result:", category);
+
+    if (!category) {
+      console.log("ERROR: Category not found");
+      throw NotFound("Category not found");
+    }
+
+    // 3) Find products
+    console.log("Finding products for category:", categoryId);
+    const products = await Product.find({ category: categoryId })
+      .populate("category", "ar.name ar.slug en.name en.slug image")
+      .populate("brand", "ar.name ar.slug en.name en.slug logo")
+      .lean();
+
+    console.log("Products result:", products.length);
+
+    if (!products.length) {
+      console.log("ERROR: Products not found");
+      throw NotFound("Products not found");
+    }
+
+    console.log("=== getProductsByCategory() SUCCESS ===");
 
     return {
       OK: true,
       message: "Products fetched successfully",
       data: products.map(buildProductDTO),
     };
+
   } catch (err) {
+    console.log("=== ERROR in getProductsByCategory() ===");
+    console.log(err);
+
     if (err instanceof ApiError) throw err;
     throw ServerError("Failed to get products", err);
   }
 };
+
+
 
 /* --------------------------------------------------
    GET PRODUCTS BY TAG

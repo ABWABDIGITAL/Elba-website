@@ -1,4 +1,3 @@
-// routes/product.routes.js
 import express from "express";
 import {
   createProductController,
@@ -9,11 +8,13 @@ import {
   getCompareProductsController,
   getBestSellingByCategoryController,
   getBestOffersController,
-  getProductsByCatalogController,
+  getProductsByCategoryController,
   getProductsByTag,
   getProductsByTags,
   getAvailableTags,
   bulkUpdateProductTags,
+  getCategoryWithProductsController,
+  uploadProductManual, // <-- اضفتها
 } from "../controllers/product.controller.js";
 
 import {
@@ -26,7 +27,7 @@ import {
 
 import { protect } from "../middlewares/authMiddleware.js";
 import { requirePermission } from "../middlewares/permission.middleware.js";
-import upload, { productMediaUpload } from "../middlewares/uploadMiddleware.js";
+import upload, { productMediaUpload } from "../middlewares/uploadMiddleware.js"; // <-- productMediaUpload هنا
 import parseNestedJson from "../middlewares/ParseNestedDot.js";
 
 import {
@@ -36,7 +37,7 @@ import {
 
 const router = express.Router();
 
-// body parser for JSON APIs (للـ non-multipart)
+// body parser for JSON APIs
 router.use(express.json());
 
 // CREATE PRODUCT
@@ -63,31 +64,30 @@ router.patch(
   updateProductController
 );
 
-// LIST ALL
 router.get("/", protect, getAllProductsController);
 
-// by SKU
 router.get("/sku/:sku", protect, getProductBySkuController);
 
-// compare by SKU
 router.get("/compare", protect, getCompareProductsController);
 
-// best selling by category (including tree)
 router.get(
   "/category/:categoryId/best-selling",
   protect,
   getBestSellingByCategoryController
 );
 
-// best offers
 router.get("/best-offers", protect, getBestOffersController);
 
-// products by catalog
-router.get("/catalog/:catalogId", protect, getProductsByCatalogController);
+router.get("/category/:categoryId", protect, getProductsByCategoryController);
 
-// TAG ROUTES
 router.get("/tags/available", getAvailableTags);
 router.get("/tags", getProductsByTags);
+router.post(
+  "/:id/manual",
+  productMediaUpload.single("reference"),
+  uploadProductManual
+);
+
 
 router.post(
   "/tags/auto-assign",

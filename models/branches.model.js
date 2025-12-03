@@ -115,14 +115,24 @@ const BranchSchema = new mongoose.Schema({
 
 }, { timestamps: true });
 
-// Pre-save hook to sync coordinates with lat/long fields
-BranchSchema.pre('save', function(next) {
-  if (this.latitude && this.longitude) {
+BranchSchema.pre('validate', function (next) {
+  // Ensure location structure exists
+  if (!this.location) {
+    this.location = { type: 'Point', coordinates: [] };
+  }
+
+  // If latitude/longitude exist → generate coordinates
+  if (this.latitude != null && this.longitude != null) {
+    this.location.type = 'Point';
     this.location.coordinates = [this.longitude, this.latitude];
-  } else if (this.location && this.location.coordinates && this.location.coordinates.length === 2) {
+  }
+
+  // If coordinates exist → sync back to latitude/longitude
+  if (Array.isArray(this.location.coordinates) && this.location.coordinates.length === 2) {
     this.longitude = this.location.coordinates[0];
     this.latitude = this.location.coordinates[1];
   }
+
   next();
 });
 

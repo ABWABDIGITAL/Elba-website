@@ -10,7 +10,7 @@ import ApiFeatures from "../utlis/apiFeatures.js";
 /**
  * Create review – one per user per product
  */
-export const createReviewService = async ({ product, user, rating, title, comment }) => {
+export const createReviewService = async ({ product, user, rating, title, comment, name, email }) => {
   // Enforce one review per user per product
   const existing = await Review.findOne({ product, user });
   if (existing) {
@@ -24,6 +24,8 @@ export const createReviewService = async ({ product, user, rating, title, commen
       rating,
       title,
       comment,
+      name,
+      email
     });
 
     return review;
@@ -41,7 +43,7 @@ export const createReviewService = async ({ product, user, rating, title, commen
  */
 export const getReviewService = async (id) => {
   try {
-    const review = await Review.findById(id).populate("product", "name");
+    const review = await Review.findById(id).populate("product", "name comment rating");
     if (!review) throw NotFound("Review not found");
     return review;
   } catch (err) {
@@ -100,7 +102,7 @@ export const getReviewsService = async (query) => {
   try {
     const features = new ApiFeatures(Review.find(), query, {
       allowedFilterFields: ["product", "rating"],
-      searchFields: ["title", "comment"],
+      searchFields: ["title", "comment" , "name"],
     });
 
     // base filter

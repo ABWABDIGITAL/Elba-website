@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import seoSchema from "./seo.model.js";
+import brancheSchema from "./branches.model.js";
 
 const multiLangText = {
   en: { type: String, required: true },
@@ -12,7 +13,15 @@ const bannerSchema = new mongoose.Schema(
   },
   { _id: false }
 );
-
+const bannerSellerSchema = new mongoose.Schema(
+  {
+    url: { type: String, required: true },
+    discount:{type:Number,default:0 , required:true},
+    discountCollection:{type:String ,default:""},
+    
+  },
+  { _id: false }
+);
 const productRefSchema = new mongoose.Schema(
   {
     title : multiLangText,
@@ -42,7 +51,6 @@ const productSectionSchema =new mongoose.Schema(
 const videoSchema = new mongoose.Schema(
   {
     url: { type: String, required: true },
-    alt: multiLangText,
   },
   { _id: false }
 );
@@ -50,53 +58,21 @@ const videoSchema = new mongoose.Schema(
 const homeSchema = new mongoose.Schema(
   {
     heroSlider: [bannerSchema],
-    categoryShortcuts: [categoryRef],
-    bestOffers: productSectionSchema,
-    promoBanner1: bannerSchema,
-    bestSelling1: productSectionSchema,
-    promotionalVideo: videoSchema,
-    bestSelling2: productSectionSchema,
-    promoBanner2: bannerSchema,
-    bestSelling3: productSectionSchema,
-    bestSelling4: productSectionSchema,
-    bestSelling5: productSectionSchema,
-    storeLocator: {
-      title: multiLangText,
-      locations: [
-        {
-          name: multiLangText,
-          address: multiLangText,
-          phone: String,
-          coordinates: {
-            lat: Number,
-            lng: Number,
-          },
-        },
-      ],
-    },
-
-    /* 13) FOOTER */
-    footer: {
-      about: multiLangText,
-      socialMedia: [
-        {
-          platform: String,
-          url: String,
-          icon: String,
-        },
-      ],
-      paymentMethods: [
-        {
-          name: String,
-          icon: String,
-        },
-      ],
-      qrCode: String,
-    },
-
-    /* 14) SEO */
-    seo:seoSchema,
-
+    categories: [categoryRef],
+    bestOffer:[productRefSchema],
+    promoVideo:[videoSchema],
+    popVideo:[videoSchema],
+    gif:[videoSchema],
+    products:[productRefSchema],
+    banner1:[bannerSchema],
+    bannerseller:[bannerSellerSchema],
+    braches: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Branch",
+    }],
+    seo:[seoSchema],
+    largeNum:{type:Number , default:0},
+    smallNum:{type:Number , default:0},
     isActive: { type: Boolean, default: true },
   },
   {

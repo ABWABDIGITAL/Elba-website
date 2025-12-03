@@ -83,3 +83,16 @@ export const deleteCategory = async ({ id }) => {
     return { OK: false, error: "Server error" };
   }
 };
+export const getLargeSmallCount = async () => {
+  const categories = await Category.find().lean();
+
+  const largeTotal = categories
+    .filter((c) => c.type === "Large")
+    .reduce((sum, c) => sum + (c.productCount || 0), 0);
+
+  const smallTotal = categories
+    .filter((c) => c.type === "Small")
+    .reduce((sum, c) => sum + (c.productCount || 0), 0);
+
+  return { large: largeTotal, small: smallTotal };
+};

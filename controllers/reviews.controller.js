@@ -9,13 +9,15 @@ import { StatusCodes } from "http-status-codes";
 
 export const createReviewController = async (req, res, next) => {
   try {
-    const { product, rating, title, comment } = req.body;
+    const { product, rating, title, comment ,email ,name} = req.body;
 
     const review = await createReviewService({
       product,
       rating,
       title,
       comment,
+      name,
+      email,
       user: req.user._id,
     });
 

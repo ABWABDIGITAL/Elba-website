@@ -43,13 +43,14 @@ const userSchema = new mongoose.Schema(
       required: [true, "Please enter your phone number"],
       unique: true,
       trim: true,
-    },
+      },
 
     role: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Role",
-      default: 'user',
-    },
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Role",
+    required: true,
+  },
+
 
     legacyRole: {
       type: String,

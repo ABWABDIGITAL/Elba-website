@@ -18,6 +18,20 @@ const reviewSchema = new mongoose.Schema(
     comment: {
       type: String,
     },
+     name: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 3,
+      maxlength: 50,
+    },
+
+    email: {
+      type: String,
+      required: true,
+      lowercase: true,
+      trim: true
+    },
 
     user: {
       type: mongoose.Schema.Types.ObjectId,

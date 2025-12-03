@@ -11,7 +11,6 @@ import reviewRoutes from "./routes/review.route.js";
 import cartRoutes from "./routes/cart.route.js";
 import orderRoutes from "./routes/order.route.js";
 import errorMiddleware from "./middlewares/error.middleware.js"
-import catalogRoutes from "./routes/catalog.route.js";
 import homeRoutes from "./routes/home.route.js";
 import couponRoutes from "./routes/coupon.route.js";
 import branchRoutes from "./routes/branches.route.js";
@@ -20,6 +19,7 @@ import adminRoutes from "./routes/admin.route.js";
 import notificationRoutes from "./routes/notification.route.js";
 import blogRoutes from "./routes/blog.route.js";
 import staticPageRoutes from "./routes/staticPage.route.js";
+import emailPosterRoutes from "./routes/emailPoster.route.js";
 import seedRoles from "./config/seedRoles.js";
 import runSeeder from "./config/seeder.js";
 
@@ -52,7 +52,6 @@ app.use("/api/v1/users" , userRoutes);
 app.use("/api/v1/reviews" , reviewRoutes);
 app.use("/api/v1/cart" , cartRoutes);
 app.use("/api/v1/orders" , orderRoutes);
-app.use("/api/v1/catalogs" , catalogRoutes);
 app.use("/api/v1/coupons" , couponRoutes);
 app.use("/api/v1/branches" , branchRoutes);
 app.use("/api/v1/roles" , roleRoutes);
@@ -60,6 +59,7 @@ app.use("/api/v1/admin" , adminRoutes);
 app.use("/api/v1/notifications" , notificationRoutes);
 app.use("/api/v1/blogs" , blogRoutes);
 app.use("/api/v1/pages" , staticPageRoutes);
+app.use("/api/v1/emailPosters" , emailPosterRoutes);
 app.use("/uploads" , express.static(path.join(process.cwd(), "uploads")));
 app.use(errorMiddleware);
 app.listen(PORT, () => {

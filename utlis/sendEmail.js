@@ -3,8 +3,8 @@ import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
   host: "smtp.titan.email",
-  port: 465,                // SSL port
-  secure: true,             // Titan requires secure=true for port 465
+  port: process.env.SMTP_PORT,                // SSL port
+  secure: false,             // Titan requires secure=true for port 465
   auth: {
     user: process.env.EMAIL_USERNAME, 
     pass: process.env.EMAIL_PASSWORD,

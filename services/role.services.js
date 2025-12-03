@@ -238,3 +238,33 @@ export const cloneRoleService = async (roleId, newRoleName) => {
     throw ServerError("Failed to clone role", err);
   }
 };
+
+const SUPER_ADMIN_PRIORITY = 100;
+const ADMIN_PRIORITY = 80;
+
+export const isSuperAdminRole = (roleObj) => {
+  return roleObj && roleObj.priority >= SUPER_ADMIN_PRIORITY;
+};
+
+export const isAdminRole = (roleObj) => {
+  return roleObj && roleObj.priority >= ADMIN_PRIORITY;
+};
+
+export const canRoleAccess = (roleObj, resource, action) => {
+  if (!roleObj) {
+    throw BadRequest("Role object is required for permission validation");
+  }
+
+  if (isSuperAdminRole(roleObj)) return true;
+
+  const perm = roleObj.permissions?.find((p) => p.resource === resource);
+  if (!perm) return false;
+
+  return perm.actions[action] === true;
+};
+
+export const assertRolePermission = (roleObj, resource, action) => {
+  if (!canRoleAccess(roleObj, resource, action)) {
+    throw Forbidden(`You do not have permission to ${action} ${resource}`);
+  }
+};

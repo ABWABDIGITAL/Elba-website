@@ -1,85 +1,68 @@
-// models/product.model.js
 import mongoose from "mongoose";
 import slugify from "slugify";
 import seoSchema from "./seo.model.js";
 
+async function safeUpdateCategoryCount(categoryId, inc) {
+  if (!categoryId) return;
+
+  if (typeof categoryId === "object" && categoryId._id) {
+    categoryId = categoryId._id;
+  }
+
+  if (!mongoose.isValidObjectId(categoryId)) {
+    console.warn("Invalid categoryId:", categoryId);
+    return;
+  }
+
+  const Category = mongoose.model("Category");
+
+  const cat = await Category.findByIdAndUpdate(
+    categoryId,
+    { $inc: { productCount: inc } },
+    { new: true }
+  );
+
+  // never allow negative count
+  if (cat && cat.productCount < 0) {
+    cat.productCount = 0;
+    await cat.save();
+  }
+}
+
+/* =========================================================================
+   PRODUCT SCHEMA
+=========================================================================== */
 const productSchema = new mongoose.Schema(
   {
-    // ----------------- AR -----------------
+    /* ------------------------ MULTILANG -------------------------- */
     ar: {
-      title: { type: String, required: true, trim: true },
-      subTitle: { type: String, required: true, trim: true },
-      description: [
-        {
-          title: { type: String, trim: true },
-          content: { type: String, trim: true },
-        },
-      ],
-      specifications: [
-        {
-          key: { type: String, trim: true },
-          value: { type: String, trim: true },
-          unit: { type: String, trim: true },
-          group: { type: String, trim: true },
-        },
-      ],
-      features: [{ type: String, trim: true }],
-      warranty: { type: String, trim: true },
-      details: [
-        { key: { type: String, trim: true }, value: { type: String, trim: true } },
-      ],
-      reference: {
-        file: {
-          url: String,
-          filename: String,
-          fileType: String,
-          size: Number,
-        },
-      },
+      title: { type: String, required: true },
+      subTitle: { type: String, required: true },
+      description: [{ title: String, content: String }],
+      specifications: [{ key: String, value: String, unit: String, group: String }],
+      features: [String],
+      warranty: String,
+      details: [{ key: String, value: String }],
       seo: seoSchema,
+      catalog:{ pdfUrl: { type: String }}
     },
 
-    // ----------------- EN -----------------
     en: {
-      title: { type: String, required: true, trim: true },
-      subTitle: { type: String, required: true, trim: true },
-      description: [
-        {
-          title: { type: String, trim: true },
-          content: { type: String, trim: true },
-        },
-      ],
-      specifications: [
-        {
-          key: { type: String, trim: true },
-          value: { type: String, trim: true },
-          unit: { type: String, trim: true },
-          group: { type: String, trim: true },
-        },
-      ],
-      features: [{ type: String, trim: true }],
-      warranty: { type: String, trim: true },
-      details: [
-        { key: { type: String, trim: true }, value: { type: String, trim: true } },
-      ],
-      reference: {
-        file: {
-          url: String,
-          filename: String,
-          fileType: String,
-          size: Number,
-        },
-      },
+      title: { type: String, required: true },
+      subTitle: { type: String, required: true },
+      description: [{ title: String, content: String }],
+      specifications: [{ key: String, value: String, unit: String, group: String }],
+      features: [String],
+      warranty: String,
+      details: [{ key: String, value: String }],
       seo: seoSchema,
+      catalog:{ pdfUrl: { type: String }}
     },
 
-    // ----------------- GLOBAL -----------------
-    images: [
-      {
-        url: { type: String, required: true },
-      },
-    ],
+    /* ------------------------ MEDIA ------------------------------- */
+    images: [{ url: { type: String, required: true } }],
 
+    /* ------------------------ IDENTIFIERS -------------------------- */
     slug: { type: String, unique: true, index: true },
 
     sku: {
@@ -91,36 +74,32 @@ const productSchema = new mongoose.Schema(
       index: true,
     },
 
-    modelNumber: { type: String, trim: true },
+    modelNumber: String,
 
+    /* ------------------------ PRICING ------------------------------ */
     price: { type: Number, required: true, min: 0 },
-
     discountPrice: {
       type: Number,
       default: 0,
       min: 0,
       validate: {
-        validator: function (val) {
+        validator(val) {
           return val <= this.price;
         },
         message: "discountPrice cannot be greater than price",
       },
     },
+  sizeType: {
+    type: String,
+    enum: ["large", "medium", "small"],
+    default: "large",
+  },
 
-    discountPercentage: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 100,
-      index: true,
-    },
+    discountPercentage: { type: Number, default: 0, min: 0, max: 100, index: true },
 
-    currencyCode: {
-      type: String,
-      enum: ["SAR", "USD", "AED"],
-      default: "SAR",
-    },
+    currencyCode: { type: String, enum: ["SAR", "USD", "AED"], default: "SAR" },
 
+    /* ------------------------ STOCK ------------------------------- */
     stock: { type: Number, required: true, min: 0 },
 
     status: {
@@ -129,33 +108,22 @@ const productSchema = new mongoose.Schema(
       default: "active",
     },
 
-    category: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Category",
-      required: true,
+    /* ------------------------ RELATIONS ---------------------------- */
+    category: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
+    brand: { type: mongoose.Schema.Types.ObjectId, ref: "Brand", required: true },
+
+    /* ------------------------ NEW TYPE FIELD ------------------------ */
+    sizeType: {
+      type: String,
+      enum: ["large", "small", "accessories", "electronics", "other"],
+      default: "large",
+      index: true,
     },
 
-    brand: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Brand",
-      required: true,
-    },
-
-    erpIntegration: {
-      onyxProductId: String,
-      syncStatus: {
-        type: String,
-        enum: ["pending", "synced", "failed"],
-        default: "pending",
-      },
-      lastSyncedAt: Date,
-    },
-
-    salesCount: { type: Number, default: 0, min: 0, index: true },
+    /* ------------------------ ANALYTICS ----------------------------- */
+    salesCount: { type: Number, default: 0, min: 0 },
     ratingsAverage: { type: Number, default: 0, min: 0, max: 5 },
     ratingsQuantity: { type: Number, default: 0 },
-
-    isFav: { type: Boolean, default: false },
     views: { type: Number, default: 0 },
 
     tags: {
@@ -185,9 +153,9 @@ const productSchema = new mongoose.Schema(
   }
 );
 
-/* -----------------------------------
-   SLUG LOGIC
------------------------------------ */
+/* =========================================================================
+   SLUG
+=========================================================================== */
 productSchema.pre("save", function (next) {
   if (this.isModified("sku") && this.sku) {
     this.slug = slugify(this.sku, { lower: true, strict: true });
@@ -195,72 +163,30 @@ productSchema.pre("save", function (next) {
   next();
 });
 
-/* -----------------------------------
-   DISCOUNT LOGIC
------------------------------------ */
+/* =========================================================================
+   AUTO DISCOUNT CALC
+=========================================================================== */
 productSchema.pre("save", function (next) {
   if (this.price > 0 && this.discountPrice > 0 && this.discountPrice < this.price) {
-    this.discountPercentage = Number(
-      ((this.discountPrice / this.price) * 100).toFixed(2)
-    );
+    this.discountPercentage = Number(((this.discountPrice / this.price) * 100).toFixed(2));
   } else {
-    if (!this.discountPrice) this.discountPrice = 0;
+    this.discountPrice = this.discountPrice || 0;
     this.discountPercentage = 0;
   }
   next();
 });
 
-/* -----------------------------------
-   DETECT NEW PRODUCT
------------------------------------ */
+/* =========================================================================
+   HOOKS: ADD / REMOVE PRODUCT COUNT
+=========================================================================== */
 productSchema.post("save", async function (doc) {
-  if (!this._wasNew) return;
+  if (!this.isNew) return;
   await safeUpdateCategoryCount(doc.category, +1);
 });
 
-/* -----------------------------------
-   SAFE COUNTER UPDATER
------------------------------------ */
-async function safeUpdateCategoryCount(categoryId, inc) {
-  if (!categoryId) return;
-
-  const Category = mongoose.model("Category");
-  const cat = await Category.findByIdAndUpdate(
-    categoryId,
-    { $inc: { productCount: inc } },
-    { new: true }
-  );
-
-  if (cat && cat.productCount < 0) {
-    cat.productCount = 0;
-    await cat.save();
-  }
-}
-
-
-/* -----------------------------------
-   CREATE HOOK
------------------------------------ */
-productSchema.post("save", async function (doc) {
-  if (!this._wasNew) return;
-
-  await safeUpdateCategoryCount(doc.category, +1);
-
-  const Category = mongoose.model("Category");
-  const Catalog = mongoose.model("Catalog");
-
-  const category = await Category.findById(doc.category);
-  if (category?.catalog) {
-    await safeUpdateCategoryCount(category.catalog, +1);
-  }
-});
-
-/* -----------------------------------
-   UPDATE HOOK
------------------------------------ */
 productSchema.pre("findOneAndUpdate", async function (next) {
   const existing = await this.model.findOne(this.getQuery()).select("category");
-  this._oldCategory = existing?.category?.toString();
+  this._oldCategory = existing?.category;
   next();
 });
 
@@ -268,58 +194,22 @@ productSchema.post("findOneAndUpdate", async function (doc) {
   if (!doc) return;
 
   const oldCat = this._oldCategory;
-  const newCat = doc.category?.toString();
+  const newCat = doc.category;
 
-  if (!oldCat || !newCat || oldCat === newCat) return;
+  if (!oldCat || !newCat || oldCat.toString() === newCat.toString()) return;
 
   await safeUpdateCategoryCount(oldCat, -1);
   await safeUpdateCategoryCount(newCat, +1);
 });
 
-
-productSchema.post("findOneAndUpdate", async function (doc) {
-  if (!doc) return;
-
-  const oldCat = this._oldCategory;
-  const newCat = doc.category?.toString();
-
-  if (!oldCat || !newCat || oldCat === newCat) return;
-
-  await safeUpdateCategoryCount(oldCat, -1);
-  await safeUpdateCategoryCount(newCat, +1);
-
-  const Category = mongoose.model("Category");
-
-  const oldCategory = await Category.findById(oldCat);
-  if (oldCategory?.catalog) {
-    await safeUpdateCategoryCount(oldCategory.catalog, -1);
-  }
-
-  const newCategory = await Category.findById(newCat);
-  if (newCategory?.catalog) {
-    await safeUpdateCategoryCount(newCategory.catalog, +1);
-  }
-});
-
-/* -----------------------------------
-   DELETE HOOK
------------------------------------ */
 productSchema.post("findOneAndDelete", async function (doc) {
   if (!doc?.category) return;
-
   await safeUpdateCategoryCount(doc.category, -1);
-
-  const Category = mongoose.model("Category");
-
-  const category = await Category.findById(doc.category);
-  if (category?.catalog) {
-    await safeUpdateCategoryCount(category.catalog, -1);
-  }
 });
 
-/* -----------------------------------
+/* =========================================================================
    VIRTUALS
------------------------------------ */
+=========================================================================== */
 productSchema.virtual("finalPrice").get(function () {
   if (this.discountPrice > 0 && this.discountPrice < this.price) {
     return Number((this.price - this.discountPrice).toFixed(2));
@@ -328,20 +218,46 @@ productSchema.virtual("finalPrice").get(function () {
 });
 
 productSchema.virtual("installments").get(function () {
-  const price = this.finalPrice;
-  return {
-    tabby: { payLaterDays: 14, plans: { 4: Number((price / 4).toFixed(2)) } },
-    tamara: {
-      payLaterDays: 30,
-      plans: {
-        3: Number((price / 3).toFixed(2)),
-        6: Number((price / 6).toFixed(2)),
-      },
-    },
-  };
+  const finalPrice =
+    this.finalPrice ||
+    (this.discountPrice > 0 && this.discountPrice < this.price
+      ? this.price - this.discountPrice
+      : this.price);
+
+  const providers = [];
+
+  // ----- Tabby -----
+  providers.push({
+    provider: "tabby",
+    months: 4,
+    monthlyAmount: Number((finalPrice / 4).toFixed(2)),
+    total: Number(finalPrice.toFixed(2)),
+    fee: 0,
+  });
+
+  // ----- Tamara -----
+  const tamaraFee = 25; // تقدر تخليها إعداد
+  providers.push({
+    provider: "tamara",
+    months: 3,
+    monthlyAmount: Number(((finalPrice + tamaraFee) / 3).toFixed(2)),
+    total: Number((finalPrice + tamaraFee).toFixed(2)),
+    fee: tamaraFee,
+  });
+
+  // ----- PayLater -----
+  const payLaterPercent = 10; // 10%
+  const payLaterExtra = (finalPrice * payLaterPercent) / 100;
+  providers.push({
+    provider: "paylater",
+    months: 6,
+    monthlyAmount: Number(((finalPrice + payLaterExtra) / 6).toFixed(2)),
+    total: Number((finalPrice + payLaterExtra).toFixed(2)),
+    fee: Number(payLaterExtra.toFixed(2)),
+  });
+
+  return providers;
 });
 
-/* -----------------------------------
-   EXPORT (ONLY ONCE)
------------------------------------ */
+
 export default mongoose.model("Product", productSchema);

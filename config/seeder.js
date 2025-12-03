@@ -1,5 +1,5 @@
 import mongoose from "mongoose";
-import Category from "../models/categories.model.js";
+import Category from "../models/category.model.js";
 import Brand from "../models/brand.model.js";
 import Product from "../models/product.model.js";
 import Blog from "../models/blog.model.js";
