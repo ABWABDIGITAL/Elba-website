@@ -44,6 +44,11 @@ const reviewSchema = new mongoose.Schema(
       ref: "Product",
       required: [true, "You must provide a product"],
     },
+
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true,
@@ -61,7 +66,7 @@ reviewSchema.pre(/^find/, function (next) {
 
 reviewSchema.statics.calcProductRatings = async function (productId) {
   const stats = await this.aggregate([
-    { $match: { product: productId } },
+    { $match: { product: productId, isActive: true } },
     {
       $group: {
         _id: "$product",

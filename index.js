@@ -20,6 +20,8 @@ import notificationRoutes from "./routes/notification.route.js";
 import blogRoutes from "./routes/blog.route.js";
 import staticPageRoutes from "./routes/staticPage.route.js";
 import emailPosterRoutes from "./routes/emailPoster.route.js";
+import favoriteRoutes from "./routes/favorite.route.js";
+import newsletterRoutes from "./routes/newsletter.route.js";
 import seedRoles from "./config/seedRoles.js";
 import runSeeder from "./config/seeder.js";
 
@@ -60,6 +62,8 @@ app.use("/api/v1/notifications" , notificationRoutes);
 app.use("/api/v1/blogs" , blogRoutes);
 app.use("/api/v1/pages" , staticPageRoutes);
 app.use("/api/v1/emailPosters" , emailPosterRoutes);
+app.use("/api/v1" , favoriteRoutes);
+app.use("/api/v1/newsletter" , newsletterRoutes);
 app.use("/uploads" , express.static(path.join(process.cwd(), "uploads")));
 app.use(errorMiddleware);
 app.listen(PORT, () => {

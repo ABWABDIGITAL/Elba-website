@@ -312,10 +312,22 @@ export const getProductBySkuService = async (sku) => {
 
   if (!product) throw NotFound("Product not found");
 
+  // Get similar products (same category, different product)
+  const similarProducts = await Product.find({
+    category: product.category._id,
+    _id: { $ne: product._id },
+    status: "active"
+  })
+  .populate("category", "ar.name ar.slug en.name en.slug image")
+  .populate("brand", "ar.name ar.slug en.name en.slug logo")
+  .limit(10)
+  .sort({ ratingsAverage: -1, salesCount: -1 });
+
   return {
     OK: true,
     message: "Product fetched successfully",
     data: buildProductDTO(product),
+    similarProducts: similarProducts.map(buildGetAllproductDTO),
   };
 };
 export const getCategoryAndProductsByType = async (categoryType) => {

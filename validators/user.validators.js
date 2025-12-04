@@ -1,4 +1,5 @@
-import { body } from "express-validator";
+import { body, param } from "express-validator";
+import Role from "../models/role.model.js";
 
 // Shared validation handler
 const validateRequest = (req, res, next) => {
@@ -121,6 +122,53 @@ export const validateUpdateProfile = [
     .trim()
     .isString()
     .withMessage("Company name must be a string"),
+
+  validateRequest,
+];
+
+// ----------------------------------------------------------
+// ADMIN UPDATE USER VALIDATOR (with role support)
+// ----------------------------------------------------------
+export const validateAdminUpdateUser = [
+  param("id")
+    .notEmpty()
+    .withMessage("User ID is required")
+    .isMongoId()
+    .withMessage("Invalid user ID format"),
+
+  body("name")
+    .optional()
+    .trim()
+    .isLength({ min: 3, max: 100 })
+    .withMessage("Name must be between 3 and 100 characters"),
+
+  body("email")
+    .optional()
+    .trim()
+    .isEmail()
+    .withMessage("Please enter a valid email"),
+
+  body("phone")
+    .optional()
+    .trim()
+    .matches(/^((\+9665\d{8})|(05\d{8}))$/)
+    .withMessage("Invalid Saudi phone number"),
+
+  body("role")
+    .optional()
+    .isString()
+    .withMessage("Role must be a string")
+    .custom(async (roleName) => {
+      const role = await Role.findOne({ name: roleName });
+      if (!role) throw new Error("Invalid role name");
+      if (!role.isActive) throw new Error("Role is not active");
+      return true;
+    }),
+
+  body("isActive")
+    .optional()
+    .isBoolean()
+    .withMessage("isActive must be a boolean"),
 
   validateRequest,
 ];

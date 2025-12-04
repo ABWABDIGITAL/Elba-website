@@ -95,19 +95,45 @@ export const deleteReviewService = async ({ id, userId, userRole }) => {
 };
 
 /**
+ * Toggle review active status – admin only
+ */
+export const toggleReviewActiveService = async ({ id, userRole }) => {
+  if (userRole !== "admin") {
+    throw Forbidden("Only admins can toggle review active status");
+  }
+
+  const review = await Review.findById(id);
+  if (!review) throw NotFound("Review not found");
+
+  review.isActive = !review.isActive;
+
+  try {
+    await review.save();
+    return review;
+  } catch (err) {
+    throw ServerError("Failed to toggle review status", err);
+  }
+};
+
+/**
  * Get all reviews with filter + rating range + pagination
  * rating range: ?rating_gte=3&rating_lte=5
  */
 export const getReviewsService = async (query) => {
   try {
     const features = new ApiFeatures(Review.find(), query, {
-      allowedFilterFields: ["product", "rating"],
+      allowedFilterFields: ["product", "rating", "isActive"],
       searchFields: ["title", "comment" , "name"],
     });
 
     // base filter
     features.filter();
     let filter = features.getFilter();
+
+    // default to showing only active reviews unless explicitly specified
+    if (query.isActive === undefined) {
+      filter.isActive = true;
+    }
 
     // custom rating range
     if (query.rating_gte) {

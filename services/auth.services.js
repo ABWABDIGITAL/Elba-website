@@ -33,9 +33,6 @@ export const registerService = async ({
   phone,
   address
 }) => {
-  const userRole = await Role.findOne({ name: "user" });
-  console.log(userRole)
-
   if (!name || !email || !password || !confirmPassword || !phone) {
     throw BadRequest("All fields are required");
   }
@@ -55,13 +52,39 @@ export const registerService = async ({
   const phoneExists = await User.findOne({ phone: normalizedPhone });
   if (phoneExists) throw BadRequest("Phone already registered");
 
+  // Determine role: For public registration, only allow "user" role for security
+  // If you want to allow other roles in public registration, add them to allowedPublicRoles array
+  const allowedPublicRoles = ["user"]; // Only "user" role allowed for public registration
+
+  let assignedRoleId;
+  if (role) {
+    // Check if the provided role is in the allowed list for public registration
+    if (!allowedPublicRoles.includes(role)) {
+      throw BadRequest("You can only register as a 'user'. Contact admin for other roles.");
+    }
+
+    const roleDoc = await Role.findOne({ name: role });
+    if (!roleDoc || !roleDoc.isActive) {
+      throw BadRequest("Invalid or inactive role");
+    }
+    assignedRoleId = roleDoc._id;
+  } else {
+    // Default to "user" role if no role is provided
+    const defaultRole = await Role.findOne({ name: "user" });
+    assignedRoleId = defaultRole?._id;
+
+    if (!assignedRoleId) {
+      throw BadRequest("User role not found in the system");
+    }
+  }
+
   // NEVER save confirmPassword to DB
   const newUser = await User.create({
     name,
     email: normalizedEmail,
     password,
     phone: normalizedPhone,
-    role: userRole._id || "user",
+    role: assignedRoleId,
     address: normalizedAddress,
   });
 
@@ -78,6 +101,82 @@ export const registerService = async ({
     data: {
       user: buildUserDTO(newUser),
       token,
+    },
+  };
+};
+
+/* ==========================================================
+   ADMIN REGISTER SERVICE (With Required Role)
+========================================================== */
+export const adminRegisterService = async ({
+  name,
+  email,
+  password,
+  confirmPassword,
+  role,
+  phone,
+  address,
+  adminRole
+}) => {
+  // Only admin and superAdmin can create users with specific roles
+  if (adminRole !== "admin" && adminRole !== "superAdmin") {
+    throw BadRequest("Unauthorized: Only admins can register users with specific roles");
+  }
+
+  if (!name || !email || !password || !confirmPassword || !phone || !role) {
+    throw BadRequest("All fields including role are required");
+  }
+
+  if (password !== confirmPassword) {
+    throw BadRequest("Passwords do not match");
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+  const normalizedPhone = phone.trim();
+  const normalizedAddress = address?.trim();
+
+  // Double check for duplicates
+  const emailExists = await User.findOne({ email: normalizedEmail });
+  if (emailExists) throw BadRequest("Email already registered");
+
+  const phoneExists = await User.findOne({ phone: normalizedPhone });
+  if (phoneExists) throw BadRequest("Phone already registered");
+
+  // Validate role by name
+  const roleDoc = await Role.findOne({ name: role });
+  if (!roleDoc) {
+    throw BadRequest("Invalid role name");
+  }
+
+  if (!roleDoc.isActive) {
+    throw BadRequest("Role is not active");
+  }
+
+  // Prevent non-superAdmins from creating superAdmins
+  if (roleDoc.name === "superAdmin" && adminRole !== "superAdmin") {
+    throw BadRequest("Only superAdmins can create superAdmin users");
+  }
+
+  // Create user with specified role
+  const newUser = await User.create({
+    name,
+    email: normalizedEmail,
+    password,
+    phone: normalizedPhone,
+    role: roleDoc._id,
+    address: normalizedAddress,
+  });
+
+  // Send WhatsApp welcome notification (async, don't wait)
+  sendRegistrationWhatsApp(newUser).catch(err => {
+    console.error("Failed to send registration WhatsApp:", err);
+  });
+
+  return {
+    OK: true,
+    message: "User registered successfully by admin",
+    data: {
+      user: buildUserDTO(newUser),
     },
   };
 };

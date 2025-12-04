@@ -96,6 +96,8 @@ const userSchema = new mongoose.Schema(
       notifications: { type: Boolean, default: true },
       emailNotifications: { type: Boolean, default: true },
     },
+
+    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
   },
   { timestamps: true, versionKey: false }
 );

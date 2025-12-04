@@ -13,6 +13,7 @@ import {
 
 import { protect, allowTo } from "../middlewares/authMiddleware.js";
 import { requirePermission } from "../middlewares/permission.middleware.js";
+import { validateAdminUpdateUser } from "../validators/user.validators.js";
 import upload from "../middlewares/uploadMiddleware.js";
 import parseNestedJson from "../middlewares/ParseNestedDot.js";
 
@@ -36,6 +37,7 @@ router.put(
   requirePermission("users", "update"),
   upload({ folder: "users" }).single("profileImage"),
   parseNestedJson,
+  validateAdminUpdateUser,
   adminUpdateUser
 );
 

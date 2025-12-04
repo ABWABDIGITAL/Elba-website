@@ -3,6 +3,7 @@
 import { body } from "express-validator";
 import validatorMiddleware from "../middlewares/validatorMiddleware.js";
 import User from "../models/user.model.js";
+import Role from "../models/role.model.js";
 
 /* ---------------------------------------
    REGISTER VALIDATOR (Correct)
@@ -41,6 +42,71 @@ export const validateRegister = [
     .custom(async (phone) => {
       const exists = await User.findOne({ phone });
       if (exists) throw new Error("Phone already registered");
+      return true;
+    }),
+
+  body("role")
+    .optional()
+    .isString()
+    .withMessage("Role must be a string")
+    .custom(async (roleName) => {
+      const role = await Role.findOne({ name: roleName });
+      if (!role) throw new Error("Invalid role name");
+      if (!role.isActive) throw new Error("Role is not active");
+      return true;
+    }),
+
+  validatorMiddleware,
+];
+
+/* ---------------------------------------
+   ADMIN REGISTER VALIDATOR (With Required Role)
+---------------------------------------- */
+export const validateAdminRegister = [
+  body("name")
+    .notEmpty().withMessage("Name is required")
+    .isLength({ min: 3, max: 50 }),
+
+  body("email")
+    .notEmpty().isEmail()
+    .withMessage("Valid email required")
+    .bail()
+    .custom(async (email) => {
+      const exists = await User.findOne({ email: email.toLowerCase() });
+      if (exists) throw new Error("Email already registered");
+      return true;
+    }),
+
+  body("password")
+    .notEmpty().isLength({ min: 6 }),
+
+  body("confirmPassword")
+    .notEmpty()
+    .custom((value, { req }) => {
+      if (value !== req.body.password)
+        throw new Error("Passwords do not match");
+      return true;
+    }),
+
+  body("phone")
+    .notEmpty()
+    .matches(/^((\+9665\d{8})|(05\d{8}))$/)
+    .withMessage("Invalid Saudi phone number")
+    .bail()
+    .custom(async (phone) => {
+      const exists = await User.findOne({ phone });
+      if (exists) throw new Error("Phone already registered");
+      return true;
+    }),
+
+  body("role")
+    .notEmpty().withMessage("Role is required")
+    .isString()
+    .withMessage("Role must be a string")
+    .custom(async (roleName) => {
+      const role = await Role.findOne({ name: roleName });
+      if (!role) throw new Error("Invalid role name");
+      if (!role.isActive) throw new Error("Role is not active");
       return true;
     }),
 

@@ -2,14 +2,16 @@ import express from "express";
 
 import {
   validateRegister,
+  validateAdminRegister,
   validateLogin,
   validateForgetPassword,
   validateVerifyReset,
   validateResetPassword,
 } from "../validators/auth.validators.js";
 
-import { 
+import {
   registerController,
+  adminRegisterController,
   loginController,
   logoutController,
   forgetPasswordController,
@@ -17,13 +19,19 @@ import {
   resetPasswordController
 } from "../controllers/auth.controller.js";
 
+import { protect, allowTo } from "../middlewares/authMiddleware.js";
+
 const router = express.Router();
 
 /* ------------------------------
     AUTH ROUTES
 ------------------------------ */
 
+// Public registration (optional role)
 router.post("/register", validateRegister, registerController);
+
+// Admin-only registration (required role)
+router.post("/admin/register", protect, allowTo("admin", "superAdmin"), validateAdminRegister, adminRegisterController);
 
 router.post("/login", validateLogin, loginController);
 

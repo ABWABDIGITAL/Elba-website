@@ -50,7 +50,7 @@ export const adminGetUserByIdService = async (id) => {
 export const adminUpdateUserService = async (id, data, adminRole, file = null) => {
   if (!id) throw BadRequest("User ID is required");
 
-  const user = await User.findById(id);
+  const user = await User.findById(id).populate("role");
   if (!user) throw NotFound("User not found");
 
   // Prevent password change from admin
@@ -58,9 +58,37 @@ export const adminUpdateUserService = async (id, data, adminRole, file = null) =
     throw Forbidden("Admin cannot change user password");
   }
 
-  // Prevent role escalation unless superAdmin
-  if (data.role && adminRole !== "superAdmin") {
-    throw Forbidden("Only superAdmin can change roles");
+  // Handle role updates with proper authorization
+  if (data.role) {
+    // Only superAdmin can change roles
+    if (adminRole !== "superAdmin") {
+      throw Forbidden("Only superAdmin can change roles");
+    }
+
+    // Validate the new role by name
+    const Role = (await import("../models/role.model.js")).default;
+    const newRole = await Role.findOne({ name: data.role });
+
+    if (!newRole) {
+      throw BadRequest("Invalid role name");
+    }
+
+    if (!newRole.isActive) {
+      throw BadRequest("Role is not active");
+    }
+
+    // Prevent changing to superAdmin unless the admin is also a superAdmin
+    if (newRole.name === "superAdmin" && adminRole !== "superAdmin") {
+      throw Forbidden("Only superAdmins can assign superAdmin role");
+    }
+
+    // Prevent demoting a superAdmin unless you're also a superAdmin
+    if (user.role?.name === "superAdmin" && adminRole !== "superAdmin") {
+      throw Forbidden("Only superAdmins can change superAdmin users");
+    }
+
+    // Replace role name with role ObjectId for database update
+    data.role = newRole._id;
   }
 
   // Email update check
@@ -70,6 +98,16 @@ export const adminUpdateUserService = async (id, data, adminRole, file = null) =
 
     if (exists && exists._id.toString() !== id.toString()) {
       throw BadRequest("Email already used by another user");
+    }
+  }
+
+  // Phone update check
+  if (data.phone) {
+    data.phone = data.phone.trim();
+    const exists = await User.findOne({ phone: data.phone });
+
+    if (exists && exists._id.toString() !== id.toString()) {
+      throw BadRequest("Phone already used by another user");
     }
   }
 
@@ -85,7 +123,7 @@ export const adminUpdateUserService = async (id, data, adminRole, file = null) =
   delete data.createdAt;
   delete data.password;
 
-  const updated = await User.findByIdAndUpdate(id, data, { new: true });
+  const updated = await User.findByIdAndUpdate(id, data, { new: true }).populate("role");
 
   return {
     OK: true,

@@ -1,5 +1,6 @@
-import { 
+import {
   registerService,
+  adminRegisterService,
   loginService,
   logoutService,
   forgetPassword,
@@ -37,6 +38,43 @@ export const registerController = async (req, res, next) => {
     return res.status(StatusCodes.CREATED).json({
       status: "success",
       message: "User registered successfully",
+      data: result.data,
+    });
+
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* ==========================================================
+   ADMIN REGISTER CONTROLLER (With Required Role)
+========================================================== */
+export const adminRegisterController = async (req, res, next) => {
+  try {
+    const {
+      name,
+      email,
+      password,
+      confirmPassword,
+      role,
+      phone,
+      address
+    } = req.body;
+
+    const result = await adminRegisterService({
+      name,
+      email,
+      password,
+      confirmPassword,
+      role,
+      phone,
+      address,
+      adminRole: req.user.legacyRole
+    });
+
+    return res.status(StatusCodes.CREATED).json({
+      status: "success",
+      message: "User registered successfully by admin",
       data: result.data,
     });
 
