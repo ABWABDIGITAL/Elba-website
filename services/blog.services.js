@@ -1,5 +1,5 @@
 import Blog from "../models/blog.model.js";
-import redis from "../config/redis.js";
+import {RedisHelper} from "../config/redis.js";
 import { BadRequest, NotFound, ServerError } from "../utlis/apiError.js";
 
 const BLOG_CACHE_PREFIX = "blog:";

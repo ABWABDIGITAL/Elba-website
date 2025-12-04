@@ -1,5 +1,5 @@
 import Notification from "../models/notification.model.js";
-import redis from "../config/redis.js";
+import {RedisHelper} from "../config/redis.js";
 
 const NOTIFICATIONS_CACHE_PREFIX = "notifications:user:";
 const CACHE_TTL = 300; // 5 minutes

@@ -1,5 +1,5 @@
 import StaticPage from "../models/staticPage.model.js";
-import redis from "../config/redis.js";
+import {RedisHelper} from "../config/redis.js";
 import { NotFound, ServerError } from "../utlis/apiError.js";
 
 const PAGE_CACHE_PREFIX = "page:";

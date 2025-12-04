@@ -1,86 +1,77 @@
+// models/home.model.js
 import mongoose from "mongoose";
+import Category from "./category.model.js";
+import Product from "./product.model.js";
 import seoSchema from "./seo.model.js";
-import brancheSchema from "./branches.model.js";
+const bannerSchema = new mongoose.Schema({
+  imageUrl: { type: String, required: true },
+  redirectUrl: { type: String, required: true },
+  isActive: { type: Boolean, default: true },
+  sortOrder: { type: Number, default: 0 },
+}, { _id: false });
 
-const multiLangText = {
-  en: { type: String, required: true },
-  ar: { type: String, required: true },
-};
+const homeConfigSchema = new mongoose.Schema({
+  hero: { type: [bannerSchema], default: [] },
 
-const bannerSchema = new mongoose.Schema(
-  {
-    url: { type: String, required: true },
+  categories: {
+    enabled: { type: Boolean, default: true },
+    limit: { type: Number, default: 10 },
+    categoryIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Category" }],
   },
-  { _id: false }
-);
-const bannerSellerSchema = new mongoose.Schema(
-  {
-    url: { type: String, required: true },
-    discount:{type:Number,default:0 , required:true},
-    discountCollection:{type:String ,default:""},
-    
-  },
-  { _id: false }
-);
-const productRefSchema = new mongoose.Schema(
-  {
-    title : multiLangText,
-    product: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-      required: true,
-    },
-    order: { type: Number, default: 0 },
-  },
-  { _id: false }
-);
 
-const categoryRef = {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "Category",
-};
-
-const productSectionSchema =new mongoose.Schema(
-  {
-    products: [productRefSchema],
-    isActive: { type: Boolean, default: true },
+  bestOffers: {
+    enabled: { type: Boolean, default: true },
+    limit: { type: Number, default: 50 },
+    productIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
   },
-  { _id: false }
-);
 
-const videoSchema = new mongoose.Schema(
-  {
-    url: { type: String, required: true },
-  },
-  { _id: false }
-);
+  gif: { type: [bannerSchema], default: [] },
+  promovideo: { type: [bannerSchema], default: [] },
+  popupVideo: { type: [bannerSchema], default: [] },
 
-const homeSchema = new mongoose.Schema(
-  {
-    heroSlider: [bannerSchema],
-    categories: [categoryRef],
-    bestOffer:[productRefSchema],
-    promoVideo:[videoSchema],
-    popVideo:[videoSchema],
-    gif:[videoSchema],
-    products:[productRefSchema],
-    banner1:[bannerSchema],
-    bannerseller:[bannerSellerSchema],
-    braches: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Branch",
-    }],
-    seo:[seoSchema],
-    largeNum:{type:Number , default:0},
-    smallNum:{type:Number , default:0},
-    isActive: { type: Boolean, default: true },
+  offerBanner: [
+    {
+      url: { type: String, required: true },
+      discount: { type: Number, required: true, min: 0, max: 100 },
+      discountTitle: { type: String, required: true },
+    }
+  ],
+
+  Products: {
+    enabled: { type: Boolean, default: true },
+    limit: { type: Number, default: 100 },
+    productIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Product" }],
   },
-  {
-    timestamps: true,
-    versionKey: false,
+
+  branches: {
+    enabled: { type: Boolean, default: true },
+    limit: { type: Number, default: 10 },
+    branchIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Branch" }],
+  },
+
+  large: { type: Number, default: 0 },
+  small: { type: Number, default: 0 },
+  seo: { type: seoSchema, default: () => ({}) }
+
+}, { timestamps: true });
+homeConfigSchema.statics.updateCategoryTotals = async function () {
+  const result = await Category.aggregate([
+    { $group: { _id: "$type", total: { $sum: "$productCount" } } }
+  ]);
+
+  let large = 0;
+  let small = 0;
+
+  for (const item of result) {
+    if (item._id === "Large") large = item.total;
+    if (item._id === "Small") small = item.total;
   }
-);
+
+  await this.updateOne({}, { $set: { large, small } }, { upsert: true });
+
+  return { large, small };
+};
 
 
-const Home = mongoose.model("Home", homeSchema);
-export default Home;
+
+export default mongoose.model("Home", homeConfigSchema);

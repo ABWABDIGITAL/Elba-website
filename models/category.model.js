@@ -51,5 +51,15 @@ const categorySchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+categorySchema.post("save", async function () {
+  const Home = mongoose.model("Home");
+  await Home.updateCategoryTotals();
+});
+
+categorySchema.post("findOneAndUpdate", async function () {
+  const Home = mongoose.model("Home");
+  await Home.updateCategoryTotals();
+});
+
 
 export default mongoose.model("Category", categorySchema);

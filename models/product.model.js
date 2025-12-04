@@ -89,11 +89,6 @@ const productSchema = new mongoose.Schema(
         message: "discountPrice cannot be greater than price",
       },
     },
-  sizeType: {
-    type: String,
-    enum: ["large", "medium", "small"],
-    default: "large",
-  },
 
     discountPercentage: { type: Number, default: 0, min: 0, max: 100, index: true },
 

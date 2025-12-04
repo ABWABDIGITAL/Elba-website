@@ -1,17 +1,18 @@
 // src/config/redisClient.js
 import { Redis } from "@upstash/redis";
 
+// Validate env variables
 if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
   throw new Error("Upstash Redis environment variables are missing");
 }
 
-// Create Upstash Redis HTTP client
+// Create Upstash client
 export const redis = new Redis({
   url: process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
-// OPTIONAL: Simple helper wrapper for consistent logging
+// Helper wrapper
 export const RedisHelper = {
   async get(key) {
     try {
@@ -25,7 +26,6 @@ export const RedisHelper = {
   async set(key, value, ttl = null) {
     try {
       if (ttl) {
-        // EX → expire in seconds
         return await redis.set(key, value, { ex: ttl });
       }
       return await redis.set(key, value);
@@ -42,5 +42,3 @@ export const RedisHelper = {
     }
   },
 };
-
-export default RedisHelper;

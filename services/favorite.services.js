@@ -34,6 +34,7 @@ export const getFavoriteProducts = async (userId) => {
   const user = await User.findById(userId).populate({
     path: "favorites",
     model: "Product",
+    select: "en.title ar.title images price finalPrice brand category tags averageRating",
   });
 
   if (!user) throw new Error("User not found");

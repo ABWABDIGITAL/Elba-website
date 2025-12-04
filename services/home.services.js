@@ -9,18 +9,18 @@ import { BadRequest, NotFound, ServerError } from "../utlis/apiError.js";
 const HOME_CACHE_KEY = "home:page";
 const HOME_CACHE_TTL = 3600;
 
-function safeParse(json) {
-  if (!json) return null;
-  try {
-    return JSON.parse(json);
-  } catch {
-    return null;
-  }
-}
+/* ---------------------------------------
+   CREATE HOME (Once)
+---------------------------------------- */
 export const createHomeService = async (payload) => {
   try {
     const existing = await Home.findOne();
     if (existing) throw BadRequest("Home page already exists");
+
+    // compute totals BEFORE create
+    const totals = await Home.updateCategoryTotals();
+    payload.large = totals.large;
+    payload.small = totals.small;
 
     const created = await Home.create(payload);
 
@@ -31,18 +31,39 @@ export const createHomeService = async (payload) => {
   }
 };
 
-/* ---------------------------------------
-   UPDATE HOME CONFIG
----------------------------------------- */
 export const updateHomeService = async (payload) => {
   try {
     const config = await Home.findOne();
     if (!config) throw NotFound("Home config not found");
 
-    Object.assign(config, payload);
-    const updated = await config.save();
+    // Only update allowed fields
+    const allowedFields = [
+      "hero",
+      "categories",
+      "bestOffers",
+      "gif",
+      "promovideo",
+      "popupVideo",
+      "offerBanner",
+      "Products",
+      "branches",
+      "seo"
+    ];
 
+    for (const key of allowedFields) {
+      if (payload[key] !== undefined) {
+        config[key] = payload[key];
+      }
+    }
+
+    // Update product category totals
+    const totals = await Home.updateCategoryTotals();
+    config.large = totals.large;
+    config.small = totals.small;
+
+    const updated = await config.save();
     await redis.del(HOME_CACHE_KEY);
+
     return updated;
   } catch (err) {
     throw ServerError("Failed to update home page", err);
@@ -51,139 +72,112 @@ export const updateHomeService = async (payload) => {
 
 export const getHomeService = async () => {
   try {
-    /* -----------------------------------------------------
-       1) TRY TO READ FROM CACHE
-    ------------------------------------------------------ */
     const cached = await redis.get(HOME_CACHE_KEY);
-
-    if (cached) {
-      const parsed = safeParse(cached);
-
-      if (parsed) {
-        return { fromCache: true, data: parsed };
-      } else {
-        console.warn("CORRUPTED HOME CACHE — RESETTING...");
-        await redis.del(HOME_CACHE_KEY);
-      }
-    }
-
-    /* -----------------------------------------------------
-       2) LOAD HOME CONFIG
-    ------------------------------------------------------ */
-    const config = await Home.findOne()
-      .populate("braches", "en.name ar.name en.address ar.address latitude longitude images")
-      .populate("categories", "en.name ar.name image productCount type")
-      .lean();
-
-    if (!config) throw NotFound("Home not created yet");
-
-    /* -----------------------------------------------------
-       3) LOAD PRODUCTS FOR SECTIONS
-    ------------------------------------------------------ */
-
-    // --- products[] section
-    const productIds = (config.products || []).map(p => p.product);
-
-    const products = await Product.find({ _id: { $in: productIds } })
-      .select("en.title ar.title images price finalPrice brand category tags")
-      .lean();
-
-    // --- bestOffer[] section
-    const bestOfferIds = (config.bestOffer || []).map(p => p.product);
-
-    const bestOfferProducts = await Product.find({
-      _id: { $in: bestOfferIds }
-    })
-      .select("ratingsAverage en.title ar.title en.subTitle ar.subTitle images price finalPrice brand category")
-      .lean();
-
-    /* -----------------------------------------------------
-       4) bannerseller → fetch products by discount rule
-    ------------------------------------------------------ */
-    const sellerCollections = {};
-
-    for (const item of config.bannerseller || []) {
-      const discount = Number(item.discount) || 0;
-      const collectionName = item.discountCollection || "default";
-
-      const matchedProducts = await Product.find({
-        discountPercentage: { $gte: discount }
-      })
-        .select("en.title ar.title images price finalPrice brand category")
-        .limit(10)
-        .lean();
-
-      sellerCollections[collectionName] = matchedProducts;
-    }
-
-    /* -----------------------------------------------------
-       5) PREPARE FINAL RESULT
-    ------------------------------------------------------ */
-    const result = {
-      heroSlider: config.heroSlider || [],
-      banner1: config.banner1 || [],
-      bannerseller: sellerCollections,
-
-      promoVideo: config.promoVideo || [],
-      popVideo: config.popVideo || [],
-      gif: config.gif || [],
-
-      categories: config.categories || [],
-      products: products || [],
-      bestOffer: bestOfferProducts || [],
-      braches: config.braches || [],
-      seo: config.seo || [],
-
-      largeNum: config.largeNum ?? 0,
-      smallNum: config.smallNum ?? 0
-    };
-
-    /* -----------------------------------------------------
-       6) SAVE INTO CACHE (SAFE)
-    ------------------------------------------------------ */
-    await redis.set(HOME_CACHE_KEY, JSON.stringify(result), { ex: TTL });
-
-    return { fromCache: false, data: result };
+    if (cached) return { fromCache: true, data: JSON.parse(cached) };
   } catch (err) {
-    console.error("HOME SERVICE ERROR:", err);
-    throw ServerError("Failed to fetch home", err);
+    console.error("Redis GET error:", err);
   }
-};
 
-// services/home.services.js
-
-export const uploadHomeMediaService = async (files) => {
-  const config = await Home.findOne();
+  const config = await Home.findOne().lean();
   if (!config) throw NotFound("Home page not created yet");
 
-  const updatedFields = {};
-
-  const mapFiles = (field) => {
-    if (!files[field]) return;
-    updatedFields[field] = files[field].map((file) => ({
-      url: file.location || file.path,
-    }));
+  let result = {
+    hero: config.hero,
+    gif: config.gif,
+    promovideo: config.promovideo,
+    popupVideo: config.popupVideo,
+    offerBanner: config.offerBanner,
+    large: config.large,
+    small: config.small,
+    seo: config.seo,
   };
 
-  // Apply mapping for each section
-  mapFiles("heroSlider");
-  mapFiles("promoVideo");
-  mapFiles("popVideo");
-  mapFiles("gif");
-  mapFiles("banner1");
+  /* ---------------- CATEGORIES ---------------- */
+  if (config.categories?.enabled) {
+    const { limit, categoryIds } = config.categories;
 
-  // bannerseller has extra fields from body? (discount, discountCollection)
-  if (files["bannerseller"]) {
-    updatedFields["bannerseller"] = files["bannerseller"].map((file, i) => ({
-      url: file.location || file.path,
-      discount: Number(files?.discount?.[i] ?? 0),
-      discountCollection: files?.discountCollection?.[i] ?? "",
-    }));
+    result.categories =
+      categoryIds?.length > 0
+        ? await Category.find({ _id: { $in: categoryIds } })
+            .limit(limit)
+            .select("ar.name en.name slug image productCount")
+            .lean()
+        : await Category.find({})
+            .limit(limit)
+            .select("ar.name en.name slug image productCount")
+            .lean();
+  } else result.categories = [];
+
+  /* ---------------- BEST OFFERS ---------------- */
+  if (config.bestOffers?.enabled) {
+    const { limit, productIds } = config.bestOffers;
+
+    result.bestOffers =
+      productIds?.length > 0
+        ? await Product.find({ _id: { $in: productIds } })
+            .limit(limit)
+            .select(
+              "ar.title en.title  ar.subTitle en.subTitle slug price discountPrice discountPercentage finalPrice images brand ratingsAverage tags"
+            )
+            .lean()
+        : await Product.find({})
+            .sort("-discountPercentage -discountPrice")
+            .limit(limit)
+            .select(
+              "ar.title en.title ar.subTitle en.subTitle slug price discountPrice discountPercentage finalPrice images brand ratingsAverage tags"
+            )
+            .lean();
+  } else result.bestOffers = [];
+
+  /* ---------------- PRODUCTS SECTION ---------------- */
+  if (config.Products?.enabled) {
+    const { limit, productIds } = config.Products;
+
+    result.products =
+      productIds?.length > 0
+        ? await Product.find({ _id: { $in: productIds } })
+            .limit(limit)
+            .select(
+              "ar.title en.title slug price images brand category ratingsAverage tags"
+            )
+            .lean()
+        : await Product.find({})
+            .sort("-salesCount -ratingsQuantity -views")
+            .limit(limit)
+            .select(
+              "ar.title en.title slug price images brand category ratingsAverage tags"
+            )
+            .lean();
+  } else result.products = [];
+
+  /* ---------------- BRANCHES ---------------- */
+if (config.branches?.enabled) {
+  const { limit, branchIds } = config.branches;
+
+  // Build query without executing it
+  const branchQuery =
+    branchIds?.length > 0
+      ? Branch.find({ _id: { $in: branchIds } })
+      : Branch.find({});
+
+  // Execute with select + limit
+  result.branches = await branchQuery
+    .limit(limit)
+    .select("ar.name en.name ar.address en.address images longitude latitude")
+    .lean();
+} else {
+  result.branches = [];
+}
+
+
+  /* ---------------- SAVE CACHE ---------------- */
+  try {
+    await redis.set(HOME_CACHE_KEY, JSON.stringify(result), {
+      ex: HOME_CACHE_TTL,
+    });
+  } catch (err) {
+    console.error("Redis SET error:", err);
   }
 
-  Object.assign(config, updatedFields);
-  await config.save();
-
-  return { OK: true, updated: updatedFields };
+  return { fromCache: false, data: result };
 };
-

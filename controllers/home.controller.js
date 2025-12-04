@@ -1,157 +1,88 @@
 // controllers/home.controller.js
+import Home from "../models/home.model.js";
 import {
   createHomeService,
-  updateHomeService,
   getHomeService,
+  updateHomeService,
 } from "../services/home.services.js";
+import { NotFound, ServerError } from "../utlis/apiError.js";
 
-/* ============================================================
+/* -----------------------------------------
    CREATE HOME
-============================================================ */
-export const createHome = async (req, res) => {
+------------------------------------------ */
+export const createHome = async (req, res, next) => {
   try {
-    const payload = buildHomePayload(req);
-
-    const home = await createHomeService(payload);
-
-    return res.status(201).json({
-      status: "success",
-      data: home,
-    });
+    const result = await createHomeService(req.body);
+    res.status(201).json({ OK: true, message: "Created", data: result });
   } catch (err) {
-    return sendDebugError(err, req, res);
+    next(err);
   }
 };
 
-/* ============================================================
-   UPDATE HOME
-============================================================ */
-export const updateHome = async (req, res) => {
-  try {
-    const payload = buildHomePayload(req);
-
-    const home = await updateHomeService(payload);
-
-    return res.json({
-      status: "success",
-      data: home,
-    });
-  } catch (err) {
-    return sendDebugError(err, req, res);
-  }
-};
-
-/* ============================================================
+/* -----------------------------------------
    GET HOME
-============================================================ */
-export const getHome = async (req, res) => {
-  const result = await getHomeService();
-  res.json(result);
-};
-
-/* ============================================================
-   COMMON DEBUG HANDLER
-============================================================ */
-function sendDebugError(err, req, res) {
-  console.error("DEBUG ERROR:", err);
-
-  return res.status(500).json({
-    status: "error",
-    message: "DEBUG MODE ERROR",
-    raw: err,
-    stack: err.stack,
-    body: req.body,
-    files: req.files,
-  });
-}
-
-/* ============================================================
-   SAFE JSON PARSER
-============================================================ */
-function safeJsonParse(value, fallback = []) {
-  if (!value) return fallback;
+------------------------------------------ */
+export const getHome = async (req, res, next) => {
   try {
-    return JSON.parse(value);
-  } catch {
-    return fallback;
+    const result = await getHomeService();
+    res.json({
+      OK: true,
+      msg:"Home page fetched successfully",
+      fromCache: result.fromCache,
+      data: result.data,
+    });
+  } catch (err) {
+    next(err);
   }
-}
-
-/* ============================================================
-   BUILD PAYLOAD (MAIN LOGIC)
-============================================================ */
-function buildHomePayload(req) {
-  const body = req.body;
-  const files = Array.isArray(req.files) ? req.files : [];
-
-  const payload = {};
-
-  /* ----------------------------------------------------------
-       1) EXTRACT SIMPLE ARRAY FIELDS WITH FILES
-  ----------------------------------------------------------- */
-  const extractArray = (fieldname) =>
-    files
-      .filter((f) => f.fieldname === fieldname)
-      .map((f) => ({ url: `/uploads/home/${f.filename}` }));
-
-  payload.heroSlider = extractArray("heroSlider");
-  payload.banner1 = extractArray("banner1");
-  payload.promoVideo = extractArray("promoVideo");
-  payload.popVideo = extractArray("popVideo");
-  payload.gif = extractArray("gif");
-
-  /* ----------------------------------------------------------
-       2) PARSE JSON FIELDS (PRODUCTS, CATEGORIES, etc)
-  ----------------------------------------------------------- */
-  payload.products = safeJsonParse(body.products);
-  payload.bestOffer = safeJsonParse(body.bestOffer);
-  payload.categories = safeJsonParse(body.categories);
-  payload.braches = safeJsonParse(body.braches);
-  payload.seo = safeJsonParse(body.seo);
-
-  /* ----------------------------------------------------------
-       3) bannerseller[n] (NESTED MIXED FIELDS)
-       supports dynamic fieldnames: bannerseller[0][url]
-  ----------------------------------------------------------- */
-  const bannerseller = [];
-
-  // A) extract uploaded images for each index
-  files.forEach((file) => {
-    const match = file.fieldname.match(/bannerseller\[(\d+)\]\[url\]/);
-    if (match) {
-      const index = Number(match[1]);
-      if (!bannerseller[index]) bannerseller[index] = {};
-
-      bannerseller[index].url = `/uploads/home/${file.filename}`;
-    }
-  });
-
-  // B) extract discount + discountCollection text fields
-  Object.keys(body).forEach((key) => {
-    const match = key.match(/bannerseller\[(\d+)\]\[(\w+)\]/);
-    if (match) {
-      const index = Number(match[1]);
-      const field = match[2];
-
-      if (!bannerseller[index]) bannerseller[index] = {};
-
-      if (field === "discount") {
-        bannerseller[index].discount = Number(body[key]);
-      }
-
-      if (field === "discountCollection") {
-        bannerseller[index].discountCollection = String(body[key]).trim();
-      }
-    }
-  });
-
-  payload.bannerseller = bannerseller;
-
-  return payload;
-}
-
-export default {
-  createHome,
-  updateHome,
-  getHome,
 };
+
+/* -----------------------------------------
+   UPDATE HOME
+------------------------------------------ */
+export const updateHome = async (req, res, next) => {
+  try {
+    const result = await updateHomeService(req.body);
+    res.json({ OK: true, msg:"Home page updated successfully", data: result });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const uploadHomeBanners = async (req, res, next) => {
+  try {
+    let config = await Home.findOne();
+    if (!config) throw NotFound("HomeConfig not created yet");
+
+    const toBanner = (files) =>
+      files.map((f, idx) => ({
+        imageUrl: `/uploads/home/${f.filename}`,
+        sortOrder: idx,
+        isActive: true,
+      }));
+
+    if (req.files.hero) config.hero = toBanner(req.files.hero);
+    if (req.files.gif) config.gif = toBanner(req.files.gif);
+    if (req.files.promovideo) config.promovideo = toBanner(req.files.promovideo);
+    if (req.files.popupVideo) config.popupVideo = toBanner(req.files.popupVideo);
+
+    // OFFER BANNER (files + metadata)
+    if (req.files.offerBanner) {
+      const discounts = req.body.discount || [];
+      const titles = req.body.discountTitle || [];
+
+      config.offerBanner = req.files.offerBanner.map((file, idx) => ({
+        url: `/uploads/home/${file.filename}`,
+        discount: Number(discounts[idx] || 0),
+        discountTitle: titles[idx] || "",
+      }));
+    }
+
+    await config.save();
+    await Home.updateCategoryTotals();
+
+    res.json({ OK: true, msg:"Banners updated successfully", data: config });
+  } catch (err) {
+    next(ServerError("Failed to upload banners", err));
+  }
+};
+
