@@ -1,45 +1,59 @@
 import mongoose from "mongoose";
 
-const brandSchema = new mongoose.Schema({
-    name: {
+const brandSchema = new mongoose.Schema(
+  {
+    en: {
+      name: {
         type: String,
-        required: [true , "Name is required"],
+        required: [true, "English name is required"],
         trim: true,
-        maxlength: [50 , "Name must be less than 50 characters"],
-        minlength: [3 , "Name must be at least 3 characters"],
-        unique: true,
-        index: true,
-    },
-    slug: {
+        minlength: 2,
+        maxlength: 50,
+      },
+      slug: {
         type: String,
-        required: [true , "Slug is required"],
+        required: [true, "English slug is required"],
         trim: true,
         lowercase: true,
-        unique: true,
-        index: true,
+      },
     },
-    image: {
-        type: String,
-    },
-}, {
-    timestamps: true,
-    versionKey: false 
-});
 
+    ar: {
+      name: {
+        type: String,
+        required: [true, "Arabic name is required"],
+        trim: true,
+        minlength: 2,
+        maxlength: 50,
+      },
+      slug: {
+        type: String,
+        required: [true, "Arabic slug is required"],
+        trim: true,
+        lowercase: true,
+      },
+    },
+
+    logo: {
+      type: String,
+    },
+
+    isActive: { type: Boolean, default: true },
+  },
+  {
+    timestamps: true,
+    versionKey: false,
+  }
+);
+
+// Auto-append BASE_URL for logo (if stored as file path)
 const setImageUrl = (doc) => {
-    if (doc.image) {
-        const imageUrl = `${process.env.BASE_URL}/${doc.image}`;
-        doc.image = imageUrl;
-    }
+  if (doc.logo && !doc.logo.startsWith("http")) {
+    doc.logo = `${process.env.BASE_URL}/${doc.logo}`;
+  }
 };
 
-brandSchema.post("save", function (doc) {
-    setImageUrl(doc);
-});
-brandSchema.post("init", function (doc) {
-    setImageUrl(doc);
-});
+brandSchema.post("save", setImageUrl);
+brandSchema.post("init", setImageUrl);
 
-const Brand = mongoose.model("Brand", brandSchema);
-
-export default Brand;
+export default mongoose.model("Brand", brandSchema);

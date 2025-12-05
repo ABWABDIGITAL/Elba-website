@@ -4,79 +4,84 @@ import Brand from "../models/brand.model.js";
 import slugify from "slugify";
 
 export const validateCreateBrand = [
-  body("name")
-    .trim()
-    .notEmpty().withMessage("Please enter brand name.")
-    .isLength({ min: 3 }).withMessage("Name must be at least 3 characters.")
-    .isLength({ max: 50 }).withMessage("Name must be 50 characters or less.")
-    .custom(async (val, { req }) => {
-      val = val.replace(/\s+/g, " ").trim();
+  body("en.name")
+    .notEmpty().withMessage("English name is required")
+    .isLength({ min: 2 }).withMessage("English name must be at least 2 chars")
+    .isLength({ max: 50 }).withMessage("English name must be under 50 chars"),
 
-      const exists = await Brand.findOne({
-        name: { $regex: `^${val}$`, $options: "i" }
-      });
-      if (exists) {
-        throw new Error("Brand name already exists please try again with another name");
-      }
+  body("ar.name")
+    .notEmpty().withMessage("Arabic name is required")
+    .isLength({ min: 2 }).withMessage("Arabic name must be at least 2 chars")
+    .isLength({ max: 50 }).withMessage("Arabic name must be under 50 chars"),
 
-      if (!req.file) {
-        throw new Error("Please upload an image please try again with valid image");
-      }
+  // Custom validation for duplicates
+  body("en.name").custom(async (value) => {
+    const exists = await Brand.findOne({ "en.name": value });
+    if (exists) throw new Error("Brand with this English name already exists");
+    return true;
+  }),
 
-      const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
-      if (!allowedTypes.includes(req.file.mimetype)) {
-        throw new Error("Only images are allowed (jpeg, png, jpg, webp) Please try again with this extensions.");
-      }
+  body("ar.name").custom(async (value) => {
+    const exists = await Brand.findOne({ "ar.name": value });
+    if (exists) throw new Error("Brand with this Arabic name already exists");
+    return true;
+  }),
 
-      req.body.slug = slugify(val, { lower: true });
-      req.body.name = val;
+  // Slug auto-generation
+  body("en.name").custom((value, { req }) => {
+    req.body.en.slug = slugify(value, { lower: true });
+    return true;
+  }),
+  body("ar.name").custom((value, { req }) => {
+    req.body.ar.slug = slugify(value, { lower: true });
+    return true;
+  }),
 
-      return true;
-    }),
+  // Image required
+  body().custom((_, { req }) => {
+    if (!req.file) throw new Error("Brand logo is required");
+    return true;
+  }),
+
   validatorMiddleware,
 ];
-
 export const validateUpdateBrand = [
-  param("id").isMongoId().withMessage("Invalid Brand ID Please try again with valid ID"),
+  param("id").isMongoId().withMessage("Invalid Brand ID"),
 
- body("name")
-  .optional({ checkFalsy: true })
-  .customSanitizer(val => val ? val.replace(/\s+/g, " ").trim() : undefined)
-  .isLength({ min: 3 }).withMessage("Name must be at least 3 characters")
-  .isLength({ max: 50 }).withMessage("Name must be less than 50 characters")
-  .custom(async (val, { req }) => {
-    if (val) {
+  body("en.name")
+    .optional()
+    .isLength({ min: 2 }).withMessage("English name must be at least 2 chars")
+    .isLength({ max: 50 }).withMessage("English name must be under 50 chars")
+    .custom(async (value, { req }) => {
+      if (!value) return true;
+
       const exists = await Brand.findOne({
-        name: { $regex: `^${val}$`, $options: "i" },
+        "en.name": value,
         _id: { $ne: req.params.id }
       });
+      if (exists) throw new Error("Another brand with this English name exists");
 
-      if (exists) {
-        throw new Error("Another brand with this name already exists.");
-      }
+      req.body.en.slug = slugify(value, { lower: true });
+      return true;
+    }),
 
-      req.body.slug = slugify(val, { lower: true });
-      req.body.name = val;
-    }
+  body("ar.name")
+    .optional()
+    .isLength({ min: 2 }).withMessage("Arabic name must be at least 2 chars")
+    .isLength({ max: 50 }).withMessage("Arabic name must be under 50 chars")
+    .custom(async (value, { req }) => {
+      if (!value) return true;
 
-    if (req.file) {
-      const allowedTypes = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
-      if (!allowedTypes.includes(req.file.mimetype)) {
-        throw new Error("Only images are allowed (jpeg, png, jpg, webp).");
-      }
-    }
+      const exists = await Brand.findOne({
+        "ar.name": value,
+        _id: { $ne: req.params.id }
+      });
+      if (exists) throw new Error("Another brand with this Arabic name exists");
 
-    return true;
-  })
+      req.body.ar.slug = slugify(value, { lower: true });
+      return true;
+    }),
 
-];
-
-export const validateDeleteBrand = [
-  param("id").isMongoId().withMessage("Invalid Brand ID Please try again with valid ID"),
   validatorMiddleware,
 ];
-
-export const validateGetBrand = [
-  param("id").isMongoId().withMessage("Invalid Brand ID Please try again with valid ID"),
-  validatorMiddleware,
-];
+export const validateDeleteBrand = [ param("id").isMongoId().withMessage("Invalid Brand ID Please try again with valid ID"), validatorMiddleware, ]; export const validateGetBrand = [ param("id").isMongoId().withMessage("Invalid Brand ID Please try again with valid ID"), validatorMiddleware, ];

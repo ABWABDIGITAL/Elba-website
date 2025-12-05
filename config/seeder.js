@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Category from "../models/category.model.js";
 import Brand from "../models/brand.model.js";
 import Product from "../models/product.model.js";
+import { recalcCategoryProductCounts } from "../utlis/recalcCategoryProductCounts.js";
 import Blog from "../models/blog.model.js";
 import StaticPage from "../models/staticPage.model.js";
 import Branch from "../models/branches.model.js";
@@ -114,12 +115,33 @@ const seedCategories = async () => {
   ];
 
   for (const cat of categories) {
-    const existing = await Category.findOne({ "en.slug": cat.en.slug });
-    if (!existing) {
-      await Category.create(cat);
-      console.log(`✓ Created category: ${cat.en.name}`);
-    }
+  const existing = await Category.findOne({ "en.slug": cat.en.slug });
+  
+  if (!existing) {
+    // For new categories, set productCount to 0
+    await Category.create({ ...cat, productCount: 0 });
+    console.log(`✓ Created category: ${cat.en.name}`);
+  } else {
+    // For existing categories, update all fields except productCount
+    const { productCount, ...updateData } = cat;
+    await Category.findByIdAndUpdate(
+      existing._id,
+      { $set: updateData },
+      { new: true }
+    );
+    console.log(`✓ Updated category: ${cat.en.name} (preserved productCount)`);
   }
+}
+
+// Clean up categories not in the seed data
+const slugs = categories.map(c => c.en.slug);
+const deleteResult = await Category.deleteMany({
+  "en.slug": { $nin: slugs }
+});
+
+if (deleteResult.deletedCount > 0) {
+  console.log(`✓ Removed ${deleteResult.deletedCount} old categories`);
+}
 };
 
 /* --------------------------------------------------
@@ -2092,6 +2114,18 @@ const seedProducts = async () => {
       console.error(`✗ Error creating product ${product.sku}:`, error.message);
     }
   }
+  
+};
+export const recalcAllCategoryCounts = async () => {
+  const categories = await Category.find();
+
+  for (const cat of categories) {
+    const count = await Product.countDocuments({ category: cat._id });
+
+    await Category.findByIdAndUpdate(cat._id, { productCount: count });
+  }
+
+  console.log("✓ Recalculated all category product counts");
 };
 
 /* --------------------------------------------------
@@ -2109,7 +2143,8 @@ const runSeeder = async () => {
 
     await seedProducts();
     console.log("\n");
-
+    await recalcCategoryProductCounts();
+    console.log("\n");
     console.log("✅ Seeding completed successfully!");
   } catch (error) {
     console.error("❌ Seeding failed:", error);

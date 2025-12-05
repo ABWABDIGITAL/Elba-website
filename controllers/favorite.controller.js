@@ -1,6 +1,6 @@
 // controllers/favorite.controller.js
 import { toggleFavorite, getFavoriteProducts } from "../services/favorite.services.js";
-import {paginate} from "../utlis/apiFeatures.js";
+import paginate from "../utlis/apiFeatures.js";
 export const toggleFavoriteController = async (req, res, next) => {
   try {
     const userId = req.user._id; // from auth middleware

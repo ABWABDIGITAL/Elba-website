@@ -119,6 +119,7 @@ export const getHomeService = async () => {
             .select(
               "ar.title en.title  ar.subTitle en.subTitle slug price discountPrice discountPercentage finalPrice images brand ratingsAverage tags"
             )
+            .populate("brand", "en.name en.slug ar.name ar.slug logo") 
             .lean()
         : await Product.find({})
             .sort("-discountPercentage -discountPrice")
@@ -126,6 +127,7 @@ export const getHomeService = async () => {
             .select(
               "ar.title en.title ar.subTitle en.subTitle slug price discountPrice discountPercentage finalPrice images brand ratingsAverage tags"
             )
+            .populate("brand", "en.name en.slug ar.name ar.slug logo") 
             .lean();
   } else result.bestOffers = [];
 
@@ -140,6 +142,8 @@ export const getHomeService = async () => {
             .select(
               "ar.title en.title slug price images brand category ratingsAverage tags"
             )
+            .populate("brand", "en.name en.slug ar.name ar.slug logo") 
+            .populate("category", "en.name ar.name type")
             .lean()
         : await Product.find({})
             .sort("-salesCount -ratingsQuantity -views")
@@ -147,6 +151,8 @@ export const getHomeService = async () => {
             .select(
               "ar.title en.title slug price images brand category ratingsAverage tags"
             )
+            .populate("brand", "en.name en.slug ar.name ar.slug logo") 
+            .populate("category", "en.name ar.name type")
             .lean();
   } else result.products = [];
 
