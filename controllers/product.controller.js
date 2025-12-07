@@ -14,6 +14,7 @@ import {
   getAvailableTagsService,
   bulkUpdateProductTagsService,
   getCategoryAndProductsByType,
+  getProductByCatalogService,
 } from "../services/product.services.js";
 
 import { StatusCodes } from "http-status-codes";
@@ -366,6 +367,15 @@ export const getProductBySkuController = async (req, res, next) => {
     next(err);
   }
 };
+export const getProductByCatalogController = async (req, res, next) => {
+  try {
+    const result = await getProductByCatalogService(req.params.keyword);
+    res.status(StatusCodes.OK).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const uploadProductManual = async (req, res, next) => {
   try {
     const { id } = req.params;

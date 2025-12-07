@@ -14,7 +14,8 @@ import {
   getAvailableTags,
   bulkUpdateProductTags,
   getCategoryWithProductsController,
-  uploadProductManual, // <-- اضفتها
+  uploadProductManual,
+  getProductByCatalogController,
 } from "../controllers/product.controller.js";
 
 import {
@@ -67,6 +68,8 @@ router.patch(
 router.get("/", protect, getAllProductsController);
 
 router.get("/sku/:sku", protect, getProductBySkuController);
+
+router.get("/catalog/:keyword", protect, getProductByCatalogController);
 
 router.get("/compare", protect, getCompareProductsController);
 

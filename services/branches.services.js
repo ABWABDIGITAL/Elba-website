@@ -122,19 +122,20 @@ export const getBranchesService = async (query) => {
       }
     );
 
-    features.filter().search().sort().limitFields().paginate();
-
-    const branches = await features.mongooseQuery.lean();
-    const total = await Branch.countDocuments(features.getFilter());
+    // Execute the query
+    const branches = await features.mongooseQuery;
+    const total = await Branch.countDocuments(features.mongooseQuery._conditions);
 
     return {
-      data: branches.map((branch) => buildBranchDTO(branch, language)),
-      pagination: features.buildPaginationResult(total),
+      count: branches.length,
+      total,
+      data: branches
     };
   } catch (err) {
-    throw ServerError("Failed to fetch branches", err);
+    console.error('Error in getBranchesService:', err);
+    throw new Error("Failed to fetch branches");
   }
-};
+};    
 
 /* --------------------------------------------------
    GET BRANCHES BY REGION

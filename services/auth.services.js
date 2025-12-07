@@ -185,24 +185,32 @@ export const adminRegisterService = async ({
    LOGIN SERVICE (PHONE ONLY — FIXED)
 ========================================================== */
 export const loginService = async ({ phone, password }) => {
+  console.log('Login attempt with:', { phone });
   if (!phone || !password) {
     throw BadRequest("Phone and password are required");
   }
 
   const normalizedPhone = phone.trim();
-
+ console.log('Normalized phone:', normalizedPhone);
   const user = await User.findOne({ phone: normalizedPhone }).select("+password");
+  console.log('Found user:', user ? user.email : 'Not found'); // Debug log
 
-  if (!user) throw NotFound("User not found");
-
+   if (!user) {
+    console.log('No user found with phone:', normalizedPhone); // Debug log
+    throw NotFound("User not found");
+  }
   // check user active
-  if (!user.isActive) throw BadRequest("Account is deactivated");
+   if (!user.isActive) {
+    console.log('User is inactive:', user.email); // Debug log
+    throw BadRequest("Account is deactivated");
+  }
 
   const isMatch = await user.comparePassword(password);
+   console.log('Password match:', isMatch);
   if (!isMatch) throw BadRequest("Invalid phone or password");
 
   const token = user.generateToken();
-
+ console.log('Login successful for user:', user.email);
   return {
     OK: true,
     message: "User logged in successfully",

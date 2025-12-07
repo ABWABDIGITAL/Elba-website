@@ -62,6 +62,8 @@ export const createBlogService = async (blogData, authorId) => {
 --------------------------------------------------- */
 export const getAllBlogsService = async (query = {}) => {
   try {
+    console.log('getAllBlogsService - Query:', JSON.stringify(query, null, 2));
+    
     const {
       page = 1,
       limit = 12,
@@ -89,11 +91,21 @@ export const getAllBlogsService = async (query = {}) => {
       filter.$text = { $search: search };
     }
 
+    console.log('Filter:', JSON.stringify(filter, null, 2));
+
     // Try cache
     const cacheKey = `${BLOGS_LIST_CACHE_KEY}${JSON.stringify(filter)}:${page}:${limit}`;
-    const cached = await redis.get(cacheKey);
-    if (cached) {
-      return { fromCache: true, data: cached };
+    console.log('Cache Key:', cacheKey);
+    
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        console.log('Returning from cache');
+        return { fromCache: true, data: JSON.parse(cached) };
+      }
+    } catch (cacheErr) {
+      console.error('Cache error (non-fatal):', cacheErr);
+      // Continue with DB query if cache fails
     }
 
     let mongooseQuery = Blog.find(filter)
@@ -107,9 +119,12 @@ export const getAllBlogsService = async (query = {}) => {
       mongooseQuery = mongooseQuery.sort({ publishedAt: -1, createdAt: -1 });
     }
 
+    console.log('Executing DB query...');
     const blogs = await mongooseQuery.skip(skip).limit(parseInt(limit)).lean();
+    console.log(`Found ${blogs.length} blogs`);
 
     const total = await Blog.countDocuments(filter);
+    console.log('Total blogs matching filter:', total);
 
     const result = {
       blogs: blogs.map(blog => buildBlogDTO(blog, language)),
@@ -122,14 +137,32 @@ export const getAllBlogsService = async (query = {}) => {
     };
 
     // Cache result
-    await redis.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
+    try {
+      await redis.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
+      console.log('Result cached successfully');
+    } catch (cacheErr) {
+      console.error('Failed to cache result:', cacheErr);
+      // Non-fatal error, continue
+    }
 
     return { fromCache: false, data: result };
   } catch (err) {
-    throw ServerError("Failed to get blogs", err);
+    console.error('Error in getAllBlogsService:', {
+      message: err.message,
+      stack: err.stack,
+      code: err.code,
+      name: err.name,
+      query: query,
+    });
+    throw new ServerError("Failed to get blogs", {
+      originalError: {
+        message: err.message,
+        code: err.code,
+        stack: err.stack
+      }
+    });
   }
 };
-
 /* --------------------------------------------------
    GET BLOG BY SLUG (PUBLIC)
 --------------------------------------------------- */

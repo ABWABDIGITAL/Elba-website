@@ -26,7 +26,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, "Password is required"],
       minlength: 6,
-      maxlength: 50,
+      maxlength: 100,
       select: false,
     },
 
@@ -112,9 +112,15 @@ userSchema.pre("save", async function (next) {
     next(err);
   }
 });
-
-userSchema.methods.comparePassword = async function (password) {
-  return await bcrypt.compare(password, this.password);
+userSchema.methods.comparePassword = async function (candidatePassword) {
+  console.log('Comparing passwords...');
+  console.log('Stored hash:', this.password);
+  console.log('Provided password:', candidatePassword);
+  
+  const isMatch = await bcrypt.compare(candidatePassword, this.password);
+  console.log('Bcrypt compare result:', isMatch);
+  
+  return isMatch;
 };
 
 userSchema.methods.generateToken = function () {

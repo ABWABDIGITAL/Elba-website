@@ -1,8 +1,8 @@
 import mongoose from "mongoose";
 // Reusable constraints
 const SEO_CONSTRAINTS = {
-  META_TITLE_MAX: 70,
-  META_DESC_MAX: 160,
+  META_TITLE_MAX: 100,
+  META_DESC_MAX: 200,
   URL_PATTERN: /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/
 };
 

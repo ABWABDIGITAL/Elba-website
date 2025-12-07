@@ -22,7 +22,8 @@ import staticPageRoutes from "./routes/staticPage.route.js";
 import emailPosterRoutes from "./routes/emailPoster.route.js";
 import favoriteRoutes from "./routes/favorite.route.js";
 import newsletterRoutes from "./routes/newsletter.route.js";
-import seedRoles from "./config/seedRoles.js";
+import addressRoutes from "./routes/address.route.js";
+import seedRoles , { seedAdmin } from "./config/seedRoles.js";
 import runSeeder from "./config/seeder.js";
 
 // Set to true to run seeder on startup (disable after first run)
@@ -31,7 +32,7 @@ const RUN_SEEDER = process.env.RUN_SEEDER === "true";
 connectDB().then(async () => {
 //   Seed default roles on startup
   await seedRoles();
-
+ await seedAdmin();
 //   Run comprehensive seeder if enabled
   if (RUN_SEEDER) {
     await runSeeder();
@@ -64,6 +65,7 @@ app.use("/api/v1/pages" , staticPageRoutes);
 app.use("/api/v1/emailPosters" , emailPosterRoutes);
 app.use("/api/v1" , favoriteRoutes);
 app.use("/api/v1/newsletter" , newsletterRoutes);
+app.use("/api/v1/addresses" , addressRoutes);
 app.use("/uploads" , express.static(path.join(process.cwd(), "uploads")));
 app.use(errorMiddleware);
 app.listen(PORT, () => {

@@ -1,4 +1,7 @@
 import Role from "../models/role.model.js";
+import User from "../models/user.model.js";
+import bcrypt from "bcrypt";
+
 
 const defaultRoles = [
   {
@@ -338,6 +341,43 @@ const defaultRoles = [
   },
 ];
 
+export const seedAdmin = async () => {
+  try {
+    await seedRoles();
+    const adminRole = await Role.findOne({ name: "admin" });
+    if (!adminRole) throw new Error("Admin role not found");
+
+    const adminData = {
+      name: "Admin",
+      email: "admin10@elba.com",
+      phone: "+966512548678",
+      password: "123456", // Will be hashed by pre-save hook
+      role: adminRole._id,
+      isActive: true,
+      legacyRole: "admin",
+    };
+
+    // Check if admin exists
+    let admin = await User.findOne({ email: adminData.email });
+    
+    if (admin) {
+      // Update all fields including password
+      Object.assign(admin, adminData);
+      // Trigger the pre-save hook to hash the password
+      await admin.save();
+      console.log("✅ Admin user updated");
+    } else {
+      // Create new admin if doesn't exist
+      admin = await User.create(adminData);
+      console.log("✅ Admin user created");
+    }
+    
+    return admin;
+  } catch (error) {
+    console.error("❌ Error in seedAdmin:", error.message);
+    throw error;
+  }
+};
 export const seedRoles = async () => {
   try {
     console.log("🌱 Seeding default roles...");

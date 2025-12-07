@@ -150,7 +150,14 @@ export const getReviewsService = async (query) => {
 
     features.search().sort().limitFields().paginate();
 
-    const data = await features.mongooseQuery.populate("product", "name");
+   const data = await features.mongooseQuery
+  .populate({
+    path: "product",
+    select: "ar.title en.title slug",
+    options: { lean: true }   // أهم حاجة!
+  })
+  .lean(); // mandatory
+
     const total = await Review.countDocuments(filter);
 
     return {

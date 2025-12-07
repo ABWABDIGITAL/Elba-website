@@ -61,6 +61,8 @@ export const buildGetAllproductDTO = (p) => {
     finalPrice: p.finalPrice,
     ratingsAverage:p.ratingsAverage,
     sizeType:p.sizeTye,
+    brand:p.brand,
+    category:p.category,
   };
 };
 
@@ -111,7 +113,26 @@ export const buildProductDTO = (p) => {
     tags: p.tags || [],
   };
 };
-
+export const buildGetCatalogProductDTO = (p) => {
+  if (!p) return null;
+  return {
+    id: p._id,
+    ar: {
+      title: p.ar?.title,
+      subTitle: p.ar?.subTitle,
+      catalog:p.ar?.catalog,
+    },
+    en: {
+      title: p.en?.title,
+      subTitle: p.en?.subTitle,
+      catalog:p.en?.catalog,
+    },
+    images: p.images || [],
+    sku: p.sku,
+    slug: p.slug,
+    ratingsAverage:p.ratingsAverage,
+  };
+};
 /* --------------------------------------------------
    VALIDATION
 --------------------------------------------------- */
@@ -330,6 +351,24 @@ export const getProductBySkuService = async (sku) => {
     similarProducts: similarProducts.map(buildGetAllproductDTO),
   };
 };
+
+export const getProductByCatalogService = async (keyword) => {
+  const products = await Product.find({
+    $or: [
+      { "en.title": { $regex: keyword, $options: "i" } },
+      { "ar.title": { $regex: keyword, $options: "i" } }
+    ]
+  });
+
+  if (!products || products.length === 0) throw NotFound("No products found");
+
+  return {
+    OK: true,
+    message: "Products fetched successfully",
+    data: products.map(buildGetCatalogProductDTO),
+  };
+};
+
 export const getCategoryAndProductsByType = async (categoryType) => {
   if (!categoryType) {
     throw new Error("categoryType is required");

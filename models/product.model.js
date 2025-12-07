@@ -220,36 +220,44 @@ productSchema.virtual("installments").get(function () {
       : this.price);
 
   const providers = [];
+// SAFE helper
+  const safeToFixed = (value, digits = 2) =>
+    typeof value === "number" ? Number(value.toFixed(digits)) : 0;
+
+  // If finalPrice is missing, fallback to price
+  const basePrice = typeof finalPrice === "number" ? finalPrice : this.price || 0;
+
 
   // ----- Tabby -----
   providers.push({
     provider: "tabby",
     months: 4,
-    monthlyAmount: Number((finalPrice / 4).toFixed(2)),
-    total: Number(finalPrice.toFixed(2)),
+    monthlyAmount: safeToFixed(basePrice / 4),
+    total: safeToFixed(basePrice),
     fee: 0,
   });
 
   // ----- Tamara -----
-  const tamaraFee = 25; // تقدر تخليها إعداد
+  const tamaraFee = 25;
   providers.push({
     provider: "tamara",
     months: 3,
-    monthlyAmount: Number(((finalPrice + tamaraFee) / 3).toFixed(2)),
-    total: Number((finalPrice + tamaraFee).toFixed(2)),
+    monthlyAmount: safeToFixed((basePrice + tamaraFee) / 3),
+    total: safeToFixed(basePrice + tamaraFee),
     fee: tamaraFee,
   });
 
   // ----- PayLater -----
-  const payLaterPercent = 10; // 10%
-  const payLaterExtra = (finalPrice * payLaterPercent) / 100;
+  const payLaterPercent = 10;
+  const payLaterExtra = (basePrice * payLaterPercent) / 100;
   providers.push({
     provider: "paylater",
     months: 6,
-    monthlyAmount: Number(((finalPrice + payLaterExtra) / 6).toFixed(2)),
-    total: Number((finalPrice + payLaterExtra).toFixed(2)),
-    fee: Number(payLaterExtra.toFixed(2)),
+    monthlyAmount: safeToFixed((basePrice + payLaterExtra) / 6),
+    total: safeToFixed(basePrice + payLaterExtra),
+    fee: safeToFixed(payLaterExtra),
   });
+
 
   return providers;
 });

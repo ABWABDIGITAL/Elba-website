@@ -13,7 +13,7 @@ const blogSchema = new mongoose.Schema(
       authorName: { type: String },
       tags: [{ type: String, trim: true }],
       seo: {
-        metaTitle: { type: String, maxlength: 60 },
+        metaTitle: { type: String, maxlength: 160 },
         metaDescription: { type: String, maxlength: 160 },
         metaKeywords: [{ type: String }],
       },
@@ -29,7 +29,7 @@ const blogSchema = new mongoose.Schema(
       authorName: { type: String },
       tags: [{ type: String, trim: true }],
       seo: {
-        metaTitle: { type: String, maxlength: 60 },
+        metaTitle: { type: String, maxlength: 160 },
         metaDescription: { type: String, maxlength: 160 },
         metaKeywords: [{ type: String }],
       },
