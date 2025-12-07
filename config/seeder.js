@@ -3065,11 +3065,468 @@ export const recalcAllCategoryCounts = async () => {
 };
 
 /* --------------------------------------------------
+   SEED ROLES
+--------------------------------------------------- */
+const seedRoles = async () => {
+  const roles = [
+    {
+      name: "superAdmin",
+      displayName: {
+        en: "Super Administrator",
+        ar: "مدير عام",
+      },
+      description: {
+        en: "Full system access with all permissions",
+        ar: "وصول كامل للنظام مع جميع الصلاحيات",
+      },
+      isSystemRole: true,
+      isActive: true,
+      priority: 100,
+      permissions: [
+        {
+          resource: "users",
+          actions: { create: true, read: true, update: true, delete: true, export: true, import: true },
+        },
+        {
+          resource: "products",
+          actions: { create: true, read: true, update: true, delete: true, export: true, import: true },
+        },
+        {
+          resource: "categories",
+          actions: { create: true, read: true, update: true, delete: true, export: true, import: true },
+        },
+        {
+          resource: "brands",
+          actions: { create: true, read: true, update: true, delete: true, export: true, import: true },
+        },
+        {
+          resource: "orders",
+          actions: { create: true, read: true, update: true, delete: true, export: true, import: true },
+        },
+        {
+          resource: "reviews",
+          actions: { create: true, read: true, update: true, delete: true, export: true, import: true },
+        },
+        {
+          resource: "coupons",
+          actions: { create: true, read: true, update: true, delete: true, export: true, import: true },
+        },
+        {
+          resource: "catalogs",
+          actions: { create: true, read: true, update: true, delete: true, export: true, import: true },
+        },
+        {
+          resource: "home",
+          actions: { create: true, read: true, update: true, delete: true, export: true, import: true },
+        },
+        {
+          resource: "branches",
+          actions: { create: true, read: true, update: true, delete: true, export: true, import: true },
+        },
+        {
+          resource: "cart",
+          actions: { create: true, read: true, update: true, delete: true, export: true, import: true },
+        },
+        {
+          resource: "analytics",
+          actions: { create: true, read: true, update: true, delete: true, export: true, import: true },
+        },
+        {
+          resource: "roles",
+          actions: { create: true, read: true, update: true, delete: true, export: true, import: true },
+        },
+        {
+          resource: "settings",
+          actions: { create: true, read: true, update: true, delete: true, export: true, import: true },
+        },
+      ],
+    },
+    {
+      name: "admin",
+      displayName: {
+        en: "Administrator",
+        ar: "مدير",
+      },
+      description: {
+        en: "Admin with elevated permissions",
+        ar: "مدير مع صلاحيات مرتفعة",
+      },
+      isSystemRole: true,
+      isActive: true,
+      priority: 80,
+      permissions: [
+        {
+          resource: "users",
+          actions: { create: true, read: true, update: true, delete: false, export: true, import: false },
+        },
+        {
+          resource: "products",
+          actions: { create: true, read: true, update: true, delete: true, export: true, import: true },
+        },
+        {
+          resource: "categories",
+          actions: { create: true, read: true, update: true, delete: true, export: false, import: false },
+        },
+        {
+          resource: "brands",
+          actions: { create: true, read: true, update: true, delete: true, export: false, import: false },
+        },
+        {
+          resource: "orders",
+          actions: { create: true, read: true, update: true, delete: false, export: true, import: false },
+        },
+        {
+          resource: "reviews",
+          actions: { create: false, read: true, update: true, delete: true, export: false, import: false },
+        },
+        {
+          resource: "coupons",
+          actions: { create: true, read: true, update: true, delete: true, export: false, import: false },
+        },
+        {
+          resource: "catalogs",
+          actions: { create: true, read: true, update: true, delete: true, export: false, import: false },
+        },
+        {
+          resource: "home",
+          actions: { create: true, read: true, update: true, delete: false, export: false, import: false },
+        },
+        {
+          resource: "branches",
+          actions: { create: true, read: true, update: true, delete: true, export: false, import: false },
+        },
+        {
+          resource: "cart",
+          actions: { create: false, read: true, update: true, delete: true, export: false, import: false },
+        },
+        {
+          resource: "analytics",
+          actions: { create: false, read: true, update: false, delete: false, export: true, import: false },
+        },
+        {
+          resource: "roles",
+          actions: { create: false, read: true, update: false, delete: false, export: false, import: false },
+        },
+        {
+          resource: "settings",
+          actions: { create: false, read: true, update: true, delete: false, export: false, import: false },
+        },
+      ],
+    },
+    {
+      name: "manager",
+      displayName: {
+        en: "Manager",
+        ar: "مشرف",
+      },
+      description: {
+        en: "Manager with limited admin permissions",
+        ar: "مشرف مع صلاحيات إدارية محدودة",
+      },
+      isSystemRole: true,
+      isActive: true,
+      priority: 60,
+      permissions: [
+        {
+          resource: "users",
+          actions: { create: false, read: true, update: false, delete: false, export: false, import: false },
+        },
+        {
+          resource: "products",
+          actions: { create: true, read: true, update: true, delete: false, export: true, import: false },
+        },
+        {
+          resource: "categories",
+          actions: { create: false, read: true, update: true, delete: false, export: false, import: false },
+        },
+        {
+          resource: "brands",
+          actions: { create: false, read: true, update: true, delete: false, export: false, import: false },
+        },
+        {
+          resource: "orders",
+          actions: { create: false, read: true, update: true, delete: false, export: true, import: false },
+        },
+        {
+          resource: "reviews",
+          actions: { create: false, read: true, update: true, delete: false, export: false, import: false },
+        },
+        {
+          resource: "coupons",
+          actions: { create: true, read: true, update: true, delete: false, export: false, import: false },
+        },
+        {
+          resource: "catalogs",
+          actions: { create: false, read: true, update: true, delete: false, export: false, import: false },
+        },
+        {
+          resource: "home",
+          actions: { create: false, read: true, update: true, delete: false, export: false, import: false },
+        },
+        {
+          resource: "branches",
+          actions: { create: false, read: true, update: true, delete: false, export: false, import: false },
+        },
+        {
+          resource: "cart",
+          actions: { create: false, read: true, update: false, delete: false, export: false, import: false },
+        },
+        {
+          resource: "analytics",
+          actions: { create: false, read: true, update: false, delete: false, export: false, import: false },
+        },
+        {
+          resource: "roles",
+          actions: { create: false, read: true, update: false, delete: false, export: false, import: false },
+        },
+        {
+          resource: "settings",
+          actions: { create: false, read: true, update: false, delete: false, export: false, import: false },
+        },
+      ],
+    },
+    {
+      name: "user",
+      displayName: {
+        en: "User",
+        ar: "مستخدم",
+      },
+      description: {
+        en: "Regular user with basic permissions",
+        ar: "مستخدم عادي مع صلاحيات أساسية",
+      },
+      isSystemRole: true,
+      isActive: true,
+      priority: 10,
+      permissions: [
+        {
+          resource: "users",
+          actions: { create: false, read: false, update: false, delete: false, export: false, import: false },
+        },
+        {
+          resource: "products",
+          actions: { create: false, read: true, update: false, delete: false, export: false, import: false },
+        },
+        {
+          resource: "categories",
+          actions: { create: false, read: true, update: false, delete: false, export: false, import: false },
+        },
+        {
+          resource: "brands",
+          actions: { create: false, read: true, update: false, delete: false, export: false, import: false },
+        },
+        {
+          resource: "orders",
+          actions: { create: true, read: true, update: false, delete: false, export: false, import: false },
+        },
+        {
+          resource: "reviews",
+          actions: { create: true, read: true, update: true, delete: false, export: false, import: false },
+        },
+        {
+          resource: "coupons",
+          actions: { create: false, read: true, update: false, delete: false, export: false, import: false },
+        },
+        {
+          resource: "catalogs",
+          actions: { create: false, read: true, update: false, delete: false, export: false, import: false },
+        },
+        {
+          resource: "home",
+          actions: { create: false, read: true, update: false, delete: false, export: false, import: false },
+        },
+        {
+          resource: "branches",
+          actions: { create: false, read: true, update: false, delete: false, export: false, import: false },
+        },
+        {
+          resource: "cart",
+          actions: { create: true, read: true, update: true, delete: true, export: false, import: false },
+        },
+        {
+          resource: "analytics",
+          actions: { create: false, read: false, update: false, delete: false, export: false, import: false },
+        },
+        {
+          resource: "roles",
+          actions: { create: false, read: false, update: false, delete: false, export: false, import: false },
+        },
+        {
+          resource: "settings",
+          actions: { create: false, read: false, update: false, delete: false, export: false, import: false },
+        },
+      ],
+    },
+  ];
+
+  for (const roleData of roles) {
+    try {
+      const existing = await Role.findOne({ name: roleData.name });
+      if (!existing) {
+        await Role.create(roleData);
+        console.log(`✓ Created role: ${roleData.displayName.en} (${roleData.name})`);
+      } else {
+        console.log(`⊗ Role already exists: ${roleData.name}`);
+      }
+    } catch (error) {
+      console.error(`✗ Error creating role ${roleData.name}:`, error.message);
+    }
+  }
+};
+
+/* --------------------------------------------------
+   SEED USERS (Including Super Admin)
+--------------------------------------------------- */
+const seedUsers = async () => {
+  // First ensure roles exist
+  const superAdminRole = await Role.findOne({ name: "superAdmin" });
+  const adminRole = await Role.findOne({ name: "admin" });
+  const managerRole = await Role.findOne({ name: "manager" });
+  const userRole = await Role.findOne({ name: "user" });
+
+  if (!superAdminRole || !adminRole || !managerRole || !userRole) {
+    console.error("✗ Roles must be seeded before users. Run seedRoles first.");
+    return;
+  }
+
+  const users = [
+    {
+      name: "Super Admin",
+      email: "superadmin@elba.com",
+      password: "SuperAdmin@123",
+      phone: "+966500000001",
+      gender: "male",
+      address: "Riyadh",
+      role: superAdminRole._id,
+      legacyRole: "superAdmin",
+      isActive: true,
+      passwordVerified: true,
+      preferences: {
+        language: "en",
+        notifications: true,
+        emailNotifications: true,
+      },
+    },
+    {
+      name: "Admin User",
+      email: "admin@elba.com",
+      password: "Admin@123",
+      phone: "+966500000002",
+      gender: "male",
+      address: "Jeddah",
+      role: adminRole._id,
+      legacyRole: "admin",
+      isActive: true,
+      passwordVerified: true,
+      preferences: {
+        language: "en",
+        notifications: true,
+        emailNotifications: true,
+      },
+    },
+    {
+      name: "Manager User",
+      email: "manager@elba.com",
+      password: "Manager@123",
+      phone: "+966500000003",
+      gender: "female",
+      address: "Dammam",
+      role: managerRole._id,
+      legacyRole: "manager",
+      isActive: true,
+      passwordVerified: true,
+      preferences: {
+        language: "ar",
+        notifications: true,
+        emailNotifications: true,
+      },
+    },
+    {
+      name: "Test User",
+      email: "user@elba.com",
+      password: "User@123",
+      phone: "+966500000004",
+      gender: "male",
+      address: "Riyadh",
+      role: userRole._id,
+      legacyRole: "user",
+      isActive: true,
+      passwordVerified: true,
+      preferences: {
+        language: "ar",
+        notifications: true,
+        emailNotifications: true,
+      },
+    },
+    {
+      name: "Ahmed Al-Mutairi",
+      email: "ahmed.mutairi@example.com",
+      password: "Password@123",
+      phone: "+966500000005",
+      gender: "male",
+      dateOfBirth: new Date("1990-05-15"),
+      address: "Makkah",
+      role: userRole._id,
+      legacyRole: "user",
+      isActive: true,
+      passwordVerified: true,
+      preferences: {
+        language: "ar",
+        notifications: true,
+        emailNotifications: false,
+      },
+    },
+    {
+      name: "Fatima Al-Qahtani",
+      email: "fatima.qahtani@example.com",
+      password: "Password@123",
+      phone: "+966500000006",
+      gender: "female",
+      dateOfBirth: new Date("1995-08-22"),
+      address: "Medina",
+      role: userRole._id,
+      legacyRole: "user",
+      isActive: true,
+      passwordVerified: true,
+      preferences: {
+        language: "ar",
+        notifications: true,
+        emailNotifications: true,
+      },
+    },
+  ];
+
+  for (const userData of users) {
+    try {
+      const existingEmail = await User.findOne({ email: userData.email });
+      const existingPhone = await User.findOne({ phone: userData.phone });
+
+      if (!existingEmail && !existingPhone) {
+        await User.create(userData);
+        console.log(`✓ Created user: ${userData.name} (${userData.email}) - Role: ${userData.legacyRole}`);
+      } else if (existingEmail) {
+        console.log(`⊗ User already exists with email: ${userData.email}`);
+      } else if (existingPhone) {
+        console.log(`⊗ User already exists with phone: ${userData.phone}`);
+      }
+    } catch (error) {
+      console.error(`✗ Error creating user ${userData.email}:`, error.message);
+    }
+  }
+};
+
+/* --------------------------------------------------
    MAIN SEEDER
 --------------------------------------------------- */
 const runSeeder = async () => {
   try {
     console.log("🌱 Starting database seeder...\n");
+
+    await seedRoles();
+    console.log("\n");
+
+    await seedUsers();
+    console.log("\n");
 
     await seedCategories();
     console.log("\n");

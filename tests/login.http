@@ -1,0 +1,100 @@
+### Variables
+@baseUrl = http://localhost:3000/api/v1
+@contentType = application/json
+
+### =======================================================
+### LOGIN TESTS - ALL ROLES
+### =======================================================
+
+### 1. Login as Super Admin
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "phone": "+966500000001",
+  "password": "SuperAdmin@123"
+}
+
+### 2. Login as Admin
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "phone": "+966500000002",
+  "password": "Admin@123"
+}
+
+### 3. Login as Manager
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "phone": "+966500000003",
+  "password": "Manager@123"
+}
+
+### 4. Login as Regular User
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "phone": "+966500000004",
+  "password": "User@123"
+}
+
+### 5. Login as Ahmed Al-Mutairi
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "phone": "+966500000005",
+  "password": "Password@123"
+}
+
+### 6. Login as Fatima Al-Qahtani
+POST {{baseUrl}}/auth/login
+Content-Type: {{contentType}}
+
+{
+  "phone": "+966500000006",
+  "password": "Password@123"
+}
+
+### =======================================================
+### PROTECTED ROUTES TESTS
+### (Replace YOUR_TOKEN_HERE with actual token from login)
+### =======================================================
+
+### Get All Users (Admin/SuperAdmin only)
+@token = YOUR_TOKEN_HERE
+
+GET {{baseUrl}}/users
+Authorization: Bearer {{token}}
+
+### Get All Products
+GET {{baseUrl}}/products
+Authorization: Bearer {{token}}
+
+### Get User Cart
+GET {{baseUrl}}/cart
+Authorization: Bearer {{token}}
+
+### Get All Roles (Any authenticated user)
+GET {{baseUrl}}/roles
+Authorization: Bearer {{token}}
+
+### Get Admin Analytics (Admin/SuperAdmin only)
+GET {{baseUrl}}/admin/analytics/dashboard
+Authorization: Bearer {{token}}
+
+### Get User Profile
+GET {{baseUrl}}/users/profile
+Authorization: Bearer {{token}}
+
+### =======================================================
+### LOGOUT TEST
+### =======================================================
+
+### Logout
+POST {{baseUrl}}/auth/logout
+Content-Type: {{contentType}}
