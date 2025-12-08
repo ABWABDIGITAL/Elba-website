@@ -6,11 +6,14 @@ const blogSchema = new mongoose.Schema(
     // Arabic content - complete object
     ar: {
       title: { type: String, required: true, trim: true },
-      slug: { type: String, unique: true, sparse: true, index: true },
+      subtitle: { type: String, required: true, trim: true },
+      slug: { type: String, unique: true, sparse: true },
       excerpt: { type: String, required: true, maxlength: 300 },
       content: { type: String, required: true },
       imageAlt: { type: String },
       authorName: { type: String },
+      questions: [{ type: String, trim: true }],
+      answers: [{ type: String, trim: true }],
       tags: [{ type: String, trim: true }],
       seo: {
         metaTitle: { type: String, maxlength: 160 },
@@ -22,11 +25,14 @@ const blogSchema = new mongoose.Schema(
     // English content - complete object
     en: {
       title: { type: String, required: true, trim: true },
-      slug: { type: String, unique: true, sparse: true, index: true },
+      subtitle: { type: String, required: true, trim: true },
+      slug: { type: String, unique: true, sparse: true},
       excerpt: { type: String, required: true, maxlength: 300 },
       content: { type: String, required: true },
       imageAlt: { type: String },
       authorName: { type: String },
+      questions: [{ type: String, trim: true }],
+      answers: [{ type: String, trim: true }],
       tags: [{ type: String, trim: true }],
       seo: {
         metaTitle: { type: String, maxlength: 160 },

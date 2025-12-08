@@ -65,23 +65,22 @@ router.patch(
   updateProductController
 );
 
-router.get("/", protect, getAllProductsController);
+router.get("/", getAllProductsController);
 
-router.get("/sku/:sku", protect, getProductBySkuController);
+router.get("/sku/:sku", getProductBySkuController);
 
-router.get("/catalog/:keyword", protect, getProductByCatalogController);
+router.get("/catalog/:keyword", getProductByCatalogController);
 
-router.get("/compare", protect, getCompareProductsController);
+router.get("/compare", getCompareProductsController);
 
 router.get(
   "/category/:categoryId/best-selling",
-  protect,
   getBestSellingByCategoryController
 );
 
-router.get("/best-offers", protect, getBestOffersController);
+router.get("/best-offers", getBestOffersController);
 
-router.get("/category/:categoryId", protect, getProductsByCategoryController);
+router.get("/category/:categoryId", getProductsByCategoryController);
 
 router.get("/tags/available", getAvailableTags);
 router.get("/tags", getProductsByTags);

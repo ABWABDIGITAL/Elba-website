@@ -351,33 +351,45 @@ export const seedAdmin = async () => {
       name: "Admin",
       email: "admin10@elba.com",
       phone: "+966512548678",
-      password: "123456", // Will be hashed by pre-save hook
+      password: "123456",
       role: adminRole._id,
       isActive: true,
       legacyRole: "admin",
     };
 
-    // Check if admin exists
+    // 🔥 Split name for seeder only
+    const parts = adminData.name.trim().split(" ");
+
+    if (parts.length === 1) {
+      adminData.firstName = parts[0];
+      adminData.lastName = parts[0];
+    } else {
+      adminData.firstName = parts[0];
+      adminData.lastName = parts.slice(1).join(" ");
+    }
+
+    // 🔍 Check if admin exists
     let admin = await User.findOne({ email: adminData.email });
-    
+
     if (admin) {
       // Update all fields including password
       Object.assign(admin, adminData);
-      // Trigger the pre-save hook to hash the password
-      await admin.save();
+      await admin.save(); // ensures password hashing
       console.log("✅ Admin user updated");
     } else {
-      // Create new admin if doesn't exist
       admin = await User.create(adminData);
       console.log("✅ Admin user created");
     }
-    
+
     return admin;
+
   } catch (error) {
     console.error("❌ Error in seedAdmin:", error.message);
     throw error;
   }
 };
+
+
 export const seedRoles = async () => {
   try {
     console.log("🌱 Seeding default roles...");

@@ -3,35 +3,27 @@ import nodemailer from "nodemailer";
 
 const transporter = nodemailer.createTransport({
   host: "smtp.titan.email",
-  port: process.env.SMTP_PORT,                // SSL port
-  secure: false,             // Titan requires secure=true for port 465
+  port: process.env.SMTP_PORT,
+  secure: false,
   auth: {
-    user: process.env.EMAIL_USERNAME, 
+    user: process.env.EMAIL_USERNAME,
     pass: process.env.EMAIL_PASSWORD,
   },
 });
 
-console.log("SMTP DEBUG:", {
-  EMAIL_USERNAME: process.env.EMAIL_USERNAME,
-  EMAIL_PASSWORD: process.env.EMAIL_PASSWORD ? "(loaded)" : "(empty)",
+transporter.verify((err) => {
+  if (err) console.error("❌ Titan SMTP error:", err);
+  else console.log("✅ Titan SMTP connected");
 });
 
-// Verify connection
-transporter.verify((err, success) => {
-  if (err) {
-    console.error("❌ Titan SMTP connection failed:", err);
-  } else {
-    console.log("✅ Titan SMTP server ready");
-  }
-});
-
-export const sendEmail = async ({ to, subject, message }) => {
+export const sendEmail = async ({ to, subject, text, html }) => {
   try {
     await transporter.sendMail({
       from: `"Elba E-Commerce" <${process.env.EMAIL_FROM || process.env.EMAIL_USERNAME}>`,
       to,
       subject,
-      text: message,
+      text,
+      html,
     });
 
     return true;
@@ -41,13 +33,33 @@ export const sendEmail = async ({ to, subject, message }) => {
   }
 };
 
-export const sendCodeEmail = async (email, code, title = "Reset Password", name = "User") => {
-  const message = `Hello ${name},\n\nYour ${title} code is: ${code}\n\nThis code expires in 10 minutes.`;
+export const sendCodeEmail = async ({ email, name, resetLink }) => {
+  const html = `
+  <div style="font-family: Arial; direction: rtl;">
+    <h2>مرحباً ${name}</h2>
+    <p>لقد طلبت إعادة تعيين كلمة المرور.</p>
+
+   
+
+    <p>أو يمكنك إعادة تعيين كلمة المرور مباشرة عبر الرابط التالي:</p>
+
+    <a href="${resetLink}" 
+       style="display:inline-block; padding:10px 20px; background:#007bff; color:white;
+              border-radius:5px; text-decoration:none;">
+      إعادة تعيين كلمة المرور
+    </a>
+
+    <p style="margin-top:20px;">سينتهي هذا الرمز/الرابط خلال 10 دقائق.</p>
+
+    <hr/>
+    <p>فريق متجر ELBA الإلكتروني</p>
+  </div>
+  `;
 
   return sendEmail({
     to: email,
-    subject: title,
-    message,
+    subject: "إعادة تعيين كلمة المرور",
+    html,
   });
 };
 

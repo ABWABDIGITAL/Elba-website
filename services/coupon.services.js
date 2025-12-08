@@ -1,4 +1,5 @@
 import Coupon from "../models/coupon.model.js";
+import Cart from "../models/cart.model.js";
 import ApiError, {
   BadRequest,
   NotFound,
@@ -179,37 +180,71 @@ export const deleteCouponService = async ({ slug, softDelete = true }) => {
     throw ServerError("Failed to delete coupon", err);
   }
 };
-
-/**
- * Apply coupon by code to order subtotal (checkout)
- */
 export const applyCouponService = async ({ code, subtotal }) => {
+  if (subtotal === undefined || subtotal === null) {
+    throw BadRequest("Subtotal is required");
+  }
+
+  const coupon = await Coupon.findOne({ code });
+  if (!coupon) throw NotFound("Invalid coupon code");
+
+  // Check expiry
+  if (coupon.expiredAt && coupon.expiredAt <= new Date()) {
+    coupon.isActive = false;
+    await coupon.save();
+    throw BadRequest("Coupon is expired");
+  }
+
+  if (!coupon.isActive) {
+    throw BadRequest("Coupon is inactive");
+  }
+
+  // حساب الخصم
+  const discountAmount = (subtotal * coupon.discount) / 100;
+  const totalAfterDiscount = subtotal - discountAmount;
+
+  return {
+    coupon,
+    discountAmount,
+    totalAfterDiscount,
+  };
+};
+
+export const applyCouponToCartService = async (userId, couponCode) => {
   try {
-    const coupon = await Coupon.findOne({ code });
-    if (!coupon) throw NotFound("Invalid coupon code");
+    const cart = await Cart.findOne({ user: userId, isActive: true });
+    if (!cart) throw NotFound("Cart not found");
 
-    if (coupon.expiredAt <= new Date()) {
-      coupon.isActive = false;
-      await coupon.save();
-      throw BadRequest("Coupon is expired");
+    if (cart.cartItems.length === 0) {
+      throw BadRequest("Cart is empty");
     }
 
-    if (!coupon.isActive) {
-      throw BadRequest("Coupon is inactive");
-    }
+    const subtotal = cart.totalCartPrice;
 
-    const discountAmount = (subtotal * coupon.discount) / 100;
-    const totalAfterDiscount = subtotal - discountAmount;
+    const { coupon, discountAmount, totalAfterDiscount } =
+      await applyCouponService({ code: couponCode, subtotal });
+
+    cart.appliedCoupon = coupon._id;
+    cart.totalPriceAfterDiscount = Number(totalAfterDiscount.toFixed(2));
+
+    await cart.save();
+    await cart.populate({
+      path: "cartItems.product",
+      select: "en.name ar.name en.slug ar.slug sku en.images ar.images stock status",
+    });
 
     return {
-      coupon,
-      subtotal,
-      discountPercent: coupon.discount,
-      discountAmount,
-      totalAfterDiscount,
+      OK: true,
+      message: "Coupon applied successfully",
+      discount: Number(discountAmount.toFixed(2)),
+      totalAfterDiscount: cart.totalPriceAfterDiscount,
+      data: cart,
     };
   } catch (err) {
     if (err instanceof ApiError) throw err;
     throw ServerError("Failed to apply coupon", err);
   }
 };
+
+
+

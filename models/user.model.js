@@ -5,14 +5,26 @@ import bcrypt from "bcrypt";
 
 const userSchema = new mongoose.Schema(
   {
-    name: {
+    firstName: {
       type: String,
-      required: [true, "Name is required"],
+      required: [true, "firstName is required"],
       trim: true,
       maxlength: 50,
       minlength: 3,
     },
-
+    lastName:{ 
+      type: String,
+      required: [true, "firstName is required"],
+      trim: true,
+      maxlength: 50,
+      minlength: 3,
+    },
+    profileName:{ 
+      type: String,
+      trim: true,
+      maxlength: 50,
+      minlength: 3,
+    },
     email: {
       type: String,
       required: [true, "Email is required"],
@@ -73,7 +85,11 @@ const userSchema = new mongoose.Schema(
       default: null,
       index: true,
     },
-
+    resetPasswordToken: {
+      type: String,
+      default: null,
+      index: true,
+    },
     resetPasswordExpire: {
       type: Date,
       default: null,

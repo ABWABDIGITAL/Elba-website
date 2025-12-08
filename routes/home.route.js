@@ -7,18 +7,18 @@ import {
   updateHome,
   uploadHomeBanners,
 } from "../controllers/home.controller.js";
-
+import { protect, allowTo } from "../middlewares/authMiddleware.js";
 const router = express.Router();
 
 const upload = imageUpload("home");
 
-router.post("/", createHome);
+router.post("/", protect, allowTo("admin"),createHome);
 router.get("/", getHome);
-router.put("/", updateHome);
+router.put("/", protect, allowTo("admin"),updateHome);
 
 // Only include fields that actually exist in your schema & controller
 router.post(
-  "/banners",
+  "/banners",protect, allowTo("admin"),
   upload.fields([
     { name: "hero", maxCount: 10 },
     { name: "gif", maxCount: 10 },

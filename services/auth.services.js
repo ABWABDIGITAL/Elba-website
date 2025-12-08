@@ -25,7 +25,10 @@ const buildUserDTO = (user) => ({
    REGISTER SERVICE (FIXED)
 ========================================================== */
 export const registerService = async ({
-  name,
+  firstName,
+  lastName,
+  gender,
+  BirthDate,
   email,
   password,
   confirmPassword,
@@ -33,7 +36,7 @@ export const registerService = async ({
   phone,
   address
 }) => {
-  if (!name || !email || !password || !confirmPassword || !phone) {
+  if (!firstName ||!lastName||!gender||!BirthDate||!email || !password || !confirmPassword || !phone) {
     throw BadRequest("All fields are required");
   }
 
@@ -80,7 +83,10 @@ export const registerService = async ({
 
   // NEVER save confirmPassword to DB
   const newUser = await User.create({
-    name,
+    firstName,
+    lastName,
+    gender,
+    BirthDate,
     email: normalizedEmail,
     password,
     phone: normalizedPhone,
@@ -239,21 +245,46 @@ export const forgetPassword = async (email) => {
 
   const normalizedEmail = email.toLowerCase().trim();
   const user = await User.findOne({ email: normalizedEmail });
-  console.log(user)
+
   if (!user) throw NotFound("User not found");
 
-  const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
-  const hashedCode = crypto.createHash("sha256").update(resetCode).digest("hex");
+  /* ==========================
+     1. Generate OTP (6 digits)
+  =========================== */
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
 
-  user.resetPasswordCode = hashedCode;
-  user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
+  /* ==========================
+     2. Generate Reset Link Token
+  =========================== */
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+  const resetLink = `${process.env.FRONTEND_URL}/${resetToken}`;
+
+
+  /* ==========================
+     3. Save BOTH OTP + Link
+  =========================== */
+  user.resetPasswordCode = hashedOtp;
+  user.resetPasswordToken = hashedToken;
+  user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
   user.passwordVerified = false;
 
   await user.save();
 
+  /* ==========================
+     4. Send your custom TEMPLATE email
+  =========================== */
   try {
-    await sendCodeEmail(user.email, resetCode, "Reset Password", user.name);
-    return { OK: true, data: { message: "Password reset code sent" } };
+    await sendCodeEmail({
+      email: user.email,
+      name: user.firstName || user.name,
+      resetLink     // Reset link
+    });
+
+    return { OK: true, message: "Reset OTP and reset link sent to email" };
+
   } catch (err) {
     throw ServerError("Email sending failed");
   }
@@ -283,29 +314,79 @@ export const verifyResetPassword = async (email, code) => {
 
   return { OK: true, data: { message: "Reset code verified" } };
 };
+export const verifyResetLink = async (token) => {
+  if (!token) throw BadRequest("Token is required");
 
-/* ==========================================================
-   RESET PASSWORD (FIXED)
-========================================================== */
-export const resetPassword = async (email, newPassword , confirmPassword) => {
-  if (!email || !newPassword ||!confirmPassword)
-    throw BadRequest("Email and new password required");
+  const hashed = crypto.createHash("sha256").update(token).digest("hex");
+
+  const user = await User.findOne({
+    resetPasswordToken: hashed,
+    resetPasswordExpire: { $gt: Date.now() }
+  });
+
+  if (!user) throw BadRequest("Invalid or expired reset link");
+
+  return {
+    OK: true,
+    message: "Reset link verified",
+    data: { email: user.email }
+  };
+};
+export const resetPasswordWithToken = async (token, newPassword, confirmPassword) => {
+  if (!token || !newPassword || !confirmPassword)
+    throw BadRequest("Token and passwords required");
+
   if (newPassword !== confirmPassword)
     throw BadRequest("Passwords do not match");
-  const normalizedEmail = email.toLowerCase().trim();
-  const user = await User.findOne({ email: normalizedEmail });
 
-  if (!user) throw NotFound("User not found");
+  const hashed = crypto.createHash("sha256").update(token).digest("hex");
 
-  if (!user.passwordVerified)
-    throw BadRequest("Reset code not verified");
+  const user = await User.findOne({
+    resetPasswordToken: hashed,
+    resetPasswordExpire: { $gt: Date.now() }
+  });
+
+  if (!user) throw BadRequest("Invalid or expired reset link");
 
   user.password = newPassword;
   user.resetPasswordCode = null;
+  user.resetPasswordToken = null;
   user.resetPasswordExpire = null;
   user.passwordVerified = false;
 
   await user.save();
 
-  return { OK: true, data: { message: "Password reset successful" } };
+  return { OK: true, message: "Password reset successful" };
 };
+
+
+/* ==========================================================
+   RESET PASSWORD (FIXED)
+========================================================== */
+export const resetPassword = async (token, newPassword, confirmPassword) => {
+  if (!token || !newPassword || !confirmPassword)
+    throw BadRequest("Token and passwords are required");
+
+  if (newPassword !== confirmPassword)
+    throw BadRequest("Passwords do not match");
+
+  const hashed = crypto.createHash("sha256").update(token).digest("hex");
+
+  const user = await User.findOne({
+    resetPasswordToken: hashed,
+    resetPasswordExpire: { $gt: Date.now() }
+  });
+
+  if (!user) throw BadRequest("Invalid or expired reset link");
+
+  user.password = newPassword;
+  user.resetPasswordCode = null;
+  user.resetPasswordToken = null;
+  user.resetPasswordExpire = null;
+  user.passwordVerified = false;
+
+  await user.save();
+
+  return { OK: true, message: "Password reset successful" };
+};
+

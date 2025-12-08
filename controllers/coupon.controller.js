@@ -4,7 +4,7 @@ import {
   getCouponsService,
   updateCouponService,
   deleteCouponService,
-  applyCouponService,
+  applyCouponToCartService,
 } from "../services/coupon.services.js";
 
 export const createCouponController = async (req, res, next) => {
@@ -96,7 +96,7 @@ export const deleteCouponController = async (req, res, next) => {
 
 export const applyCouponController = async (req, res, next) => {
   try {
-    const result = await applyCouponService({
+    const result = await applyCouponToCartService({
       code: req.body.code,
       subtotal: req.body.subtotal,
     });

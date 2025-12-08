@@ -120,15 +120,13 @@ export const getHomeService = async () => {
               "ar.title en.title  ar.subTitle en.subTitle slug price discountPrice discountPercentage finalPrice images brand ratingsAverage tags"
             )
             .populate("brand", "en.name en.slug ar.name ar.slug logo") 
-            .lean()
         : await Product.find({})
-            .sort("-discountPercentage -discountPrice")
+            .sort({ discountPercentage: -1 })
             .limit(limit)
             .select(
               "ar.title en.title ar.subTitle en.subTitle slug price discountPrice discountPercentage finalPrice images brand ratingsAverage tags"
             )
             .populate("brand", "en.name en.slug ar.name ar.slug logo") 
-            .lean();
   } else result.bestOffers = [];
 
   /* ---------------- PRODUCTS SECTION ---------------- */
@@ -140,20 +138,18 @@ export const getHomeService = async () => {
         ? await Product.find({ _id: { $in: productIds } })
             .limit(limit)
             .select(
-              "ar.title en.title slug price images brand category ratingsAverage tags"
+              "ar.title en.title slug price  finalPrice images brand category ratingsAverage tags"
             )
             .populate("brand", "en.name en.slug ar.name ar.slug logo") 
             .populate("category", "en.name ar.name type")
-            .lean()
         : await Product.find({})
             .sort("-salesCount -ratingsQuantity -views")
             .limit(limit)
             .select(
-              "ar.title en.title slug price images brand category ratingsAverage tags"
+              "ar.title en.title slug price finalPrice images brand category ratingsAverage tags"
             )
             .populate("brand", "en.name en.slug ar.name ar.slug logo") 
             .populate("category", "en.name ar.name type")
-            .lean();
   } else result.products = [];
 
   /* ---------------- BRANCHES ---------------- */

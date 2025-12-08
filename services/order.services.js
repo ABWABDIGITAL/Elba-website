@@ -3,7 +3,8 @@ import Cart from "../models/cart.model.js";
 import Product from "../models/product.model.js";
 import Coupon from "../models/coupon.model.js";
 import User from "../models/user.model.js";
-import { BadRequest, NotFound, ServerError, Forbidden } from "../utlis/apiError.js";
+import ApiError ,{ BadRequest, NotFound, ServerError, Forbidden } from "../utlis/apiError.js";
+import { createMyFatoorahPayment } from "../services/myfatoorah.services.js";
 import mongoose from "mongoose";
 import { sendOrderUpdateWhatsApp } from "./whatsapp.services.js";
 
@@ -33,7 +34,7 @@ export const createOrderService = async (userId, shippingAddress, paymentMethod 
   session.startTransaction();
 
   try {
-    // 1. Get user's cart
+    // 1) Get user's active cart
     const cart = await Cart.findOne({ user: userId, isActive: true })
       .populate("cartItems.product")
       .session(session);
@@ -42,38 +43,26 @@ export const createOrderService = async (userId, shippingAddress, paymentMethod 
       throw BadRequest("Cart is empty");
     }
 
-    // 2. Validate and reserve stock atomically for all products
+    // 2) Validate & reserve stock
     const orderItems = [];
 
     for (const item of cart.cartItems) {
       const product = item.product;
 
-      // Atomic stock update with stock validation
       const updatedProduct = await Product.findOneAndUpdate(
         {
           _id: product._id,
           stock: { $gte: item.quantity },
           status: "active",
         },
-        {
-          $inc: {
-            stock: -item.quantity,
-            salesCount: 1,
-          },
-        },
-        {
-          new: true,
-          session,
-        }
+        { $inc: { stock: -item.quantity, salesCount: 1 } },
+        { new: true, session }
       );
 
       if (!updatedProduct) {
-        throw BadRequest(
-          `Insufficient stock for ${product.en?.name || product.ar?.name}. Only ${product.stock} available.`
-        );
+        throw BadRequest(`Insufficient stock for ${product.en?.name}`);
       }
 
-      // Create order item with product snapshot
       orderItems.push({
         product: product._id,
         quantity: item.quantity,
@@ -87,15 +76,15 @@ export const createOrderService = async (userId, shippingAddress, paymentMethod 
       });
     }
 
-    // 3. Calculate pricing
+    // 3) Calculate pricing
     const itemsPrice = cart.totalCartPrice;
-    const shippingPrice = calculateShipping(itemsPrice);
+    const shippingPrice = 0;
     const discountAmount = itemsPrice - cart.totalPriceAfterDiscount;
     const subtotal = itemsPrice - discountAmount + shippingPrice;
-    const taxPrice = calculateTax(subtotal);
+    const taxPrice = 0;
     const totalPrice = subtotal + taxPrice;
 
-    // 4. Create order
+    // 4) Create order object (NOT SAVED YET)
     const order = new Order({
       user: userId,
       orderItems,
@@ -106,66 +95,103 @@ export const createOrderService = async (userId, shippingAddress, paymentMethod 
       discountAmount,
       totalPrice: Number(totalPrice.toFixed(2)),
       paymentMethod,
-      paymentStatus: paymentMethod === "cash_on_delivery" ? "pending" : "pending",
+      paymentStatus: "pending",
       orderStatus: "pending",
     });
+console.log("Running hooks? isNew =", order.isNew);
 
-    // 5. Handle coupon if applied
-    if (cart.appliedCoupon) {
-      const coupon = await Coupon.findById(cart.appliedCoupon).session(session);
-      if (coupon) {
-        order.appliedCoupon = coupon._id;
-        order.couponCode = coupon.code;
-
-        // Increment coupon usage count
-        await Coupon.findByIdAndUpdate(
-          coupon._id,
-          { $inc: { usedCount: 1 } },
-          { session }
-        );
-      }
-    }
-
+    // 5) Save the order ONCE (Triggers pre-save hook → generates orderNumber)
     await order.save({ session });
 
-    // 6. Clear cart after successful order
-    cart.cartItems = [];
-    cart.totalCartPrice = 0;
-    cart.totalPriceAfterDiscount = 0;
-    cart.appliedCoupon = undefined;
-    await cart.save({ session });
+    console.log("✔ Order saved. OrderNumber =", order.orderNumber);
 
-    // Commit transaction
+    // -------------------------------------------
+
+    // 6) IF PAYMENT IS CREDIT CARD → CALL MYFATOORAH
+    // -------------------------------------------
+    if (paymentMethod === "credit_card") {
+      const user = await User.findById(userId).select("firstName lastName email phone");
+
+      // Create payment invoice
+      const paymentData = await createMyFatoorahPayment(order, user);
+
+      // Update order with invoice ID (WITHOUT save()!)
+      await Order.updateOne(
+        { _id: order._id },
+        {
+          $set: {
+            paymentResult: {
+              id: paymentData.InvoiceId?.toString(),
+              status: "pending",
+              update_time: new Date(),
+              email_address: user.email,
+            },
+          },
+        },
+        { session }
+      );
+
+      // Clear cart
+      await Cart.updateOne(
+        { _id: cart._id },
+        {
+          $set: {
+            cartItems: [],
+            totalCartPrice: 0,
+            totalPriceAfterDiscount: 0,
+            appliedCoupon: undefined,
+          },
+        },
+        { session }
+      );
+
+      await session.commitTransaction();
+      session.endSession();
+
+      return {
+        OK: true,
+        message: "Order created. Redirect to payment.",
+        paymentUrl: paymentData.InvoiceURL,
+        invoiceId: paymentData.InvoiceId,
+        orderId: order._id,
+        orderNumber: order.orderNumber,
+      };
+    }
+
+    // -------------------------------------------
+    // 7) CASH ON DELIVERY (normal flow)
+    // -------------------------------------------
+    await Cart.updateOne(
+      { _id: cart._id },
+      {
+        $set: {
+          cartItems: [],
+          totalCartPrice: 0,
+          totalPriceAfterDiscount: 0,
+          appliedCoupon: undefined,
+        },
+      },
+      { session }
+    );
+
     await session.commitTransaction();
-
-    // Populate order details
-    await order.populate([
-      {
-        path: "orderItems.product",
-        select: "en.name ar.name en.images ar.images sku",
-      },
-      {
-        path: "user",
-        select: "firstName lastName email phone",
-      },
-    ]);
+    session.endSession();
 
     return {
       OK: true,
       message: "Order created successfully",
       data: order,
     };
+
   } catch (err) {
     await session.abortTransaction();
-
-    if (err.name === "ApiError" || err instanceof BadRequest || err instanceof NotFound) {
-      throw err;
-    }
-    throw ServerError("Failed to create order", err);
-  } finally {
     session.endSession();
+
+    if (err instanceof ApiError) throw err;
+    throw ServerError("Failed to create order", err.message);
   }
 };
+
 
 /* --------------------------------------------------
    GET USER ORDERS
@@ -185,7 +211,7 @@ export const getUserOrdersService = async (userId, query) => {
 
     const [orders, total] = await Promise.all([
       Order.find(filter)
-        .populate("orderItems.product", "en.name ar.name en.images ar.images sku")
+        .select("orderNumber orderStatus totalPrice createdAt") 
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
@@ -222,7 +248,7 @@ export const getOrderByIdService = async (userId, orderId, isAdmin = false) => {
     }
 
     const order = await Order.findOne(filter)
-      .populate("orderItems.product", "en.name ar.name en.images ar.images sku")
+      .populate("orderItems.product", "en.title ar.title   en.images ar.images sku")
       .populate("user", "firstName lastName email phone")
       .populate("appliedCoupon", "code discountType discountValue");
 
@@ -236,7 +262,7 @@ export const getOrderByIdService = async (userId, orderId, isAdmin = false) => {
       data: order,
     };
   } catch (err) {
-    if (err.name === "ApiError" || err instanceof NotFound) {
+    if (err.name === "ApiError" || err instanceof ApiError) {
       throw err;
     }
     throw ServerError("Failed to get order", err);

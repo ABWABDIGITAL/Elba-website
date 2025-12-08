@@ -241,36 +241,42 @@ orderSchema.index({ orderStatus: 1, createdAt: -1 });
 /* -----------------------------------
    GENERATE ORDER NUMBER
 ----------------------------------- */
-orderSchema.pre("save", async function (next) {
-  if (this.isNew) {
-    // Generate order number: ORD-YYYYMMDD-XXXX
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
+orderSchema.pre("validate", async function (next) {
+  try {
+    // نولّد رقم الطلب قبل الـ validation
+    if (this.isNew && !this.orderNumber) {
+      const date = new Date();
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
 
-    // Find the last order number for today
-    const lastOrder = await mongoose
-      .model("Order")
-      .findOne({
-        orderNumber: new RegExp(`^ORD-${year}${month}${day}`),
-      })
-      .sort({ orderNumber: -1 })
-      .select("orderNumber");
+      const lastOrder = await mongoose
+        .model("Order")
+        .findOne({
+          orderNumber: new RegExp(`^ORD-${year}${month}${day}`),
+        })
+        .sort({ orderNumber: -1 })
+        .select("orderNumber");
 
-    let sequence = 1;
-    if (lastOrder) {
-      const lastSequence = parseInt(lastOrder.orderNumber.split("-").pop());
-      sequence = lastSequence + 1;
+      let sequence = 1;
+      if (lastOrder) {
+        const lastSequence = parseInt(lastOrder.orderNumber.split("-").pop());
+        sequence = lastSequence + 1;
+      }
+
+      this.orderNumber = `ORD-${year}${month}${day}-${String(sequence).padStart(
+        4,
+        "0"
+      )}`;
+      console.log("🔥 pre-validate generated orderNumber:", this.orderNumber);
     }
 
-    this.orderNumber = `ORD-${year}${month}${day}-${String(sequence).padStart(
-      4,
-      "0"
-    )}`;
+    next();
+  } catch (err) {
+    next(err);
   }
-  next();
 });
+
 
 /* -----------------------------------
    ADD STATUS TO HISTORY

@@ -51,6 +51,7 @@ const homeConfigSchema = new mongoose.Schema({
 
   large: { type: Number, default: 0 },
   small: { type: Number, default: 0 },
+  offerProducts: { type: Number, default: 0 },
   seo: { type: seoSchema, default: () => ({}) }
 
 }, { timestamps: true });

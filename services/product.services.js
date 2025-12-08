@@ -60,7 +60,7 @@ export const buildGetAllproductDTO = (p) => {
     discountPercentage: p.discountPercentage,
     finalPrice: p.finalPrice,
     ratingsAverage:p.ratingsAverage,
-    sizeType:p.sizeTye,
+    sizeType: p.sizeType || null,
     brand:p.brand,
     category:p.category,
   };
@@ -297,8 +297,9 @@ export const getAllProductsService = async (query) => {
 
     const [items, total] = await Promise.all([
       Product.find(filter)
+        .select("en.title en.subTitle ar.title ar.subTitle price finalPrice sizeType ratingsAverage images sku slug")
         .populate("category", "ar.name ar.slug en.name en.slug image")
-.populate("brand", "ar.name ar.slug en.name en.slug logo")
+        .populate("brand", "ar.name ar.slug en.name en.slug logo")
 
         .skip(skip)
         .limit(limit)
@@ -520,12 +521,12 @@ export const getBestOffersService = async (query) => {
 
     let mongooseQuery = Product.find({})
       .populate("category", "ar.name ar.slug en.name en.slug image")
-.populate("brand", "ar.name ar.slug en.name en.slug logo")
+      .populate("brand", "ar.name ar.slug en.name en.slug logo")
 
 
     if (top) {
       const items = await mongooseQuery
-        .sort("-discountPercentage -discountPrice")
+        .sort({ discountPercentage: -1 })
         .limit(Number(top) || 10);
 
       return {
@@ -544,9 +545,7 @@ export const getBestOffersService = async (query) => {
       .limitFields()
       .paginate();
 
-    features.mongooseQuery = features.mongooseQuery.sort(
-      "-discountPercentage -discountPrice"
-    );
+    features.mongooseQuery = features.mongooseQuery.sort({ discountPercentage: -1 });
 
     const items = await features.mongooseQuery;
     const total = await Product.countDocuments(features.getFilter());

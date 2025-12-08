@@ -9,7 +9,10 @@ import Role from "../models/role.model.js";
    REGISTER VALIDATOR (Correct)
 ---------------------------------------- */
 export const validateRegister = [
-  body("name")
+  body("firstName")
+    .notEmpty().withMessage("Name is required")
+    .isLength({ min: 3, max: 50 }),
+  body("lastName")
     .notEmpty().withMessage("Name is required")
     .isLength({ min: 3, max: 50 }),
 
@@ -143,8 +146,7 @@ export const validateVerifyReset = [
 ];
 
 export const validateResetPassword = [
-  body("email")
-    .notEmpty().isEmail(),
+
   body("newPassword")
     .notEmpty().isLength({ min: 6 }),
   body("confirmPassword")
@@ -155,4 +157,50 @@ export const validateResetPassword = [
       return true;
     }),
   validatorMiddleware,
+];
+export const validateResetPasswordWithToken = [
+  body("newPassword").isLength({ min: 6 }).withMessage("Password too short"),
+  body("confirmPassword")
+    .custom((value, { req }) => value === req.body.newPassword)
+    .withMessage("Passwords do not match"),
+];
+export const validateUpdateProfile = [
+  body("firstName")
+    .optional()
+    .isString()
+    .withMessage("First name must be a string"),
+
+  body("lastName")
+    .optional()
+    .isString()
+    .withMessage("Last name must be a string"),
+
+  body("email")
+    .optional()
+    .isEmail()
+    .withMessage("Invalid email"),
+
+  body("phone")
+    .optional()
+    .isString()
+    .withMessage("Phone must be a string"),
+
+  body("address")
+    .optional()
+    .isString()
+    .withMessage("Address must be a string"),
+
+  body("gender")
+    .optional()
+    .isIn(["male", "female"])
+    .withMessage("Gender must be male or female"),
+
+  body("BirthDate")
+    .optional()
+    .isISO8601()
+    .withMessage("Birth date must be a valid date"),
+
+  // ❌ Prevent updating passwords or role from UI
+  body("password").not().exists().withMessage("Password cannot be updated here"),
+  body("role").not().exists().withMessage("Role cannot be updated"),
 ];

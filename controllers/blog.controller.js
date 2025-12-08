@@ -57,6 +57,7 @@ export const getAllBlogs = async (req, res, next) => {
 export const getBlogBySlug = async (req, res, next) => {
   try {
     const { slug } = req.params;
+    console.log(slug)
     const { language = "ar" } = req.query;
 
     const result = await getBlogBySlugService(slug, language);

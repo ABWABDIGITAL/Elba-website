@@ -23,8 +23,11 @@ import emailPosterRoutes from "./routes/emailPoster.route.js";
 import favoriteRoutes from "./routes/favorite.route.js";
 import newsletterRoutes from "./routes/newsletter.route.js";
 import addressRoutes from "./routes/address.route.js";
+import paymentRoutes from "./routes/payment.routes.js";
+import profileRoutes from "./routes/profile.route.js";
 import seedRoles , { seedAdmin } from "./config/seedRoles.js";
 import runSeeder from "./config/seeder.js";
+import cors from "cors";
 
 // Set to true to run seeder on startup (disable after first run)
 const RUN_SEEDER = process.env.RUN_SEEDER === "true";
@@ -32,7 +35,7 @@ const RUN_SEEDER = process.env.RUN_SEEDER === "true";
 connectDB().then(async () => {
 //   Seed default roles on startup
   await seedRoles();
- await seedAdmin();
+ await seedAdmin(); 
 //   Run comprehensive seeder if enabled
   if (RUN_SEEDER) {
     await runSeeder();
@@ -42,7 +45,7 @@ connectDB().then(async () => {
 const app = express();
 
 const PORT = process.env.PORT || 3000;
-
+app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -66,6 +69,8 @@ app.use("/api/v1/emailPosters" , emailPosterRoutes);
 app.use("/api/v1" , favoriteRoutes);
 app.use("/api/v1/newsletter" , newsletterRoutes);
 app.use("/api/v1/addresses" , addressRoutes);
+app.use("/api/v1/payment", paymentRoutes);
+app.use("/api/v1/profile", profileRoutes);
 app.use("/uploads" , express.static(path.join(process.cwd(), "uploads")));
 app.use(errorMiddleware);
 app.listen(PORT, () => {
