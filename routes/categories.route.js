@@ -15,18 +15,26 @@ import {
 } from "../validators/categories.validators.js";
 
 // import { protect, allowTo } from "../middlewares/authMiddleware.js";
-import upload from "../middlewares/uploadMiddleware.js";
+import upload, { IMG_MIME, IMG_EXT } from "../middlewares/uploadMiddleware.js";
+import { protect , allowTo} from "../middlewares/authMiddleware.js";
+
+
 
 const router = express.Router();
 
 router.post(
   "/",
-//   protect,
-//   allowTo("admin"),
-  upload({ folder: "categories" }).single("image"),
+  protect,
+  allowTo("admin","superAdmin"),
+  upload({
+    folder: "categories",
+    allowedMime: IMG_MIME,
+    allowedExt: IMG_EXT
+  }).single("image"),
   validateCreateCategory,
   createCategoryController
 );
+
 
 router.get("/", getCategoriesController);
 
@@ -34,17 +42,22 @@ router.get("/:id", validateGetCategory, getCategoryController);
 
 router.put(
   "/:id",
-//   protect,
-//   allowTo("admin"),
-  upload({ folder: "categories" }).single("image"),
+  protect,
+  allowTo("admin","superAdmin"),
+  upload({
+    folder: "categories",
+    allowedMime: IMG_MIME,
+    allowedExt: IMG_EXT
+  }).single("image"),
   validateUpdateCategory,
   updateCategoryController
 );
 
+
 router.delete(
   "/:id",
-//   protect,
-//   allowTo("admin"),
+  protect,
+  allowTo("admin","superAdmin"),
   validateDeleteCategory,
   deleteCategoryController
 );

@@ -7,13 +7,27 @@ export const validateCreateCategory = [
 
   body("ar.name")
     .notEmpty().withMessage("Arabic name required")
+   .custom(async (value) => {
+      const exists = await Category.findOne({ name_ar: value });
+      if (exists) {
+        throw new Error("Arabic name already exists");
+      }
+      return true;
+    })
     .isLength({ min: 2 }),
 
   body("en.name")
     .notEmpty().withMessage("English name required")
+     .custom(async (value) => {
+      const exists = await Category.findOne({ name_ar: value });
+      if (exists) {
+        throw new Error("Arabic name already exists");
+      }
+      return true;
+    })
     .isLength({ min: 2 }),
 
-  body("type")
+  body("sizeType")
     .optional()
     .isIn(["Large", "Small"])
     .withMessage("type must be Small or Large"),

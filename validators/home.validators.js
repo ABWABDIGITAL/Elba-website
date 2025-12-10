@@ -6,209 +6,137 @@ import Category from "../models/category.model.js";
 import Product from "../models/product.model.js";
 import validateSeo from "./seo.validators.js";
 
-const isValidObjectId = (val) => mongoose.Types.ObjectId.isValid(val);
-
-const validateBanner = (field) => [
-  body(`${field}.url`)
-    .optional()
-    .isString().withMessage(`${field}.url must be a string`)
-    .notEmpty().withMessage(`${field}.url cannot be empty`),
-
-  body(`${field}.alt.en`)
-    .optional()
-    .isString().withMessage(`${field}.alt.en must be a string`)
-    .notEmpty().withMessage(`${field}.alt.en cannot be empty`),
-
-  body(`${field}.alt.ar`)
-    .optional()
-    .isString().withMessage(`${field}.alt.ar must be a string`)
-    .notEmpty().withMessage(`${field}.alt.ar cannot be empty`),
-];
+const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 
-const validateProductRef = (field) => [
-  body(`${field}`)
+/* ----------------------------------------------------
+   BANNER VALIDATOR (hero, gif, promovideo, popupVideo)
+---------------------------------------------------- */
+const validateBannerArray = (field) => [
+  body(field)
     .optional()
     .isArray().withMessage(`${field} must be an array`),
 
-  body(`${field}.*.product`)
+  body(`${field}.*.imageUrl`)
+    .optional()
+    .isString().withMessage(`${field}.*.imageUrl must be a string`),
+
+  body(`${field}.*.redirectUrl`)
+    .optional()
+    .isString().withMessage(`${field}.*.redirectUrl must be a string`),
+
+  body(`${field}.*.sortOrder`)
+    .optional()
+    .isInt().withMessage(`${field}.*.sortOrder must be a number`),
+
+  body(`${field}.*.isActive`)
+    .optional()
+    .isBoolean().withMessage(`${field}.*.isActive must be a boolean`),
+];
+
+
+/* ----------------------------------------------------
+   OFFER BANNER VALIDATOR
+---------------------------------------------------- */
+const validateOfferBanner = [
+  body("offerBanner")
+    .optional()
+    .isArray().withMessage("offerBanner must be an array"),
+
+  body("offerBanner.*.url")
+    .notEmpty().withMessage("offerBanner.*.url is required")
+    .isString().withMessage("offerBanner.*.url must be a string"),
+
+  body("offerBanner.*.discount")
+    .notEmpty().withMessage("offerBanner.*.discount is required")
+    .isNumeric().withMessage("offerBanner.*.discount must be a number")
+    .custom((val) => val >= 0 && val <= 100)
+    .withMessage("offerBanner.*.discount must be between 0 and 100"),
+
+  body("offerBanner.*.discountTitle")
+    .notEmpty().withMessage("offerBanner.*.discountTitle is required")
+    .isString().withMessage("offerBanner.*.discountTitle must be a string"),
+];
+
+
+/* ----------------------------------------------------
+   CATEGORY SHORTCUTS
+---------------------------------------------------- */
+const validateCategoryShortcuts = [
+  body("categories.categoryIds")
+    .optional()
+    .isArray().withMessage("categories.categoryIds must be an array"),
+
+  body("categories.categoryIds.*")
     .optional()
     .custom(async (val) => {
-      if (!isValidObjectId(val)) throw new Error(`Invalid product ID: ${val}`);
-      const exist = await Product.findById(val);
-      if (!exist) throw new Error(`Product not found: ${val}`);
+      if (!isValidObjectId(val)) throw new Error("Invalid Category ID");
+      const exists = await Category.findById(val);
+      if (!exists) throw new Error(`Category not found: ${val}`);
       return true;
     }),
+];
 
-  body(`${field}.*.order`)
+/* ----------------------------------------------------
+   PRODUCT SECTIONS (bestOffers, Products)
+---------------------------------------------------- */
+const validateProductIds = (field) => [
+  body(`${field}.productIds`)
     .optional()
-    .isInt({ min: 0 })
-    .withMessage(`${field}.*.order must be >= 0`),
+    .isArray().withMessage(`${field}.productIds must be an array`),
+
+  body(`${field}.productIds.*`)
+    .optional()
+    .custom(async (val) => {
+      if (!isValidObjectId(val)) throw new Error(`Invalid Product ID: ${val}`);
+      const exists = await Product.findById(val);
+      if (!exists) throw new Error(`Product not found: ${val}`);
+      return true;
+    }),
 ];
 
 
-const validateProductSection = (sectionName) => [
-  ...validateProductRef(`${sectionName}.products`),
-
-  body(`${sectionName}.viewAllLink`)
+/* ----------------------------------------------------
+   BRANCHES (IDs only)
+---------------------------------------------------- */
+const validateBranches = [
+  body("branches.branchIds")
     .optional()
-    .isString().withMessage(`${sectionName}.viewAllLink must be a string`),
+    .isArray().withMessage("branches.branchIds must be an array"),
 
-  body(`${sectionName}.isActive`)
+  body("branches.branchIds.*")
     .optional()
-    .isBoolean().withMessage(`${sectionName}.isActive must be boolean`),
-];
-const validateCategoryShortcuts = [
-  body("categoryShortcuts")
-    .optional()
-    .isArray().withMessage("categoryShortcuts must be an array"),
-
-  body("categoryShortcuts.*.categories")
-  .optional()
-  .isArray().withMessage("categories must be an array"),
-
-body("categoryShortcuts.*.categories.*")
-  .optional()
-  .custom(async (val) => {
-    if (!isValidObjectId(val)) throw new Error(`Invalid Category ID: ${val}`);
-    const exist = await Category.findById(val);
-    if (!exist) throw new Error(`Category not found: ${val}`);
-    return true;
-  }),
-
+    .custom((val) => {
+      if (!isValidObjectId(val)) throw new Error(`Invalid Branch ID: ${val}`);
+      return true;
+    }),
 ];
 
-const validateVideo = [
-  body("promotionalVideo.url")
-    .notEmpty().withMessage("promotionalVideo.url is required")
-    .isString().withMessage("promotionalVideo.url must be string"),
 
-  body("promotionalVideo.alt.en")
-    .optional()
-    .isString().withMessage("promotionalVideo.alt.en must be string"),
-
-  body("promotionalVideo.alt.ar")
-    .optional()
-    .isString().withMessage("promotionalVideo.alt.ar must be string"),
-];
-
-const validateStoreLocator = [
-  body("storeLocator.title.en")
-    .optional()
-    .isString().withMessage("storeLocator.title.en must be string"),
-
-  body("storeLocator.title.ar")
-    .optional()
-    .isString().withMessage("storeLocator.title.ar must be string"),
-
-  body("storeLocator.locations")
-    .optional()
-    .isArray().withMessage("storeLocator.locations must be an array"),
-
-  body("storeLocator.locations.*.name.en")
-    .optional()
-    .isString().withMessage("storeLocator.locations.*.name.en must be string"),
-
-  body("storeLocator.locations.*.name.ar")
-    .optional()
-    .isString().withMessage("storeLocator.locations.*.name.ar must be string"),
-
-  body("storeLocator.locations.*.address.en")
-    .optional()
-    .isString().withMessage("storeLocator.locations.*.address.en must be string"),
-
-  body("storeLocator.locations.*.address.ar")
-    .optional()
-    .isString().withMessage("storeLocator.locations.*.address.ar must be string"),
-
-  body("storeLocator.locations.*.phone")
-    .optional()
-    .isString().withMessage("storeLocator.locations.*.phone must be string"),
-
-  body("storeLocator.locations.*.coordinates.lat")
-    .optional()
-    .isFloat().withMessage("storeLocator.locations.*.coordinates.lat must be number"),
-
-  body("storeLocator.locations.*.coordinates.lng")
-    .optional()
-    .isFloat().withMessage("storeLocator.locations.*.coordinates.lng must be number"),
-];
-
-// /* ----------------------------------------------------
-//    FOOTER VALIDATOR
-// ---------------------------------------------------- */
-// const validateFooter = [
-//   body("footer.about.en")
-//     .optional()
-//     .isString().withMessage("footer.about.en must be string"),
-
-//   body("footer.about.ar")
-//     .optional()
-//     .isString().withMessage("footer.about.ar must be string"),
-
-//   body("footer.socialMedia")
-//     .optional()
-//     .isArray().withMessage("footer.socialMedia must be array"),
-
-//   body("footer.socialMedia.*.platform")
-//     .optional()
-//     .isString().withMessage("platform must be string"),
-
-//   body("footer.socialMedia.*.url")
-//     .optional()
-//     .isString().withMessage("socialMedia.url must be string"),
-
-//   body("footer.socialMedia.*.icon")
-//     .optional()
-//     .isString().withMessage("socialMedia.icon must be string"),
-
-//   body("footer.paymentMethods")
-//     .optional()
-//     .isArray().withMessage("footer.paymentMethods must be array"),
-
-//   body("footer.paymentMethods.*.name")
-//     .optional()
-//     .isString().withMessage("footer.paymentMethods.name must be string"),
-
-//   body("footer.paymentMethods.*.icon")
-//     .optional()
-//     .isString().withMessage("footer.paymentMethods.icon must be string"),
-// ];
-
-
-
+/* ----------------------------------------------------
+   FINAL EXPORT — MATCHES HOME SCHEMA EXACTLY
+---------------------------------------------------- */
 export const validateUpdateHome = [
-  /* HERO SLIDER */
-  body("heroSlider")
-    .optional()
-    .isArray().withMessage("heroSlider must be an array"),
-  ...validateBanner("heroSlider.*"),
+  // Banner fields (matching schema)
+  ...validateBannerArray("hero"),
+  ...validateBannerArray("gif"),
+  ...validateBannerArray("promovideo"),
+  ...validateBannerArray("popupVideo"),
 
-  /* CATEGORY SHORTCUTS */
+  // Offer banner
+  ...validateOfferBanner,
+
+  // Category shortcuts
   ...validateCategoryShortcuts,
 
-  /* PRODUCT SECTIONS */
-  ...validateProductSection("bestOffers"),
-  ...validateProductSection("bestSelling1"),
-  ...validateProductSection("bestSelling2"),
-  ...validateProductSection("bestSelling3"),
-  ...validateProductSection("bestSelling4"),
-  ...validateProductSection("bestSelling5"),
+  // Product sections
+  ...validateProductIds("bestOffers"),
+  ...validateProductIds("Products"),
 
-  /* PROMO BANNERS */
-  ...validateBanner("promoBanner1"),
-  ...validateBanner("promoBanner2"),
+  // Branches
+  ...validateBranches,
 
-  /* VIDEO */
-  ...validateVideo,
-
-  /* STORE LOCATOR */
-  // ...validateStoreLocator,
-
-  /* FOOTER */
-  // ...validateFooter,
-
-  /* SEO */
+  // SEO
   ...validateSeo,
 
   validatorMiddleware,

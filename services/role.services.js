@@ -7,16 +7,16 @@ const ROLE_CACHE_PREFIX = "role:";
 const ROLES_LIST_CACHE_KEY = "roles:all";
 const CACHE_TTL = 3600; // 1 hour
 
+/* ============================================================
+   CREATE ROLE
+============================================================ */
 export const createRoleService = async (roleData) => {
   try {
     const existing = await Role.findOne({ name: roleData.name });
-    if (existing) {
-      throw BadRequest("Role with this name already exists");
-    }
+    if (existing) throw BadRequest("Role with this name already exists");
 
     const role = await Role.create(roleData);
 
-    // Clear cache
     await redis.del(ROLES_LIST_CACHE_KEY);
 
     return role;
@@ -25,26 +25,32 @@ export const createRoleService = async (roleData) => {
   }
 };
 
+/* ============================================================
+   GET ALL ROLES  (fixed)
+============================================================ */
 export const getAllRolesService = async (filters = {}) => {
   try {
-    // Try to get from cache
-    const cacheKey = filters.isActive !== undefined
-      ? `${ROLES_LIST_CACHE_KEY}:${filters.isActive}`
+    // Fix: allow filtering even when status = "inactive"
+    const hasStatusFilter = filters.status !== undefined;
+
+    const cacheKey = hasStatusFilter
+      ? `${ROLES_LIST_CACHE_KEY}:${filters.status}`
       : ROLES_LIST_CACHE_KEY;
 
     const cached = await redis.get(cacheKey);
     if (cached) {
-      return { fromCache: true, data: cached };
+      return { fromCache: true, data: JSON.parse(cached) };
     }
 
     const query = {};
-    if (filters.isActive !== undefined) {
-      query.isActive = filters.isActive;
+    if (hasStatusFilter) {
+      query.status = filters.status;
     }
 
-    const roles = await Role.find(query).sort({ priority: -1, name: 1 }).lean();
+    const roles = await Role.find(query)
+      .sort({ priority: -1, name: 1 })
+      .lean();
 
-    // Cache the result
     await redis.set(cacheKey, JSON.stringify(roles), { ex: CACHE_TTL });
 
     return { fromCache: false, data: roles };
@@ -53,37 +59,37 @@ export const getAllRolesService = async (filters = {}) => {
   }
 };
 
+/* ============================================================
+   GET ROLE BY ID   (fixed Redis JSON)
+============================================================ */
 export const getRoleByIdService = async (roleId) => {
   try {
     const cacheKey = `${ROLE_CACHE_PREFIX}${roleId}`;
     const cached = await redis.get(cacheKey);
 
     if (cached) {
-      return { fromCache: true, data: cached };
+      return { fromCache: true, data: JSON.parse(cached) };
     }
 
     const role = await Role.findById(roleId).lean();
-    if (!role) {
-      throw NotFound("Role not found");
-    }
+    if (!role) throw NotFound("Role not found");
 
     await redis.set(cacheKey, JSON.stringify(role), { ex: CACHE_TTL });
 
     return { fromCache: false, data: role };
   } catch (err) {
-    if (err.name === "CastError") {
-      throw NotFound("Invalid role ID");
-    }
+    if (err.name === "CastError") throw NotFound("Invalid role ID");
     throw ServerError("Failed to fetch role", err);
   }
 };
 
+/* ============================================================
+   UPDATE ROLE
+============================================================ */
 export const updateRoleService = async (roleId, updateData) => {
   try {
     const role = await Role.findById(roleId);
-    if (!role) {
-      throw NotFound("Role not found");
-    }
+    if (!role) throw NotFound("Role not found");
 
     if (role.isSystemRole && updateData.isSystemRole === false) {
       throw BadRequest("Cannot change system role status");
@@ -91,9 +97,7 @@ export const updateRoleService = async (roleId, updateData) => {
 
     if (updateData.name && updateData.name !== role.name) {
       const existing = await Role.findOne({ name: updateData.name });
-      if (existing) {
-        throw BadRequest("Role with this name already exists");
-      }
+      if (existing) throw BadRequest("Role with this name already exists");
     }
 
     const updated = await Role.findByIdAndUpdate(
@@ -102,11 +106,11 @@ export const updateRoleService = async (roleId, updateData) => {
       { new: true, runValidators: true }
     );
 
-    // Clear cache
+    // Clear ALL related caches
     await redis.del(`${ROLE_CACHE_PREFIX}${roleId}`);
     await redis.del(ROLES_LIST_CACHE_KEY);
-    await redis.del(`${ROLES_LIST_CACHE_KEY}:true`);
-    await redis.del(`${ROLES_LIST_CACHE_KEY}:false`);
+    await redis.del(`${ROLES_LIST_CACHE_KEY}:active`);
+    await redis.del(`${ROLES_LIST_CACHE_KEY}:inactive`);
 
     return updated;
   } catch (err) {
@@ -114,18 +118,18 @@ export const updateRoleService = async (roleId, updateData) => {
   }
 };
 
+/* ============================================================
+   DELETE ROLE
+============================================================ */
 export const deleteRoleService = async (roleId) => {
   try {
     const role = await Role.findById(roleId);
-    if (!role) {
-      throw NotFound("Role not found");
-    }
+    if (!role) throw NotFound("Role not found");
 
     if (role.isSystemRole) {
       throw BadRequest("Cannot delete system roles");
     }
 
-    // Check if any users have this role
     const usersWithRole = await User.countDocuments({ role: roleId });
     if (usersWithRole > 0) {
       throw BadRequest(
@@ -135,11 +139,8 @@ export const deleteRoleService = async (roleId) => {
 
     await Role.findByIdAndDelete(roleId);
 
-    // Clear cache
     await redis.del(`${ROLE_CACHE_PREFIX}${roleId}`);
     await redis.del(ROLES_LIST_CACHE_KEY);
-    await redis.del(`${ROLES_LIST_CACHE_KEY}:true`);
-    await redis.del(`${ROLES_LIST_CACHE_KEY}:false`);
 
     return { message: "Role deleted successfully" };
   } catch (err) {
@@ -147,14 +148,16 @@ export const deleteRoleService = async (roleId) => {
   }
 };
 
+/* ============================================================
+   ASSIGN ROLE TO USER (fixed: check status)
+============================================================ */
 export const assignRoleToUserService = async (userId, roleId) => {
   try {
     const role = await Role.findById(roleId);
-    if (!role) {
-      throw NotFound("Role not found");
-    }
+    if (!role) throw NotFound("Role not found");
 
-    if (!role.isActive) {
+    // FIX: Use status, not isActive
+    if (role.status !== "active") {
       throw BadRequest("Cannot assign inactive role");
     }
 
@@ -164,9 +167,7 @@ export const assignRoleToUserService = async (userId, roleId) => {
       { new: true, select: "-password" }
     ).populate("role");
 
-    if (!user) {
-      throw NotFound("User not found");
-    }
+    if (!user) throw NotFound("User not found");
 
     return user;
   } catch (err) {
@@ -174,12 +175,13 @@ export const assignRoleToUserService = async (userId, roleId) => {
   }
 };
 
+/* ============================================================
+   GET USERS FOR ROLE
+============================================================ */
 export const getRoleUsersService = async (roleId, page = 1, limit = 20) => {
   try {
     const role = await Role.findById(roleId);
-    if (!role) {
-      throw NotFound("Role not found");
-    }
+    if (!role) throw NotFound("Role not found");
 
     const skip = (page - 1) * limit;
 
@@ -206,17 +208,16 @@ export const getRoleUsersService = async (roleId, page = 1, limit = 20) => {
   }
 };
 
+/* ============================================================
+   CLONE ROLE
+============================================================ */
 export const cloneRoleService = async (roleId, newRoleName) => {
   try {
     const originalRole = await Role.findById(roleId);
-    if (!originalRole) {
-      throw NotFound("Role not found");
-    }
+    if (!originalRole) throw NotFound("Role not found");
 
     const existing = await Role.findOne({ name: newRoleName });
-    if (existing) {
-      throw BadRequest("Role with this name already exists");
-    }
+    if (existing) throw BadRequest("Role with this name already exists");
 
     const clonedRole = await Role.create({
       name: newRoleName,
@@ -228,43 +229,13 @@ export const cloneRoleService = async (roleId, newRoleName) => {
       permissions: originalRole.permissions,
       isSystemRole: false,
       priority: originalRole.priority,
+      status: "active",
     });
 
-    // Clear cache
     await redis.del(ROLES_LIST_CACHE_KEY);
 
     return clonedRole;
   } catch (err) {
     throw ServerError("Failed to clone role", err);
-  }
-};
-
-const SUPER_ADMIN_PRIORITY = 100;
-const ADMIN_PRIORITY = 80;
-
-export const isSuperAdminRole = (roleObj) => {
-  return roleObj && roleObj.priority >= SUPER_ADMIN_PRIORITY;
-};
-
-export const isAdminRole = (roleObj) => {
-  return roleObj && roleObj.priority >= ADMIN_PRIORITY;
-};
-
-export const canRoleAccess = (roleObj, resource, action) => {
-  if (!roleObj) {
-    throw BadRequest("Role object is required for permission validation");
-  }
-
-  if (isSuperAdminRole(roleObj)) return true;
-
-  const perm = roleObj.permissions?.find((p) => p.resource === resource);
-  if (!perm) return false;
-
-  return perm.actions[action] === true;
-};
-
-export const assertRolePermission = (roleObj, resource, action) => {
-  if (!canRoleAccess(roleObj, resource, action)) {
-    throw Forbidden(`You do not have permission to ${action} ${resource}`);
   }
 };

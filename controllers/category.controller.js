@@ -9,7 +9,7 @@ import {
 import { StatusCodes } from "http-status-codes";
 
 export const createCategoryController = async (req, res) => {
-  const { ar, en, type } = req.body;
+  const { ar, en, sizeType , status } = req.body;
 
   if (!req.file) {
     return res.status(StatusCodes.BAD_REQUEST).json({
@@ -23,8 +23,9 @@ export const createCategoryController = async (req, res) => {
   const result = await createCategory({
     ar,
     en,
-    type,
+    sizeType,
     image: imageUrl,
+    status,
   });
 
   if (!result.OK) {
@@ -41,7 +42,7 @@ export const createCategoryController = async (req, res) => {
 
 
 export const updateCategoryController = async (req, res) => {
-  const { ar, en, type } = req.body;
+  const { ar, en, sizeType,status } = req.body;
 
   if (!req.file) {
     return res.status(StatusCodes.BAD_REQUEST).json({
@@ -56,8 +57,9 @@ export const updateCategoryController = async (req, res) => {
     id: req.params.id,
     ar,
     en,
-    type,
+    sizeType,
     image: imageUrl,
+    status,
   });
 
   if (!result.OK) {

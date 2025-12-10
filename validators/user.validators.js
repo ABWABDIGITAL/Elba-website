@@ -1,9 +1,9 @@
 import { body, param } from "express-validator";
 import Role from "../models/role.model.js";
-
+import { validationResult } from "express-validator";
 // Shared validation handler
 const validateRequest = (req, res, next) => {
-  const { validationResult } = require("express-validator");
+  
   const errors = validationResult(req);
 
   if (!errors.isEmpty()) {

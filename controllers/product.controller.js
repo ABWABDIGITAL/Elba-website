@@ -78,20 +78,15 @@ const normalizeFeaturesForLang = (raw) => {
   return arr.map((item) => String(item));
 };
 
-// reference file (same file للـ ar/en)
-const normalizeReferenceFile = (req) => {
-  const file = req?.files?.reference?.[0];
+const normalizeCatalogFile = (req) => {
+  const file = req?.files?.catalog?.[0];
   if (!file) return null;
 
   return {
-    file: {
-      url: `/uploads/products/reference/${file.filename}`,
-      filename: file.originalname,
-      size: file.size,
-      fileType: file.mimetype,
-    },
+    pdfUrl: `/uploads/products/catalog/${file.filename}`
   };
 };
+
 
 // images: GLOBAL ONLY
 const normalizeImagesGlobal = (req) => {
@@ -158,12 +153,15 @@ const normalizeCreatePayload = (req) => {
     payload.ar.features = normalizeFeaturesForLang(req.body.ar.features);
   }
 
-  // ---------- Reference (same file للغتين) ----------
-  const reference = normalizeReferenceFile(req);
-  if (reference) {
-    payload.en.reference = reference;
-    payload.ar.reference = reference;
-  }
+  // ---------- catalog (same file للغتين) ----------
+const catalog = normalizeCatalogFile(req);
+if (catalog) {
+  payload.en = payload.en || {};
+  payload.ar = payload.ar || {};
+  payload.en.catalog = catalog;
+  payload.ar.catalog = catalog;
+}
+
 
   // ---------- Global images ----------
   const images = normalizeImagesGlobal(req);
@@ -175,14 +173,16 @@ const normalizeCreatePayload = (req) => {
   if (req.body.sku) payload.sku = String(req.body.sku).toUpperCase().trim();
   if (req.body.modelNumber) payload.modelNumber = req.body.modelNumber;
 
-  if (req.body.price !== undefined) {
-    payload.price = Number(req.body.price);
-  }
+    if (req.body.price !== undefined && req.body.price !== "" && !isNaN(req.body.price)) {
+      payload.price = Number(req.body.price);
+    }
+
 
   // discountPrice = discount VALUE (قيمة الخصم)
-  if (req.body.discountPrice !== undefined) {
+  if (req.body.discountPrice !== undefined && req.body.discountPrice !== "" && !isNaN(req.body.discountPrice)) {
     payload.discountPrice = Number(req.body.discountPrice);
   }
+
 
   if (req.body.discountPercentage !== undefined) {
     payload.discountPercentage = Number(req.body.discountPercentage);
@@ -458,8 +458,8 @@ export const getBestOffersController = async (req, res, next) => {
 // GET PRODUCTS BY CATALOG
 export const getProductsByCategoryController = async (req, res, next) => {
   try {
-    const { categoryId } = req.params;
-    const result = await getProductsByCategory(categoryId);
+    const { slug } = req.params;
+    const result = await getProductsByCategory(slug);
     res.status(StatusCodes.OK).json(result);
   } catch (err) {
     next(err);

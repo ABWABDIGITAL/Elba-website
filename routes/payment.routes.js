@@ -56,50 +56,62 @@ router.post("/checkout", protect, async (req, res) => {
   }
 });
 
+router.get("/myfatoorah/success", async (req, res) => {
+  try {
+    const paymentId =
+      req.query.paymentId ||
+      req.query.PaymentId ||
+      req.query.paymentID;
 
-  router.get("/myfatoorah/success", async (req, res) => {
-    try {
-      const { paymentId } = req.query;
-      if (!paymentId) return res.redirect(`${FRONTEND}/checkout/error`);
+    if (!paymentId) return res.redirect(`${FRONTEND}/checkout/error`);
 
-      const paymentData = await getMyFatoorahPaymentStatus({ paymentId });
+    const paymentData = await getMyFatoorahPaymentStatus({ paymentId });
 
-      if (!paymentData.isPaid) {
-        return res.redirect(`${FRONTEND}/checkout/error`);
-      }
-
-      const order = await Order.findById(paymentData.orderId);
-      if (!order) throw new Error("Order not found");
-
-      // Update stock
-      for (const item of order.orderItems) {
-        await Product.findByIdAndUpdate(item.product, {
-          $inc: { stock: -item.quantity }
-        });
-      }
-
-      order.paymentStatus = "paid";
-      order.orderStatus = "completed";
-      order.paymentResult = {
-        id: paymentId,
-        status: "paid",
-        amount: paymentData.amount,
-        transactionId: paymentData.transactionId
-      };
-      await order.save();
-
-      // Clear cart
-      await Cart.findOneAndUpdate(
-        { user: order.user },
-        { cartItems: [], totalCartPrice: 0, totalPriceAfterDiscount: 0, appliedCoupon: null }
-      );
-
-      return res.redirect(`${FRONTEND}/checkout/success?orderId=${order._id}`);
-
-    } catch (err) {
+    if (!paymentData.isPaid)
       return res.redirect(`${FRONTEND}/checkout/error`);
+
+    const order = await Order.findById(paymentData.orderId);
+    if (!order) throw new Error("Order not found");
+
+    // Update product stock
+    for (const item of order.orderItems) {
+      await Product.findByIdAndUpdate(item.product, {
+        $inc: { stock: -item.quantity }
+      });
     }
-  });
+
+    // IMPORTANT FIXES
+    order.paymentMethod = "credit_card";      // ← ← هنا المشكلة كانت
+    order.paymentStatus = "paid";
+    order.orderStatus = "processing";         // صح وليس completed
+    order.paymentResult = {
+      id: paymentId,
+      status: "paid",
+      amount: paymentData.amount,
+      transactionId: paymentData.transactionId
+    };
+
+    await order.save();
+
+    // Clear cart
+    await Cart.findOneAndUpdate(
+      { user: order.user },
+      {
+        cartItems: [],
+        totalCartPrice: 0,
+        totalPriceAfterDiscount: 0,
+        appliedCoupon: null
+      }
+    );
+
+    return res.redirect(`${FRONTEND}/checkout/success?orderId=${order._id}`);
+
+  } catch (err) {
+    console.error("SUCCESS CALLBACK ERROR:", err);
+    return res.redirect(`${FRONTEND}/checkout/error`);
+  }
+});
+
 
 
 

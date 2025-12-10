@@ -98,16 +98,23 @@ export const validateUpdateProduct = [
     .isFloat({ min: 0 })
     .withMessage("price must be positive"),
 
-  body("discountPrice")
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage("discountPrice must be >= 0")
-    .custom((value, { req }) => {
-      if (req.body.price && Number(value) > Number(req.body.price)) {
-        throw new Error("discountPrice cannot exceed price");
-      }
-      return true;
-    }),
+    body("discountPrice")
+      .optional()
+      .isFloat({ min: 0 })
+      .withMessage("discountPrice must be >= 0")
+      .custom((value, { req }) => {
+        const price = req.body.price;
+
+        // Validate *only if* price was actually provided and is a clean number
+        if (price !== undefined && price !== "" && !isNaN(price)) {
+          if (Number(value) > Number(price)) {
+            throw new Error("discountPrice cannot exceed price");
+          }
+        }
+
+    return true;
+  }),
+
 
   body("status")
     .optional()

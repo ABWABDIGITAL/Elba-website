@@ -5,7 +5,7 @@ import Product from "./product.model.js";
 import seoSchema from "./seo.model.js";
 const bannerSchema = new mongoose.Schema({
   imageUrl: { type: String, required: true },
-  redirectUrl: { type: String, required: true },
+  redirectUrl: { type: String, default :null },
   isActive: { type: Boolean, default: true },
   sortOrder: { type: Number, default: 0 },
 }, { _id: false });
@@ -67,10 +67,13 @@ homeConfigSchema.statics.updateCategoryTotals = async function () {
     if (item._id === "Large") large = item.total;
     if (item._id === "Small") small = item.total;
   }
+  const offerProducts = await Product.countDocuments({
+    discountPercentage: { $gt: 0 },
+  });
 
-  await this.updateOne({}, { $set: { large, small } }, { upsert: true });
+  await this.updateOne({}, { $set: { large, small, offerProducts } }, { upsert: true });
 
-  return { large, small };
+  return { large, small ,offerProducts };
 };
 
 

@@ -71,6 +71,7 @@ app.use("/api/v1/newsletter" , newsletterRoutes);
 app.use("/api/v1/addresses" , addressRoutes);
 app.use("/api/v1/payment", paymentRoutes);
 app.use("/api/v1/profile", profileRoutes);
+app.use("/api/v1/staticPages", staticPageRoutes);
 app.use("/uploads" , express.static(path.join(process.cwd(), "uploads")));
 app.use(errorMiddleware);
 app.listen(PORT, () => {

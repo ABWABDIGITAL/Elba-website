@@ -55,24 +55,20 @@ export const registerService = async ({
   const phoneExists = await User.findOne({ phone: normalizedPhone });
   if (phoneExists) throw BadRequest("Phone already registered");
 
-  // Determine role: For public registration, only allow "user" role for security
-  // If you want to allow other roles in public registration, add them to allowedPublicRoles array
-  const allowedPublicRoles = ["user"]; // Only "user" role allowed for public registration
+  const allowedPublicRoles = ["user"]; 
 
   let assignedRoleId;
   if (role) {
-    // Check if the provided role is in the allowed list for public registration
     if (!allowedPublicRoles.includes(role)) {
       throw BadRequest("You can only register as a 'user'. Contact admin for other roles.");
     }
 
     const roleDoc = await Role.findOne({ name: role });
-    if (!roleDoc || !roleDoc.isActive) {
+    if (!roleDoc || roleDoc.status !== "active") {
       throw BadRequest("Invalid or inactive role");
     }
     assignedRoleId = roleDoc._id;
   } else {
-    // Default to "user" role if no role is provided
     const defaultRole = await Role.findOne({ name: "user" });
     assignedRoleId = defaultRole?._id;
 
@@ -81,7 +77,6 @@ export const registerService = async ({
     }
   }
 
-  // NEVER save confirmPassword to DB
   const newUser = await User.create({
     firstName,
     lastName,
@@ -96,7 +91,6 @@ export const registerService = async ({
 
   const token = newUser.generateToken();
 
-  // Send WhatsApp welcome notification (async, don't wait)
   sendRegistrationWhatsApp(newUser).catch(err => {
     console.error("Failed to send registration WhatsApp:", err);
   });
@@ -112,10 +106,11 @@ export const registerService = async ({
 };
 
 /* ==========================================================
-   ADMIN REGISTER SERVICE (With Required Role)
+   ADMIN REGISTER SERVICE
 ========================================================== */
 export const adminRegisterService = async ({
-  name,
+  firstName,
+  lastName,
   email,
   password,
   confirmPassword,
@@ -124,12 +119,11 @@ export const adminRegisterService = async ({
   address,
   adminRole
 }) => {
-  // Only admin and superAdmin can create users with specific roles
   if (adminRole !== "admin" && adminRole !== "superAdmin") {
     throw BadRequest("Unauthorized: Only admins can register users with specific roles");
   }
 
-  if (!name || !email || !password || !confirmPassword || !phone || !role) {
+  if (!firstName ||! lastName|| !email || !password || !confirmPassword || !phone || !role) {
     throw BadRequest("All fields including role are required");
   }
 
@@ -141,31 +135,28 @@ export const adminRegisterService = async ({
   const normalizedPhone = phone.trim();
   const normalizedAddress = address?.trim();
 
-  // Double check for duplicates
   const emailExists = await User.findOne({ email: normalizedEmail });
   if (emailExists) throw BadRequest("Email already registered");
 
   const phoneExists = await User.findOne({ phone: normalizedPhone });
   if (phoneExists) throw BadRequest("Phone already registered");
 
-  // Validate role by name
   const roleDoc = await Role.findOne({ name: role });
   if (!roleDoc) {
     throw BadRequest("Invalid role name");
   }
 
-  if (!roleDoc.isActive) {
+  if (roleDoc.status !== "active") {
     throw BadRequest("Role is not active");
   }
 
-  // Prevent non-superAdmins from creating superAdmins
   if (roleDoc.name === "superAdmin" && adminRole !== "superAdmin") {
     throw BadRequest("Only superAdmins can create superAdmin users");
   }
 
-  // Create user with specified role
   const newUser = await User.create({
-    name,
+    firstName,
+    lastName,
     email: normalizedEmail,
     password,
     phone: normalizedPhone,
@@ -173,7 +164,6 @@ export const adminRegisterService = async ({
     address: normalizedAddress,
   });
 
-  // Send WhatsApp welcome notification (async, don't wait)
   sendRegistrationWhatsApp(newUser).catch(err => {
     console.error("Failed to send registration WhatsApp:", err);
   });
@@ -188,35 +178,27 @@ export const adminRegisterService = async ({
 };
 
 /* ==========================================================
-   LOGIN SERVICE (PHONE ONLY — FIXED)
+   LOGIN SERVICE
 ========================================================== */
 export const loginService = async ({ phone, password }) => {
-  console.log('Login attempt with:', { phone });
   if (!phone || !password) {
     throw BadRequest("Phone and password are required");
   }
 
   const normalizedPhone = phone.trim();
- console.log('Normalized phone:', normalizedPhone);
   const user = await User.findOne({ phone: normalizedPhone }).select("+password");
-  console.log('Found user:', user ? user.email : 'Not found'); // Debug log
 
-   if (!user) {
-    console.log('No user found with phone:', normalizedPhone); // Debug log
-    throw NotFound("User not found");
-  }
-  // check user active
-   if (!user.isActive) {
-    console.log('User is inactive:', user.email); // Debug log
+  if (!user) throw NotFound("User not found");
+
+  if (user.status !== "active") {
     throw BadRequest("Account is deactivated");
   }
 
   const isMatch = await user.comparePassword(password);
-   console.log('Password match:', isMatch);
   if (!isMatch) throw BadRequest("Invalid phone or password");
 
   const token = user.generateToken();
- console.log('Login successful for user:', user.email);
+
   return {
     OK: true,
     message: "User logged in successfully",
@@ -238,7 +220,7 @@ export const logoutService = async () => {
 };
 
 /* ==========================================================
-   FORGET PASSWORD (EMAIL BASED) — FIXED
+   FORGET PASSWORD
 ========================================================== */
 export const forgetPassword = async (email) => {
   if (!email) throw BadRequest("Email is required");
@@ -248,39 +230,26 @@ export const forgetPassword = async (email) => {
 
   if (!user) throw NotFound("User not found");
 
-  /* ==========================
-     1. Generate OTP (6 digits)
-  =========================== */
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
   const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
 
-  /* ==========================
-     2. Generate Reset Link Token
-  =========================== */
   const resetToken = crypto.randomBytes(32).toString("hex");
   const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
 
   const resetLink = `${process.env.FRONTEND_URL}/${resetToken}`;
 
-
-  /* ==========================
-     3. Save BOTH OTP + Link
-  =========================== */
   user.resetPasswordCode = hashedOtp;
   user.resetPasswordToken = hashedToken;
-  user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+  user.resetPasswordExpire = Date.now() + 10 * 60 * 1000;
   user.passwordVerified = false;
 
   await user.save();
 
-  /* ==========================
-     4. Send your custom TEMPLATE email
-  =========================== */
   try {
     await sendCodeEmail({
       email: user.email,
       name: user.firstName || user.name,
-      resetLink     // Reset link
+      resetLink
     });
 
     return { OK: true, message: "Reset OTP and reset link sent to email" };
@@ -291,7 +260,7 @@ export const forgetPassword = async (email) => {
 };
 
 /* ==========================================================
-   VERIFY RESET PASSWORD (FIXED)
+   VERIFY RESET PASSWORD
 ========================================================== */
 export const verifyResetPassword = async (email, code) => {
   if (!email || !code) throw BadRequest("Email and code are required");
@@ -314,6 +283,7 @@ export const verifyResetPassword = async (email, code) => {
 
   return { OK: true, data: { message: "Reset code verified" } };
 };
+
 export const verifyResetLink = async (token) => {
   if (!token) throw BadRequest("Token is required");
 
@@ -332,6 +302,10 @@ export const verifyResetLink = async (token) => {
     data: { email: user.email }
   };
 };
+
+/* ==========================================================
+   RESET PASSWORD WITH TOKEN
+========================================================== */
 export const resetPasswordWithToken = async (token, newPassword, confirmPassword) => {
   if (!token || !newPassword || !confirmPassword)
     throw BadRequest("Token and passwords required");
@@ -359,9 +333,8 @@ export const resetPasswordWithToken = async (token, newPassword, confirmPassword
   return { OK: true, message: "Password reset successful" };
 };
 
-
 /* ==========================================================
-   RESET PASSWORD (FIXED)
+   RESET PASSWORD
 ========================================================== */
 export const resetPassword = async (token, newPassword, confirmPassword) => {
   if (!token || !newPassword || !confirmPassword)
@@ -389,4 +362,3 @@ export const resetPassword = async (token, newPassword, confirmPassword) => {
 
   return { OK: true, message: "Password reset successful" };
 };
-

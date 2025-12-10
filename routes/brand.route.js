@@ -13,7 +13,8 @@ import {
   updateBrandController,
   deleteBrandController,
 } from "../controllers/brand.controller.js";
-import upload from "../middlewares/uploadMiddleware.js";
+import upload, { IMG_MIME, IMG_EXT } from "../middlewares/uploadMiddleware.js";
+
 
 const router = express.Router();
 
@@ -24,8 +25,12 @@ router.get("/:id", validateGetBrand, getBrandController);
 router.post(
   "/",
   protect,
-  allowTo("admin"),
-  upload({ folder: "brands" }).single("image"),  
+  allowTo("admin" , "superAdmin"),
+    upload({
+    folder: "brands",
+    allowedMime: IMG_MIME,
+    allowedExt: IMG_EXT
+  }).single("logo"),
   validateCreateBrand,               
   createBrandController
 );
@@ -33,8 +38,12 @@ router.post(
 router.put(
   "/:id",
   protect,
-  allowTo("admin"),
-  upload({ folder: "brands" }).single("image"),  
+  allowTo("admin" , "superAdmin"),
+    upload({
+    folder: "brands",
+    allowedMime: IMG_MIME,
+    allowedExt: IMG_EXT
+  }).single("logo"),
   validateUpdateBrand,
   updateBrandController
 );
@@ -42,7 +51,7 @@ router.put(
 router.delete(
   "/:id",
   protect,
-  allowTo("admin"),
+  allowTo("admin" , "superAdmin"),
   validateDeleteBrand,
   deleteBrandController
 );

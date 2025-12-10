@@ -242,11 +242,11 @@ export const updateProductService = async (id, data) => {
       applyPricingLogic(data);
     }
 
-    const updated = await Product.findOneAndUpdate(
-      { _id: id },
-      { $set: data },
-      { new: true, runValidators: true }
-    );
+    const updated = await Product.findByIdAndUpdate(id, data, {
+      new: true,
+      runValidators: true,
+      context: "query",
+    });
 
     if (!updated) throw NotFound("Product not found");
 
@@ -257,11 +257,13 @@ export const updateProductService = async (id, data) => {
       message: "Product updated successfully",
       data: buildProductDTO(updated),
     };
+
   } catch (err) {
     if (err instanceof ApiError) throw err;
     throw ServerError("Failed to update product", err);
   }
 };
+
 
 /* --------------------------------------------------
    HARD DELETE PRODUCT
@@ -329,21 +331,21 @@ export const getProductBySkuService = async (sku) => {
     { $inc: { views: 1 } },
     { new: true }
   )
-  .populate("category", "ar.name ar.slug en.name en.slug image")
-  .populate("brand", "ar.name ar.slug en.name en.slug logo");
+    .populate("category", "ar.name ar.slug en.name en.slug image")
+    .populate("brand", "ar.name ar.slug en.name en.slug logo");
 
   if (!product) throw NotFound("Product not found");
 
-  // Get similar products (same category, different product)
+  // Prevent crash if category is null
   const similarProducts = await Product.find({
-    category: product.category._id,
+    category: product.category?._id || null,
     _id: { $ne: product._id },
     status: "active"
   })
-  .populate("category", "ar.name ar.slug en.name en.slug image")
-  .populate("brand", "ar.name ar.slug en.name en.slug logo")
-  .limit(10)
-  .sort({ ratingsAverage: -1, salesCount: -1 });
+    .populate("category", "ar.name ar.slug en.name en.slug image")
+    .populate("brand", "ar.name ar.slug en.name en.slug logo")
+    .limit(10)
+    .sort({ ratingsAverage: -1, salesCount: -1 });
 
   return {
     OK: true,
@@ -352,6 +354,7 @@ export const getProductBySkuService = async (sku) => {
     similarProducts: similarProducts.map(buildGetAllproductDTO),
   };
 };
+
 
 export const getProductByCatalogService = async (keyword) => {
   const products = await Product.find({
@@ -562,56 +565,47 @@ export const getBestOffersService = async (query) => {
   }
 };
 
-/* --------------------------------------------------
-   PRODUCTS BY CATALOG
---------------------------------------------------- */
-export const getProductsByCategory = async (categoryId) => {
+export const getProductsByCategory = async (slug) => {
   try {
+    if (!slug) throw BadRequest("slug is required");
 
-    console.log("=== getProductsByCategory() START ===");
-    console.log("Incoming categoryId:", categoryId);
+    console.log("Finding category by slug...", slug);
 
-    // 1) Validate categoryId
-    if (!categoryId) {
-      console.log("ERROR: categoryId is missing!");
-      throw BadRequest("categoryId is required");
-    }
+    // FIXED QUERY
+    const category = await Category.findOne({
+      $or: [
+        { "en.slug": slug },
+        { "ar.slug": slug }
+      ]
+    })
+      .lean();
 
-    if (!mongoose.Types.ObjectId.isValid(categoryId)) {
-      console.log("ERROR: invalid ObjectId:", categoryId);
-      throw BadRequest("Invalid categoryId");
-    }
-
-    // 2) Get category
-    console.log("Finding category by ID...");
-    const category = await Category.findById(categoryId).lean();
     console.log("Category result:", category);
 
     if (!category) {
-      console.log("ERROR: Category not found");
       throw NotFound("Category not found");
     }
 
-    // 3) Find products
-    console.log("Finding products for category:", categoryId);
-    const products = await Product.find({ category: categoryId })
-      .populate("category", "ar.name ar.slug en.name en.slug image")
-      .populate("brand", "ar.name ar.slug en.name en.slug logo")
-      .lean();
+    // Find products
+    console.log("Finding products for category:", slug);
+
+    const products = await Product.find({
+      category: category._id 
+    })
+    .select("en.title ar.title sku images ratingsAverage finalPrice discountPercentage sizeType")
+    .populate("category", "ar.name ar.slug en.name en.slug image")
+    .populate("brand", "ar.name ar.slug en.name en.slug logo")
 
     console.log("Products result:", products.length);
 
     if (!products.length) {
-      console.log("ERROR: Products not found");
       throw NotFound("Products not found");
     }
-
-    console.log("=== getProductsByCategory() SUCCESS ===");
 
     return {
       OK: true,
       message: "Products fetched successfully",
-      data: products.map(buildProductDTO),
+      data: products.map(buildGetAllproductDTO),
     };
 
   } catch (err) {
@@ -622,6 +616,7 @@ export const getProductsByCategory = async (categoryId) => {
     throw ServerError("Failed to get products", err);
   }
 };
+
 
 
 

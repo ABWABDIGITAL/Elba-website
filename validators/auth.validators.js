@@ -66,7 +66,10 @@ export const validateRegister = [
    ADMIN REGISTER VALIDATOR (With Required Role)
 ---------------------------------------- */
 export const validateAdminRegister = [
-  body("name")
+    body("firstName")
+    .notEmpty().withMessage("Name is required")
+    .isLength({ min: 3, max: 50 }),
+  body("lastName")
     .notEmpty().withMessage("Name is required")
     .isLength({ min: 3, max: 50 }),
 
@@ -102,10 +105,10 @@ export const validateAdminRegister = [
       return true;
     }),
 
-  body("role")
-    .notEmpty().withMessage("Role is required")
+  body("legacyRole")
+    .notEmpty().withMessage("legacyRole is required")
     .isString()
-    .withMessage("Role must be a string")
+    .withMessage("legacyRole must be a string")
     .custom(async (roleName) => {
       const role = await Role.findOne({ name: roleName });
       if (!role) throw new Error("Invalid role name");

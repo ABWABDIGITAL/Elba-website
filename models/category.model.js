@@ -6,6 +6,7 @@ const localizedCategorySchema = new mongoose.Schema(
     name: {
       type: String,
       required: true,
+      unique: true,
       trim: true,
       minlength: 2,
       maxlength: 50,
@@ -37,7 +38,7 @@ const categorySchema = new mongoose.Schema(
       required: true,
     },
 
-    type: {
+    sizeType: {
       type: String,
       enum: ["Large", "Small"],
       default: "Large",
@@ -47,6 +48,11 @@ const categorySchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: 0,
+    },
+    status: {
+      type: String,
+      enum: ["active", "inactive"],
+      default: "active",
     },
   },
   { timestamps: true }

@@ -7,7 +7,7 @@ import fs from "fs";
 // ================================
 
 // Images
-const IMG_MIME = [
+export const IMG_MIME = [
   "image/jpeg",
   "image/png",
   "image/jpg",
@@ -15,7 +15,7 @@ const IMG_MIME = [
   "image/gif",
 ];
 
-const IMG_EXT = [
+export const IMG_EXT = [
   ".jpeg",
   ".png",
   ".jpg",
@@ -27,7 +27,7 @@ const IMG_EXT = [
 const VIDEO_MIME = ["video/mp4"];
 const VIDEO_EXT = [".mp4"];
 
-// References (PDF + DOC + Images)
+// catalogs (PDF + DOC + Images)
 const REF_MIME = [
   "application/pdf",
   "application/msword",
@@ -112,8 +112,8 @@ const productStorage = multer.diskStorage({
 
     if (file.fieldname === "images") {
       dir = "uploads/products/images";
-    } else if (file.fieldname === "reference") {
-      dir = "uploads/products/reference";
+    } else if (file.fieldname === "catalog") {
+      dir = "uploads/products/catalog";
     } else {
       dir = "uploads/misc";
     }
@@ -138,10 +138,12 @@ const productFileFilter = (req, file, cb) => {
   if (file.fieldname === "images") {
     allowedMime = [...IMG_MIME];
     allowedExt = [...IMG_EXT];
-  } else if (file.fieldname === "reference") {
+  } 
+  else if (file.fieldname === "catalog") {
     allowedMime = [...REF_MIME];
     allowedExt = [...REF_EXT];
-  } else {
+  } 
+  else {
     return cb(new Error(`Unexpected field: ${file.fieldname}`), false);
   }
 
@@ -155,6 +157,7 @@ const productFileFilter = (req, file, cb) => {
 
   cb(null, true);
 };
+
 
 export const productMediaUpload = multer({
   storage: productStorage,

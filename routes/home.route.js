@@ -14,7 +14,13 @@ const upload = imageUpload("home");
 
 router.post("/", protect, allowTo("admin"),createHome);
 router.get("/", getHome);
-router.put("/", protect, allowTo("admin"),updateHome);
+router.put("/", protect, upload.fields([
+    { name: "hero", maxCount: 20 },
+    { name: "gif", maxCount: 20 },
+    { name: "promovideo", maxCount: 20 },
+    { name: "popupVideo", maxCount: 20 },
+    { name: "offerBanner", maxCount: 20 }
+  ]),updateHome);
 
 // Only include fields that actually exist in your schema & controller
 router.post(

@@ -82,12 +82,6 @@ const productSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: 0,
-      validate: {
-        validator(val) {
-          return val <= this.price;
-        },
-        message: "discountPrice cannot be greater than price",
-      },
     },
 
     discountPercentage: { type: Number, default: 0, min: 0, max: 100, index: true },

@@ -38,7 +38,7 @@ const brandSchema = new mongoose.Schema(
       type: String,
     },
 
-    isActive: { type: Boolean, default: true },
+    status: { type: String, enum: ["active", "inactive"], default: "active" },
   },
   {
     timestamps: true,

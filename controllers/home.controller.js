@@ -7,9 +7,18 @@ import {
 } from "../services/home.services.js";
 import { NotFound, ServerError } from "../utlis/apiError.js";
 
-/* -----------------------------------------
-   CREATE HOME
------------------------------------------- */
+
+function buildBannerArray(req, fieldName) {
+  if (!req.files?.[fieldName]) return undefined;
+
+  return req.files[fieldName].map((file, index) => ({
+    imageUrl: `/uploads/home/${file.filename}`,
+    redirectUrl: req.body[`${fieldName}[${index}][redirectUrl]`] || null,
+    sortOrder: req.body[`${fieldName}[${index}][sortOrder]`] || index,
+    isActive: true
+  }));
+}
+
 export const createHome = async (req, res, next) => {
   try {
     const result = await createHomeService(req.body);
@@ -41,8 +50,30 @@ export const getHome = async (req, res, next) => {
 ------------------------------------------ */
 export const updateHome = async (req, res, next) => {
   try {
-    const result = await updateHomeService(req.body);
-    res.json({ OK: true, msg:"Home page updated successfully", data: result });
+    const payload = { ...req.body };
+        
+
+    // Build banner arrays for all fields
+    const bannerFields = ["hero", "gif", "promovideo", "popupVideo"];
+
+    for (const field of bannerFields) {
+      const bannerArray = buildBannerArray(req, field);
+      if (bannerArray) payload[field] = bannerArray;
+    }
+
+  if (req.files?.offerBanner) {
+    payload.offerBanner = req.files.offerBanner.map((file, index) => ({
+      url: `/uploads/home/${file.filename}`,
+      discount: Number(req.body.discount?.[index]),
+      discountTitle: req.body.discountTitle?.[index]
+    }));
+  }
+
+
+    // Update home
+    const result = await updateHomeService(payload);
+    res.json({ OK: true, msg: "Home page updated successfully", data: result });
+
   } catch (err) {
     next(err);
   }

@@ -97,7 +97,7 @@ const userSchema = new mongoose.Schema(
 
     passwordVerified: { type: Boolean, default: false },
 
-    isActive: { type: Boolean, default: true },
+    status: { type: String, enum: ["active","banned" ,"inactive"], default: "active" },
 
     lastLogin: { type: Date, default: null },
 

@@ -1,5 +1,5 @@
 import Blog from "../models/blog.model.js";
-import {redis} from "../config/redis.js";
+import {RedisHelper} from "../config/redis.js";
 import ApiError, { BadRequest, NotFound, ServerError } from "../utlis/apiError.js";
 
 const BLOG_CACHE_PREFIX = "blog:";
@@ -53,7 +53,7 @@ const buildSimpleBlogDTO = (blog, language = "ar") => {
     id: blog._id,
     title: lang.title || "",
     subTitle: lang.subTitle || "",
-    images: blog.images || [],
+    featuredImage: blog.featuredImage || null,
     slug: lang.slug || "",
   };
 };
@@ -70,7 +70,7 @@ export const createBlogService = async (blogData, authorId) => {
     });
 
     // Clear cache
-    await redis.del(`${BLOGS_LIST_CACHE_KEY}*`);
+    await RedisHelper.del(`${BLOGS_LIST_CACHE_KEY}*`);
 
     return blog;
   } catch (err) {
@@ -119,7 +119,7 @@ export const getAllBlogsService = async (query = {}) => {
     console.log('Cache Key:', cacheKey);
     
     try {
-      const cached = await redis.get(cacheKey);
+      const cached = await RedisHelper.get(cacheKey);
       if (cached) {
         console.log('Returning from cache');
         return { fromCache: true, data: JSON.parse(cached) };
@@ -131,7 +131,14 @@ export const getAllBlogsService = async (query = {}) => {
 
     let mongooseQuery = Blog.find(filter)
       .populate("author", "name")
-      .select("en.title ar.title  en.subTitle ar.subTitle  images en.slug ar.slug")
+      .select({
+        featuredImage: 1,
+        category: 1,
+        publishedAt: 1,
+        [`${language}.title`]: 1,
+        [`${language}.subtitle`]: 1,
+        [`${language}.slug`]: 1,
+      })
 
     // Sorting
     if (search) {
@@ -159,7 +166,7 @@ export const getAllBlogsService = async (query = {}) => {
 
     // Cache result
     try {
-      await redis.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
+      await RedisHelper.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
       console.log('Result cached successfully');
     } catch (cacheErr) {
       console.error('Failed to cache result:', cacheErr);
@@ -193,8 +200,8 @@ export const getBlogBySlugService = async (slug, language = "ar") => {
     /* ---------------------------------------------
         1) CHECK CACHE (and validate JSON)
     --------------------------------------------- */
-    const cached = await redis.get(cacheKey).catch(err => {
-      console.log("⚠️ Redis read error:", err.message);
+    const cached = await RedisHelper.get(cacheKey).catch(err => {
+      console.log("⚠️ RedisHelper read error:", err.message);
     });
 
     if (cached) {
@@ -205,7 +212,7 @@ export const getBlogBySlugService = async (slug, language = "ar") => {
         return { fromCache: true, data: parsed };
       } catch (e) {
         console.log("❌ Bad cache format. Clearing key...");
-        await redis.del(cacheKey);
+        await RedisHelper.del(cacheKey);
       }
     }
 
@@ -272,7 +279,7 @@ export const getBlogBySlugService = async (slug, language = "ar") => {
     /* ---------------------------------------------
         7) CACHE THE RESULT SAFELY
     --------------------------------------------- */
-    await redis.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
+    await RedisHelper.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
 
     console.log("💾 Blog cached:", cacheKey);
 
@@ -324,8 +331,8 @@ export const updateBlogService = async (blogId, updates) => {
     }
 
     // Clear cache
-    await redis.del(`${BLOG_CACHE_PREFIX}*`);
-    await redis.del(`${BLOGS_LIST_CACHE_KEY}*`);
+    await RedisHelper.del(`${BLOG_CACHE_PREFIX}*`);
+    await RedisHelper.del(`${BLOGS_LIST_CACHE_KEY}*`);
 
     return blog;
   } catch (err) {
@@ -350,8 +357,8 @@ export const deleteBlogService = async (blogId) => {
     }
 
     // Clear cache
-    await redis.del(`${BLOG_CACHE_PREFIX}*`);
-    await redis.del(`${BLOGS_LIST_CACHE_KEY}*`);
+    await RedisHelper.del(`${BLOG_CACHE_PREFIX}*`);
+    await RedisHelper.del(`${BLOGS_LIST_CACHE_KEY}*`);
 
     return blog;
   } catch (err) {
@@ -366,7 +373,7 @@ export const deleteBlogService = async (blogId) => {
 export const getFeaturedBlogsService = async (limit = 5, language = "ar") => {
   try {
     const cacheKey = `${BLOG_CACHE_PREFIX}featured:${limit}:${language}`;
-    const cached = await redis.get(cacheKey);
+    const cached = await RedisHelper.get(cacheKey);
     if (cached) {
       return { fromCache: true, data: cached };
     }
@@ -374,7 +381,7 @@ export const getFeaturedBlogsService = async (limit = 5, language = "ar") => {
     const blogs = await Blog.getFeatured(limit);
     const result = blogs.map(blog => buildBlogDTO(blog, language));
 
-    await redis.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
+    await RedisHelper.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
 
     return { fromCache: false, data: result };
   } catch (err) {
@@ -388,7 +395,7 @@ export const getFeaturedBlogsService = async (limit = 5, language = "ar") => {
 export const getTrendingBlogsService = async (limit = 5, language = "ar") => {
   try {
     const cacheKey = `${BLOG_CACHE_PREFIX}trending:${limit}:${language}`;
-    const cached = await redis.get(cacheKey);
+    const cached = await RedisHelper.get(cacheKey);
     if (cached) {
       return { fromCache: true, data: cached };
     }
@@ -396,7 +403,7 @@ export const getTrendingBlogsService = async (limit = 5, language = "ar") => {
     const blogs = await Blog.getTrending(limit);
     const result = blogs.map(blog => buildBlogDTO(blog, language));
 
-    await redis.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
+    await RedisHelper.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
 
     return { fromCache: false, data: result };
   } catch (err) {
@@ -410,7 +417,7 @@ export const getTrendingBlogsService = async (limit = 5, language = "ar") => {
 export const getRecentBlogsService = async (limit = 10, language = "ar") => {
   try {
     const cacheKey = `${BLOG_CACHE_PREFIX}recent:${limit}:${language}`;
-    const cached = await redis.get(cacheKey);
+    const cached = await RedisHelper.get(cacheKey);
     if (cached) {
       return { fromCache: true, data: cached };
     }
@@ -418,7 +425,7 @@ export const getRecentBlogsService = async (limit = 10, language = "ar") => {
     const blogs = await Blog.getRecent(limit);
     const result = blogs.map(blog => buildBlogDTO(blog, language));
 
-    await redis.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
+    await RedisHelper.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
 
     return { fromCache: false, data: result };
   } catch (err) {
@@ -432,7 +439,7 @@ export const getRecentBlogsService = async (limit = 10, language = "ar") => {
 export const getBlogsByCategoryService = async (category, limit = 10, language = "ar") => {
   try {
     const cacheKey = `${BLOG_CACHE_PREFIX}category:${category}:${limit}:${language}`;
-    const cached = await redis.get(cacheKey);
+    const cached = await RedisHelper.get(cacheKey);
     if (cached) {
       return { fromCache: true, data: cached };
     }
@@ -440,7 +447,7 @@ export const getBlogsByCategoryService = async (category, limit = 10, language =
     const blogs = await Blog.getByCategory(category, limit);
     const result = blogs.map(blog => buildBlogDTO(blog, language));
 
-    await redis.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
+    await RedisHelper.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
 
     return { fromCache: false, data: result };
   } catch (err) {
@@ -454,7 +461,7 @@ export const getBlogsByCategoryService = async (category, limit = 10, language =
 export const getBlogCategoriesService = async () => {
   try {
     const cacheKey = `${BLOG_CACHE_PREFIX}categories`;
-    const cached = await redis.get(cacheKey);
+    const cached = await RedisHelper.get(cacheKey);
     if (cached) {
       return { fromCache: true, data: cached };
     }
@@ -477,7 +484,7 @@ export const getBlogCategoriesService = async () => {
       },
     ]);
 
-    await redis.set(cacheKey, JSON.stringify(categories), { ex: CACHE_TTL });
+    await RedisHelper.set(cacheKey, JSON.stringify(categories), { ex: CACHE_TTL });
 
     return { fromCache: false, data: categories };
   } catch (err) {
@@ -501,7 +508,7 @@ export const incrementLikesService = async (blogId) => {
     }
 
     // Clear cache
-    await redis.del(`${BLOG_CACHE_PREFIX}*`);
+    await RedisHelper.del(`${BLOG_CACHE_PREFIX}*`);
 
     return blog;
   } catch (err) {
@@ -526,7 +533,7 @@ export const incrementSharesService = async (blogId) => {
     }
 
     // Clear cache
-    await redis.del(`${BLOG_CACHE_PREFIX}*`);
+    await RedisHelper.del(`${BLOG_CACHE_PREFIX}*`);
 
     return blog;
   } catch (err) {

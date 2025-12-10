@@ -46,7 +46,7 @@ router.post(
   "/",
   productMediaUpload.fields([
     { name: "images", maxCount: 10 },
-    { name: "reference", maxCount: 1 },
+    { name: "catalog", maxCount: 1 },
   ]),
   validateCreateProduct,
   createProductController
@@ -59,7 +59,7 @@ router.patch(
   "/:productId",
   productMediaUpload.fields([
     { name: "images", maxCount: 10 },
-    { name: "reference", maxCount: 1 },
+    { name: "catalog", maxCount: 1 },
   ]),
   validateUpdateProduct,
   updateProductController
@@ -80,7 +80,7 @@ router.get(
 
 router.get("/best-offers", getBestOffersController);
 
-router.get("/category/:categoryId", getProductsByCategoryController);
+router.get("/category/:slug", getProductsByCategoryController);
 
 router.get("/tags/available", getAvailableTags);
 router.get("/tags", getProductsByTags);

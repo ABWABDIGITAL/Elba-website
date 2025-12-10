@@ -11,7 +11,7 @@ const CACHE_TTL = 3600; // 1 hour
 export const getPageByTypeService = async (pageType, language = "ar") => {
   try {
     const cacheKey = `${PAGE_CACHE_PREFIX}${pageType}:${language}`;
-    const cached = await redis.get(cacheKey);
+    const cached = await RedisHelper.get(cacheKey);
     if (cached) {
       return { fromCache: true, data: cached };
     }
@@ -40,7 +40,7 @@ export const getPageByTypeService = async (pageType, language = "ar") => {
       updatedAt: page.updatedAt,
     };
 
-    await redis.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
+    await RedisHelper.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
 
     return { fromCache: false, data: result };
   } catch (err) {
@@ -55,12 +55,13 @@ export const getPageByTypeService = async (pageType, language = "ar") => {
 export const getAllPagesService = async (language = "ar") => {
   try {
     const cacheKey = `${PAGE_CACHE_PREFIX}all:${language}`;
-    const cached = await redis.get(cacheKey);
+    const cached = await RedisHelper.get(cacheKey);
     if (cached) {
       return { fromCache: true, data: cached };
     }
 
-    const pages = await StaticPage.getAllPublished(language);
+    const pages = await StaticPage.getAllPublished(language) || [];
+
 
     const result = pages.map(page => ({
       id: page._id,
@@ -76,11 +77,15 @@ export const getAllPagesService = async (language = "ar") => {
       status: page.status,
       publishedAt: page.publishedAt,
     }));
+    console.log(result);
+    console.log(pages);
 
-    await redis.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
+
+    await RedisHelper.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
 
     return { fromCache: false, data: result };
   } catch (err) {
+    console.error("getAllPagesService ERROR:", err);
     throw ServerError("Failed to get pages", err);
   }
 };
@@ -116,10 +121,10 @@ export const createPageService = async (pageData, userId) => {
     });
 
     // Clear cache for both languages
-    await redis.del(`${PAGE_CACHE_PREFIX}${page.pageType}:ar`);
-    await redis.del(`${PAGE_CACHE_PREFIX}${page.pageType}:en`);
-    await redis.del(`${PAGE_CACHE_PREFIX}all:ar`);
-    await redis.del(`${PAGE_CACHE_PREFIX}all:en`);
+    await RedisHelper.del(`${PAGE_CACHE_PREFIX}${page.pageType}:ar`);
+    await RedisHelper.del(`${PAGE_CACHE_PREFIX}${page.pageType}:en`);
+    await RedisHelper.del(`${PAGE_CACHE_PREFIX}all:ar`);
+    await RedisHelper.del(`${PAGE_CACHE_PREFIX}all:en`);
 
     return page;
   } catch (err) {
@@ -146,10 +151,10 @@ export const updatePageService = async (pageId, updates, userId) => {
     }
 
     // Clear cache for this page type in both languages
-    await redis.del(`${PAGE_CACHE_PREFIX}${page.pageType}:ar`);
-    await redis.del(`${PAGE_CACHE_PREFIX}${page.pageType}:en`);
-    await redis.del(`${PAGE_CACHE_PREFIX}all:ar`);
-    await redis.del(`${PAGE_CACHE_PREFIX}all:en`);
+    await RedisHelper.del(`${PAGE_CACHE_PREFIX}${page.pageType}:ar`);
+    await RedisHelper.del(`${PAGE_CACHE_PREFIX}${page.pageType}:en`);
+    await RedisHelper.del(`${PAGE_CACHE_PREFIX}all:ar`);
+    await RedisHelper.del(`${PAGE_CACHE_PREFIX}all:en`);
 
     return page;
   } catch (err) {
@@ -174,9 +179,9 @@ export const deletePageService = async (pageId) => {
     }
 
     // Clear cache
-    await redis.del(`${PAGE_CACHE_PREFIX}${page.pageType}:${page.language}`);
-    await redis.del(`${PAGE_CACHE_PREFIX}all:ar`);
-    await redis.del(`${PAGE_CACHE_PREFIX}all:en`);
+    await RedisHelper.del(`${PAGE_CACHE_PREFIX}${page.pageType}:${page.language}`);
+    await RedisHelper.del(`${PAGE_CACHE_PREFIX}all:ar`);
+    await RedisHelper.del(`${PAGE_CACHE_PREFIX}all:en`);
 
     return page;
   } catch (err) {

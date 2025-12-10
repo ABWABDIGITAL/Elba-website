@@ -9,21 +9,38 @@ import { StatusCodes } from "http-status-codes";
 import slugify from "slugify";
 
 export const createBrandController = async (req, res) => {
-  const { name } = req.body;
+
+  const enName = req.body?.en?.name;
+  const arName = req.body?.ar?.name;
+
+  console.log("EN:", enName, "AR:", arName);
+
+  if (!enName || !arName) {
+    return res.status(StatusCodes.BAD_REQUEST).json({
+      status: "error",
+      message: "Both English and Arabic names are required",
+    });
+  }
 
   if (!req.file) {
     return res.status(StatusCodes.BAD_REQUEST).json({
       status: "error",
-      message: "Image is required",
+      message: "Logo image is required",
     });
   }
 
-  const imageURL = `uploads/brands/${req.file.filename}`;
+  const logo = `uploads/brands/${req.file.filename}`;
 
   const result = await createBrand({
-    name,
-    slug: slugify(name, { lower: true }),
-    image: imageURL,
+    en: {
+      name: enName,
+      slug: slugify(enName, { lower: true })
+    },
+    ar: {
+      name: arName,
+      slug: slugify(arName, { lower: true })
+    },
+    logo
   });
 
   if (!result.OK) {
@@ -39,6 +56,7 @@ export const createBrandController = async (req, res) => {
     data: result.data,
   });
 };
+
 
 export const getBrandsController = async (req, res) => {
   const result = await getBrands();
@@ -77,17 +95,32 @@ export const getBrandController = async (req, res) => {
 
 export const updateBrandController = async (req, res) => {
   const { id } = req.params;
-  const { name } = req.body;
 
-  let imageURL = undefined;
+  console.log("BRAND BODY:", req.body);
+
+  const enName = req.body?.en?.name || req.body?.enName;
+  const arName = req.body?.ar?.name || req.body?.arName;
+
+  let logo = undefined;
   if (req.file) {
-    imageURL = `/uploads/brands/${req.file.filename}`;
+    logo = `uploads/brands/${req.file.filename}`;
   }
 
+  const en = enName
+    ? { name: enName, slug: slugify(enName, { lower: true }) }
+    : undefined;
+
+  const ar = arName
+    ? { name: arName, slug: slugify(arName, { lower: true }) }
+    : undefined;
+
+  const status = req.body?.status;
   const result = await updateBrand({
     id,
-    name,
-    image: imageURL,
+    en,
+    ar,
+    logo,
+    status,
   });
 
   if (!result.OK) {
@@ -103,6 +136,8 @@ export const updateBrandController = async (req, res) => {
     data: result.data,
   });
 };
+
+
 
 export const deleteBrandController = async (req, res) => {
   const { id } = req.params;

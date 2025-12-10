@@ -26,7 +26,7 @@ export const protect = async (req, res, next) => {
         .json({ status: "error", message: "User no longer exists" });
     }
 
-    if (!user.isActive) {
+    if (user.status !== "active") {
       return res
         .status(StatusCodes.UNAUTHORIZED)
         .json({ status: "error", message: "Account is inactive" });
