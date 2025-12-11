@@ -4,7 +4,7 @@ import {
   updateProductService,
   deleteProductService,
   getAllProductsService,
-  getProductBySkuService,
+  getProductByslugService,
   getCompareProductsService,
   getBestSellingByCategoryService,
   getBestOffersService,
@@ -359,9 +359,9 @@ export const getAllProductsController = async (req, res, next) => {
 };
 
 // GET SINGLE PRODUCT BY SKU
-export const getProductBySkuController = async (req, res, next) => {
+export const getProductBySlugController = async (req, res, next) => {
   try {
-    const result = await getProductBySkuService(req.params.sku);
+    const result = await getProductByslugService(req.params.slug);
     res.status(StatusCodes.OK).json(result);
   } catch (err) {
     next(err);
@@ -420,6 +420,7 @@ export const uploadProductManual = async (req, res, next) => {
 export const getCompareProductsController = async (req, res, next) => {
   try {
     const skusParam = req.query.skus;
+    console.log("DEBUG SKUS PARAM:", skusParam);
     const skus =
       typeof skusParam === "string"
         ? skusParam.split(",").map((s) => s.trim()).filter(Boolean)

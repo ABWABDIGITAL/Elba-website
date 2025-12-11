@@ -47,13 +47,27 @@ export const protect = async (req, res, next) => {
   }
 };
 
+// export const allowTo = (...roles) => {
+//     return (req, res, next) => {
+//         if (!roles.includes(req.user.legacyRole)) {
+//             return res
+//                 .status(StatusCodes.FORBIDDEN)
+//                 .json({ status: "error", message: "Forbidden" });
+//         }
+//         next();
+//     };
+// };
 export const allowTo = (...roles) => {
-    return (req, res, next) => {
-        if (!roles.includes(req.user.legacyRole)) {
-            return res
-                .status(StatusCodes.FORBIDDEN)
-                .json({ status: "error", message: "Forbidden" });
-        }
-        next();
-    };
+  return (req, res, next) => {
+    const userRole = req.user.role?.name?.toLowerCase();
+
+    const allowed = roles.map(r => r.toLowerCase());
+
+    if (!allowed.includes(userRole)) {
+      return res.status(StatusCodes.FORBIDDEN)
+        .json({ status: "error", message: "Forbidden" });
+    }
+
+    next();
+  };
 };

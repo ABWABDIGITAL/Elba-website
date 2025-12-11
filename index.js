@@ -25,6 +25,7 @@ import newsletterRoutes from "./routes/newsletter.route.js";
 import addressRoutes from "./routes/address.route.js";
 import paymentRoutes from "./routes/payment.routes.js";
 import profileRoutes from "./routes/profile.route.js";
+import settingsRoutes from "./routes/settings.route.js";
 import seedRoles , { seedAdmin } from "./config/seedRoles.js";
 import runSeeder from "./config/seeder.js";
 import cors from "cors";
@@ -72,6 +73,7 @@ app.use("/api/v1/addresses" , addressRoutes);
 app.use("/api/v1/payment", paymentRoutes);
 app.use("/api/v1/profile", profileRoutes);
 app.use("/api/v1/staticPages", staticPageRoutes);
+app.use("/api/v1/settings", settingsRoutes);
 app.use("/uploads" , express.static(path.join(process.cwd(), "uploads")));
 app.use(errorMiddleware);
 app.listen(PORT, () => {

@@ -5,6 +5,7 @@ import {
   getReviewController,
   updateReviewController,
   deleteReviewController,
+  toggleReviewActiveController,
 } from "../controllers/reviews.controller.js";
 
 import {
@@ -28,9 +29,11 @@ router
     validateCreateReview,
     createReviewController
   );
-
+ router
+ .route("/toggle/:id")
+ .put(protect , allowTo("admin","superAdmin"), toggleReviewActiveController)
 router
-  .route("/:id")
+  .route("/:slug")
   .get(validateGetReview, getReviewController)
   .put(
     protect,
@@ -38,11 +41,13 @@ router
     validateUpdateReview,
     updateReviewController
   )
+
+  router
+  .route("/:id")
   .delete(
     protect,
-    allowTo("user", "admin"),
+    allowTo("user", "admin","superAdmin"),
     validateDeleteReview,
     deleteReviewController
   );
-
 export default router;

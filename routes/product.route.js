@@ -4,7 +4,7 @@ import {
   updateProductController,
   deleteProductController,
   getAllProductsController,
-  getProductBySkuController,
+  getProductBySlugController,
   getCompareProductsController,
   getBestSellingByCategoryController,
   getBestOffersController,
@@ -67,18 +67,18 @@ router.patch(
 
 router.get("/", getAllProductsController);
 
-router.get("/sku/:sku", getProductBySkuController);
 
 router.get("/catalog/:keyword", getProductByCatalogController);
 
 router.get("/compare", getCompareProductsController);
+router.get("/best-offers", getBestOffersController);
 
+router.get("/:slug", getProductBySlugController);
 router.get(
   "/category/:categoryId/best-selling",
   getBestSellingByCategoryController
 );
 
-router.get("/best-offers", getBestOffersController);
 
 router.get("/category/:slug", getProductsByCategoryController);
 
@@ -98,7 +98,8 @@ router.post(
   upload({ folder: "products" }).none(),
   parseNestedJson,
   runTagAutomation
-);
+);   
+
 
 router.post(
   "/tags/cleanup",

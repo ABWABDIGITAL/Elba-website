@@ -2,10 +2,13 @@ import { body, param, query } from "express-validator";
 import validatorMiddleware from "../middlewares/validatorMiddleware.js";
 
 
+// --------------------------------------------------
+// CREATE REVIEW
+// --------------------------------------------------
 export const validateCreateReview = [
   body("product")
-    .notEmpty().withMessage("Product ID is required , Please provide the product ID")
-    .isMongoId().withMessage("Invalid product ID"),
+    .notEmpty().withMessage("Product slug is required")
+    .matches(/^[a-zA-Z0-9-]+$/).withMessage("Invalid product slug"),
 
   body("rating")
     .notEmpty().withMessage("Rating is required")
@@ -25,12 +28,15 @@ export const validateCreateReview = [
 ];
 
 
+// --------------------------------------------------
+// UPDATE REVIEW
+// --------------------------------------------------
 export const validateUpdateReview = [
   param("id").isMongoId().withMessage("Invalid review ID"),
 
   body("rating")
     .optional()
-    .isInt({ min: 0, max: 5 }).withMessage("Rating must be between 0 and 5"),
+    .isFloat({ min: 0, max: 5 }).withMessage("Rating must be between 0 and 5"),
 
   body("title")
     .optional()
@@ -46,20 +52,34 @@ export const validateUpdateReview = [
 ];
 
 
+// --------------------------------------------------
+// DELETE REVIEW
+// --------------------------------------------------
 export const validateDeleteReview = [
   param("id").isMongoId().withMessage("Invalid review ID"),
   validatorMiddleware,
 ];
 
+
+// --------------------------------------------------
+// GET REVIEW (by product slug)
+// --------------------------------------------------
 export const validateGetReview = [
-  param("id").isMongoId().withMessage("Invalid review ID"),
+  param("slug")
+    .matches(/^[a-zA-Z0-9-]+$/)
+    .withMessage("Invalid product slug"),
   validatorMiddleware,
 ];
 
+
+// --------------------------------------------------
+// GET REVIEWS (filters)
+// --------------------------------------------------
 export const validateGetReviews = [
   query("product")
     .optional()
-    .isMongoId().withMessage("Invalid product ID"),
+    .matches(/^[a-zA-Z0-9-]+$/)
+    .withMessage("Invalid product slug"),
 
   query("rating_gte")
     .optional()

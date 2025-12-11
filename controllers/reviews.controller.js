@@ -4,9 +4,11 @@ import {
   updateReviewService,
   deleteReviewService,
   getReviewsService,
+  toggleReviewActiveService,
 } from "../services/reviews.services.js";
 import { StatusCodes } from "http-status-codes";
-
+import { NotFound } from "../utlis/apiError.js";
+import Review from "../models/review.model.js"
 export const createReviewController = async (req, res, next) => {
   try {
     const { product, rating, title, comment ,email ,name} = req.body;
@@ -33,7 +35,7 @@ export const createReviewController = async (req, res, next) => {
 
 export const getReviewController = async (req, res, next) => {
   try {
-    const review = await getReviewService(req.params.id);
+    const review = await getReviewService(req.params.slug);
 
     res.status(StatusCodes.OK).json({
       status: "success",
@@ -90,7 +92,10 @@ export const deleteReviewController = async (req, res, next) => {
       userId: req.user._id,
       userRole: req.user.role,
     });
-
+    const review = await Review.findById(req.params.id);
+    if(!review){
+      throw NotFound("Review not found")
+    }
     res.status(StatusCodes.OK).json({
       status: "success",
       message: "Review deleted successfully",
@@ -99,3 +104,23 @@ export const deleteReviewController = async (req, res, next) => {
     next(err);
   }
 };
+
+export const toggleReviewActiveController = async (req,res,next)=>{
+  try {
+   await toggleReviewActiveService({
+    id: req.params.id,
+    userRole: req.user.role?.name,
+   }) 
+   console.log(req.user.role)
+   const review = await Review.findById(req.params.id);
+   if(!review){
+    throw NotFound("Review not found")
+   }
+   res.status(StatusCodes.OK).json({
+    status: "success",
+    message: "Review active status toggled successfully",
+   })
+  } catch (error) {
+    next(error)
+  }
+}

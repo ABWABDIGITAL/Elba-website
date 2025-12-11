@@ -6,6 +6,7 @@ import ApiError, {
   ServerError,
 } from "../utlis/apiError.js";
 import ApiFeatures from "../utlis/apiFeatures.js";
+import Product from "../models/product.model.js";
 
 /**
  * Create review – one per user per product
@@ -41,17 +42,27 @@ export const createReviewService = async ({ product, user, rating, title, commen
 /**
  * Get single review
  */
-export const getReviewService = async (id) => {
+export const getReviewService = async (slug) => {
   try {
-    const review = await Review.findById(id).populate("product", "name comment rating");
-    if (!review) throw NotFound("Review not found");
-    return review;
+    // 1. Find the product by slug
+    const product = await Product.findOne({ slug }).select("_id name slug");
+    if (!product) throw NotFound("Product not found");
+
+    // 2. Find all reviews for that product
+    const reviews = await Review.find({ product: product._id })
+      .populate("user", "name email")
+      .sort({ createdAt: -1 });
+
+    return {
+      product,
+      reviews,
+    };
+
   } catch (err) {
-    if (err instanceof ApiError) throw err;
-    throw BadRequest("Invalid review ID");
+    console.error("getReviewService error:", err);
+    throw BadRequest("Failed to get reviews");
   }
 };
-
 /**
  * Update review – only owner or admin
  */
@@ -75,31 +86,36 @@ export const updateReviewService = async ({ id, userId, userRole, rating, title,
   }
 };
 
-/**
- * Delete review – only owner or admin
- */
 export const deleteReviewService = async ({ id, userId, userRole }) => {
   const review = await Review.findById(id);
   if (!review) throw NotFound("Review not found");
 
-  if (review.user.toString() !== userId.toString() && userRole !== "admin") {
+  // handle missing review.user
+  if (!review.user) {
+    if (userRole !== "admin" && userRole !== "superAdmin") {
+      throw Forbidden("Only admins can delete a review without assigned user");
+    }
+    return await Review.findByIdAndDelete(id);
+  }
+
+  // support populated or unpopulated user field
+  const reviewUserId = review.user._id?.toString() || review.user.toString();
+
+  if (reviewUserId !== userId.toString() && userRole !== "admin" && userRole !== "superAdmin") {
     throw Forbidden("You are not allowed to delete this review");
   }
 
-  try {
-    const deleted = await Review.findOneAndDelete({ _id: id });
-    return deleted;
-  } catch (err) {
-    throw ServerError("Failed to delete review", err);
-  }
+  return await Review.findByIdAndDelete(id);
 };
+
+
 
 /**
  * Toggle review active status – admin only
  */
 export const toggleReviewActiveService = async ({ id, userRole }) => {
-  if (userRole !== "admin") {
-    throw Forbidden("Only admins can toggle review active status");
+  if (userRole !== "admin" && userRole !== "superAdmin") {
+      throw Forbidden("Only admins can toggle review active status");
   }
 
   const review = await Review.findById(id);

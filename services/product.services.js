@@ -325,9 +325,9 @@ export const getAllProductsService = async (query) => {
   }
 };
     
-export const getProductBySkuService = async (sku) => {
+export const getProductByslugService = async (slug) => {
   const product = await Product.findOneAndUpdate(
-    { sku },
+    { slug },
     { $inc: { views: 1 } },
     { new: true }
   )
@@ -422,7 +422,7 @@ export const getCompareProductsService = async (skus) => {
   try {
     const products = await Product.find({ sku: { $in: skus } })
    .populate("category", "ar.name ar.slug en.name en.slug image")
-.populate("brand", "ar.name ar.slug en.name en.slug logo")
+    .populate("brand", "ar.name ar.slug en.name en.slug logo")
 
     if (!products.length) throw NotFound("Products not found");
 
