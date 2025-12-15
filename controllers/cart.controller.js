@@ -4,10 +4,10 @@ import {
   updateCartItemService,
   removeCartItemService,
   clearCartService,
-  applyCouponToCartService,
   removeCouponFromCartService,
 } from "../services/cart.services.js";
 import { StatusCodes } from "http-status-codes";
+import {applyCouponToCartService}from "../services/coupon.services.js";
 
 /* --------------------------------------------------
    ADD TO CART
@@ -15,9 +15,9 @@ import { StatusCodes } from "http-status-codes";
 export const addToCartController = async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const { productId, quantity, color } = req.body;
+    const { slug, quantity, color } = req.body;
 
-    const result = await addToCartService(userId, productId, quantity, color);
+    const result = await addToCartService(userId, slug, quantity, color);
 
     res.status(StatusCodes.CREATED).json(result);
   } catch (err) {
@@ -46,9 +46,9 @@ export const getCartController = async (req, res, next) => {
 export const updateCartItemController = async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const { productId, quantity, color } = req.body;
+    const { slug, quantity, color } = req.body;
 
-    const result = await updateCartItemService(userId, productId, quantity, color);
+    const result = await updateCartItemService(userId, slug, quantity, color);
 
     res.status(StatusCodes.OK).json(result);
   } catch (err) {
@@ -62,9 +62,9 @@ export const updateCartItemController = async (req, res, next) => {
 export const removeCartItemController = async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const { productId, color } = req.body;
+    const { slug} = req.body;
 
-    const result = await removeCartItemService(userId, productId, color);
+    const result = await removeCartItemService(userId, slug);
 
     res.status(StatusCodes.OK).json(result);
   } catch (err) {

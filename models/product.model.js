@@ -108,7 +108,12 @@ const productSchema = new mongoose.Schema(
       default: "large",
       index: true,
     },
+    embedding: {
+      type: Buffer,   // BinData (float32)
+      select: false,  // اختياري: عشان ما يطلعش في كل Query
+    },
 
+    //Vector embeddings are a way to represent things like words, sentences, images, or users as numbers in a vector (list of numbers) so that a computer can understand meaning and similarity.
     /* ------------------------ ANALYTICS ----------------------------- */
     salesCount: { type: Number, default: 0, min: 0 },
     ratingsAverage: { type: Number, default: 0, min: 0, max: 5 },

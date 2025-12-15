@@ -1,4 +1,7 @@
 import express from "express";
+import { callAgent } from "../agent.js";
+import { MongoClient } from "mongodb";
+const client = new MongoClient(process.env.MONGO_URI);
 const router = express.Router();
 router.get("/", (req, res) => {
     res.send("Lang chain route");
@@ -36,3 +39,5 @@ router.post("/chat/:thredId", async(req,res)=>{
         })
     }
 })
+
+export default router;

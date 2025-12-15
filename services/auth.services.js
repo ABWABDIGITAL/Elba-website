@@ -236,7 +236,7 @@ export const forgetPassword = async (email) => {
   const resetToken = crypto.randomBytes(32).toString("hex");
   const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
 
-  const resetLink = `${process.env.FRONTEND_URL}/${resetToken}`;
+  const resetLink = `${process.env.FRONTEND_URL}/ar/reset-password/${resetToken}`;
 
   user.resetPasswordCode = hashedOtp;
   user.resetPasswordToken = hashedToken;

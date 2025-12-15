@@ -26,10 +26,14 @@ import addressRoutes from "./routes/address.route.js";
 import paymentRoutes from "./routes/payment.routes.js";
 import profileRoutes from "./routes/profile.route.js";
 import settingsRoutes from "./routes/settings.route.js";
+import chatRoutes from "./routes/chat.route.js";
+import searchRoutes from "./routes/search.routes.js";
 import seedRoles , { seedAdmin } from "./config/seedRoles.js";
 import runSeeder from "./config/seeder.js";
 import cors from "cors";
-
+import { callAgent } from './agent.js';
+import { MongoClient } from "mongodb";
+const client = new MongoClient(process.env.MONGO_URI);
 // Set to true to run seeder on startup (disable after first run)
 const RUN_SEEDER = process.env.RUN_SEEDER === "true";
 
@@ -74,6 +78,8 @@ app.use("/api/v1/payment", paymentRoutes);
 app.use("/api/v1/profile", profileRoutes);
 app.use("/api/v1/staticPages", staticPageRoutes);
 app.use("/api/v1/settings", settingsRoutes);
+app.use("/api/v1/chat", chatRoutes);
+app.use("/api/v1/search", searchRoutes);
 app.use("/uploads" , express.static(path.join(process.cwd(), "uploads")));
 app.use(errorMiddleware);
 app.listen(PORT, () => {

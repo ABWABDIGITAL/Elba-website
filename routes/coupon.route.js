@@ -23,7 +23,7 @@ import { protect, allowTo } from "../middlewares/authMiddleware.js";
 
 router
   .route("/")
-  .post(protect, allowTo("admin"), createCouponValidator, createCouponController)
+  .post(protect, allowTo("admin","superAdmin"), createCouponValidator, createCouponController)
   .get(protect,listCouponsValidator, getCouponsController);
 
 router

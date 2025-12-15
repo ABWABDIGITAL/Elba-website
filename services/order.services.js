@@ -55,7 +55,7 @@ export const createOrderService = async (userId, shippingAddress, paymentMethod 
           stock: { $gte: item.quantity },
           status: "active",
         },
-        { $inc: { stock: -item.quantity, salesCount: 1 } },
+        { $inc: { stock: -item.quantity, salesCount: item.quantity } },
         { new: true, session }
       );
 
@@ -425,7 +425,7 @@ export const cancelOrderService = async (userId, orderId, reason = null) => {
         {
           $inc: {
             stock: item.quantity,
-            salesCount: -1,
+            salesCount: item.quantity,
           },
         },
         { session }

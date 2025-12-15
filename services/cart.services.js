@@ -1,7 +1,7 @@
 import Cart from "../models/cart.model.js";
 import Product from "../models/product.model.js";
 import Coupon from "../models/coupon.model.js";
-import { BadRequest, NotFound, ServerError } from "../utlis/apiError.js";
+import ApiError, { BadRequest, NotFound, ServerError } from "../utlis/apiError.js";
 
 /* --------------------------------------------------
    HELPER FUNCTIONS
@@ -22,10 +22,10 @@ const calculateCartTotals = (cartItems) => {
 /* --------------------------------------------------
    ADD TO CART
 --------------------------------------------------- */
-export const addToCartService = async (userId, productId, quantity = 1, color = null) => {
+export const addToCartService = async (userId, slug, quantity = 1, color = null) => {
   try {
     // Validate product exists and has stock
-    const product = await Product.findById(productId);
+    const product = await Product.findOne({ slug });
     if (!product) throw NotFound("Product not found");
 
     if (product.status !== "active") {
@@ -50,7 +50,7 @@ export const addToCartService = async (userId, productId, quantity = 1, color = 
         user: userId,
         cartItems: [
           {
-            product: productId,
+            product: product._id,
             quantity,
             color,
             price: itemPrice,
@@ -61,7 +61,7 @@ export const addToCartService = async (userId, productId, quantity = 1, color = 
       // Check if product already exists in cart
       const existingItemIndex = cart.cartItems.findIndex(
         (item) =>
-          item.product.toString() === productId.toString() &&
+          item.product.toString() === product._id.toString() &&
           item.color === color
       );
 
@@ -79,7 +79,7 @@ export const addToCartService = async (userId, productId, quantity = 1, color = 
       } else {
         // Add new item to cart
         cart.cartItems.push({
-          product: productId,
+          product: product._id,
           quantity,
           color,
           price: itemPrice,
@@ -97,7 +97,7 @@ export const addToCartService = async (userId, productId, quantity = 1, color = 
     // Populate cart with product details
     await cart.populate({
       path: "cartItems.product",
-      select: "en.name ar.name en.slug ar.slug sku en.images ar.images stock status",
+      select: "en.name ar.name en.slug ar.slug sku images stock status price discountPrice",
     });
 
     return {
@@ -106,7 +106,7 @@ export const addToCartService = async (userId, productId, quantity = 1, color = 
       data: cart,
     };
   } catch (err) {
-    if (err.name === "ApiError" || err instanceof BadRequest || err instanceof NotFound) {
+    if (err.name === "ApiError" || err instanceof ApiError || err instanceof ApiError) {
       throw err;
     }
     throw ServerError("Failed to add product to cart", err);
@@ -120,7 +120,7 @@ export const getCartService = async (userId) => {
   try {
     const cart = await Cart.findOne({ user: userId, isActive: true }).populate({
       path: "cartItems.product",
-      select: "en.name ar.name en.slug ar.slug sku en.images ar.images stock status price discountPrice",
+      select: "en.title ar.title en.slug ar.slug sku slug images stock status price discountPrice",
     });
 
     if (!cart) {
@@ -227,23 +227,25 @@ export const updateCartItemService = async (userId, productId, quantity, color =
 /* --------------------------------------------------
    REMOVE ITEM FROM CART
 --------------------------------------------------- */
-export const removeCartItemService = async (userId, productId, color = null) => {
+export const removeCartItemService = async (userId, slug) => {
   try {
     const cart = await Cart.findOne({ user: userId, isActive: true });
     if (!cart) throw NotFound("Cart not found");
 
-    // Filter out the item
+    // لازم نعمل populate عشان نوصل للـ slug
+    await cart.populate("cartItems.product");
+
     const initialLength = cart.cartItems.length;
+
     cart.cartItems = cart.cartItems.filter(
-      (item) =>
-        !(item.product.toString() === productId.toString() && item.color === color)
+      (item) => item.product.slug !== slug
     );
 
     if (cart.cartItems.length === initialLength) {
       throw NotFound("Product not found in cart");
     }
 
-    // Recalculate totals
+    // إعادة حساب الأسعار
     const totals = calculateCartTotals(cart.cartItems);
     cart.totalCartPrice = totals.totalCartPrice;
     cart.totalPriceAfterDiscount = totals.totalPriceAfterDiscount;
@@ -261,12 +263,13 @@ export const removeCartItemService = async (userId, productId, color = null) => 
       data: cart,
     };
   } catch (err) {
-    if (err.name === "ApiError" || err instanceof BadRequest || err instanceof NotFound) {
+    if (err.name === "ApiError" || err instanceof ApiError) {
       throw err;
     }
     throw ServerError("Failed to remove item from cart", err);
   }
 };
+
 
 /* --------------------------------------------------
    CLEAR CART
@@ -354,7 +357,7 @@ export const applyCouponToCartService = async (userId, couponCode) => {
       discount: Number(discount.toFixed(2)),
     };
   } catch (err) {
-    if (err.name === "ApiError" || err instanceof BadRequest || err instanceof NotFound) {
+    if (err.name === "ApiError" || err instanceof ApiError) {
       throw err;
     }
     throw ServerError("Failed to apply coupon", err);
