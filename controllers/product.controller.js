@@ -15,6 +15,7 @@ import {
   bulkUpdateProductTagsService,
   getCategoryAndProductsByType,
   getProductByCatalogService,
+searchProducts
 } from "../services/product.services.js";
 
 import { StatusCodes } from "http-status-codes";
@@ -375,7 +376,20 @@ export const getProductByCatalogController = async (req, res, next) => {
     next(err);
   }
 };
+export const searchProductsController = async (req, res, next) => {
+  try {
+    const result = await searchProducts(req.query);
 
+    res.status(200).json({
+      status: "success",
+      results: result.products.length,
+      pagination: result.pagination,
+      data: result.products,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 export const uploadProductManual = async (req, res, next) => {
   try {
     const { id } = req.params;

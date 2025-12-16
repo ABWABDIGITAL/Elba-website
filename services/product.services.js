@@ -459,6 +459,46 @@ const getCategoryTreeIds = async (rootCategoryId) => {
   return Array.from(ids);
 };
 
+export const searchProducts = async (queryString) => {
+  // Base query
+  const baseQuery = Product.find({ status: "active" });
+
+  // Apply API features
+  const features = new ApiFeatures(baseQuery, queryString, {
+    allowedFilterFields: [
+      "price",
+      "category",
+      "brand",
+      "tags",
+      "stock",
+    ],
+    searchFields: [
+      "name",
+      "slug",
+      "description",
+      "category.name",
+    ],
+    arraySearchFields: ["tags"],
+  })
+    .filter()
+    .search()
+    .sort()
+    .limitFields()
+    .paginate();
+
+  // Execute main query
+  const products = await features.mongooseQuery;
+
+  // Count total for pagination
+  const total = await Product.countDocuments(features.getFilter());
+
+  const pagination = features.buildPaginationResult(total);
+
+  return {
+    products,
+    pagination,
+  };
+};
 /* --------------------------------------------------
    BEST SELLING BY CATEGORY (FULL TREE)
 --------------------------------------------------- */

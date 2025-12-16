@@ -16,6 +16,7 @@ import {
   getCategoryWithProductsController,
   uploadProductManual,
   getProductByCatalogController,
+  searchProductsController,
 } from "../controllers/product.controller.js";
 
 import {
@@ -73,7 +74,6 @@ router.get("/catalog/:keyword", getProductByCatalogController);
 router.get("/compare", getCompareProductsController);
 router.get("/best-offers", getBestOffersController);
 
-router.get("/:slug", getProductBySlugController);
 router.get(
   "/category/:categoryId/best-selling",
   getBestSellingByCategoryController
@@ -84,6 +84,8 @@ router.get("/category/:slug", getProductsByCategoryController);
 
 router.get("/tags/available", getAvailableTags);
 router.get("/tags", getProductsByTags);
+router.get("/search", searchProductsController);
+router.get("/:slug", getProductBySlugController);
 router.post(
   "/:id/manual",
   productMediaUpload.single("reference"),
