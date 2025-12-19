@@ -169,7 +169,7 @@ export const deleteCouponService = async ({ slug, softDelete = true }) => {
 
   try {
     if (softDelete) {
-      coupon.isActive = false;
+      coupon.isActive = !coupon.isActive;
       await coupon.save();
       return { deleted: true, softDeleted: true };
     }

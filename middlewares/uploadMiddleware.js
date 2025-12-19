@@ -51,13 +51,13 @@ const ensureDir = (dir) => {
   }
 };
 
-// Generic base uploader
 const baseUpload = ({
   folder,
-  allowedMime,
-  allowedExt,
+  allowedMime = IMG_MIME,
+  allowedExt = IMG_EXT,
   maxSizeMB = 20,
 }) => {
+
   if (!folder) throw new Error("Upload middleware requires a folder name");
 
   const dir = `uploads/${folder}`;
@@ -187,3 +187,11 @@ export const homeUpload = multer({
 // DEFAULT EXPORT (generic)
 // ================================
 export default baseUpload;
+export const blogUpload = () => {
+  return baseUpload({
+    folder: "blogs",
+    allowedMime: IMG_MIME,
+    allowedExt: IMG_EXT,
+    maxSizeMB: 5,
+  });
+};

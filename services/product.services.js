@@ -1,18 +1,13 @@
-// services/product.services.js
 import Product from "../models/product.model.js";
 import Category from "../models/category.model.js";
 import mongoose from "mongoose";
-import slugify from "slugify";
 import ApiError, {
   BadRequest,
   NotFound,
   ServerError,
 } from "../utlis/apiError.js";
 import ApiFeatures from "../utlis/apiFeatures.js";
-
-/* --------------------------------------------------
-   DTO BUILDERS (aligned with new model)
---------------------------------------------------- */
+import slugify from "slugify";
 export const buildCompareDTO = (p) => {
   if (!p) return null;
   return {
@@ -63,6 +58,9 @@ export const buildGetAllproductDTO = (p) => {
     sizeType: p.sizeType || null,
     brand:p.brand,
     category:p.category,
+    stock:p.stock,
+    status:p.status,
+    salesCount:p.salesCount,
   };
 };
 
@@ -133,9 +131,7 @@ export const buildGetCatalogProductDTO = (p) => {
     ratingsAverage:p.ratingsAverage,
   };
 };
-/* --------------------------------------------------
-   VALIDATION
---------------------------------------------------- */
+
 export const validateProductDomain = (product) => {
   const errors = [];
 
@@ -150,21 +146,12 @@ export const validateProductDomain = (product) => {
   if (errors.length) throw BadRequest("Product validation failed", errors);
 };
 
-/* --------------------------------------------------
-   SLUG LOGIC HELPER (kept for compatibility)
-   - لا نستخدمه للـ ar/en الآن، فقط يمكن استخدامه لو احتجت لاحقاً
---------------------------------------------------- */
 const applySlugIfMissing = (data) => {
-  // slug root from SKU لو حابب تبنيه من البيانات قبل الـ save
   if (!data.slug && data.sku) {
     data.slug = slugify(String(data.sku), { lower: true, strict: true });
   }
 };
 
-/* --------------------------------------------------
-   PRICING LOGIC
-   discountPrice = discount VALUE
---------------------------------------------------- */
 function applyPricingLogic(data) {
   const price = data.price;
 
@@ -200,9 +187,6 @@ function applyPricingLogic(data) {
   data.finalPrice = price;
 }
 
-/* --------------------------------------------------
-   CREATE PRODUCT
---------------------------------------------------- */
 export const createProductService = async (data) => {
   try {
     const exists = await Product.findOne({ sku: data.sku });
@@ -215,62 +199,55 @@ export const createProductService = async (data) => {
     validateProductDomain(product);
 
     await product.save();
-
+    console.log(product)
     return {
       OK: true,
       message: "Product created successfully",
       data: buildProductDTO(product),
     };
   } catch (err) {
-    if (err instanceof ApiError) throw err;
-    throw ServerError("Failed to create product", err);
+     console.error("CREATE PRODUCT ERROR 👉", err);
+
+  if (err instanceof ApiError) throw err;
+
+  throw ServerError("Failed to create product", {
+    message: err.message,
+    name: err.name,
+    stack: err.stack,
+  });
   }
 };
 
-/* --------------------------------------------------
-   UPDATE PRODUCT
---------------------------------------------------- */
-export const updateProductService = async (id, data) => {
-  try {
-    applySlugIfMissing(data);
+export const updateProductService = async (slug, data) => {
+  const product = await Product.findOne({ slug });
+  if (!product) throw NotFound("Product not found");
 
-    if (
-      data.price != null ||
-      data.discountPrice != null ||
-      data.discountPercentage != null
-    ) {
-      applyPricingLogic(data);
-    }
+  Object.assign(product, data);
 
-    const updated = await Product.findByIdAndUpdate(id, data, {
-      new: true,
-      runValidators: true,
-      context: "query",
-    });
+  applySlugIfMissing(product);
 
-    if (!updated) throw NotFound("Product not found");
-
-    validateProductDomain(updated);
-
-    return {
-      OK: true,
-      message: "Product updated successfully",
-      data: buildProductDTO(updated),
-    };
-
-  } catch (err) {
-    if (err instanceof ApiError) throw err;
-    throw ServerError("Failed to update product", err);
+  if (
+    data.price != null ||
+    data.discountPrice != null ||
+    data.discountPercentage != null
+  ) {
+    applyPricingLogic(product);
   }
+
+  validateProductDomain(product);
+
+  await product.save(); 
+
+  return {
+    OK: true,
+    message: "Product updated successfully",
+    data: buildProductDTO(product),
+  };
 };
 
-
-/* --------------------------------------------------
-   HARD DELETE PRODUCT
---------------------------------------------------- */
-export const deleteProductService = async (id) => {
+export const deleteProductService = async (slug) => {
   try {
-    const deleted = await Product.findOneAndDelete({ _id: id });
+    const deleted = await Product.findOneAndDelete({ slug });
 
     if (!deleted) throw NotFound("Product not found");
 
@@ -284,9 +261,6 @@ export const deleteProductService = async (id) => {
   }
 };
 
-/* --------------------------------------------------
-   GET ALL PRODUCTS
---------------------------------------------------- */
 export const getAllProductsService = async (query) => {
   try {
     const page = Number(query.page) || 1;
@@ -299,7 +273,44 @@ export const getAllProductsService = async (query) => {
 
     const [items, total] = await Promise.all([
       Product.find(filter)
-        .select("en.title en.subTitle ar.title ar.subTitle price finalPrice sizeType ratingsAverage images sku slug")
+        .select("en.title en.subTitle ar.title ar.subTitle price finalPrice sizeType ratingsAverage images sku slug status stock salesCount")
+        .populate("category", "ar.name ar.slug en.name en.slug image")
+        .populate("brand", "ar.name ar.slug en.name en.slug logo")
+
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 }),
+      Product.countDocuments(filter),
+    ]);
+
+    return {
+      OK: true,
+      message: "Products fetched successfully",
+      data: items.map(buildGetAllproductDTO),
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    };
+  } catch (err) {
+    throw ServerError("Failed to get products", err);
+  }
+};
+export const getAllProductsForAdminService = async (query) => {
+  try {
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const filter = {};
+    if (query.category) filter.category = query.category;
+    if (query.brand) filter.brand = query.brand;
+
+    const [items, total] = await Promise.all([
+      Product.find(filter)
+        .select("en.title en.subTitle ar.title ar.subTitle price finalPrice sizeType ratingsAverage images sku slug status stock salesCount")
         .populate("category", "ar.name ar.slug en.name en.slug image")
         .populate("brand", "ar.name ar.slug en.name en.slug logo")
 
@@ -336,7 +347,6 @@ export const getProductByslugService = async (slug) => {
 
   if (!product) throw NotFound("Product not found");
 
-  // Prevent crash if category is null
   const similarProducts = await Product.find({
     category: product.category?._id || null,
     _id: { $ne: product._id },
@@ -437,10 +447,6 @@ export const getCompareProductsService = async (skus) => {
   }
 };
 
-/* --------------------------------------------------
-   HELPER: GET CATEGORY + ALL DESCENDANTS
-   (يفترض وجود field: parent في Category)
---------------------------------------------------- */
 const getCategoryTreeIds = async (rootCategoryId) => {
   const ids = new Set();
   const queue = [rootCategoryId];
@@ -499,9 +505,7 @@ export const searchProducts = async (queryString) => {
     pagination,
   };
 };
-/* --------------------------------------------------
-   BEST SELLING BY CATEGORY (FULL TREE)
---------------------------------------------------- */
+
 export const getBestSellingByCategoryService = async (categoryId, query) => {
   try {
     const { top } = query;
@@ -555,9 +559,6 @@ export const getBestSellingByCategoryService = async (categoryId, query) => {
   }
 };
 
-/* --------------------------------------------------
-   BEST OFFERS
---------------------------------------------------- */
 export const getBestOffersService = async (query) => {
   try {
     const { top } = query;
@@ -611,7 +612,6 @@ export const getProductsByCategory = async (slug) => {
 
     console.log("Finding category by slug...", slug);
 
-    // FIXED QUERY
     const category = await Category.findOne({
       $or: [
         { "en.slug": slug },
@@ -626,7 +626,6 @@ export const getProductsByCategory = async (slug) => {
       throw NotFound("Category not found");
     }
 
-    // Find products
     console.log("Finding products for category:", slug);
 
     const products = await Product.find({
@@ -657,12 +656,6 @@ export const getProductsByCategory = async (slug) => {
   }
 };
 
-
-
-
-/* --------------------------------------------------
-   GET PRODUCTS BY TAG
---------------------------------------------------- */
 export const getProductsByTagService = async (tag, query) => {
   try {
     const validTags = [
@@ -716,9 +709,6 @@ export const getProductsByTagService = async (tag, query) => {
   }
 };
 
-/* --------------------------------------------------
-   GET PRODUCTS BY MULTIPLE TAGS
---------------------------------------------------- */
 export const getProductsByTagsService = async (tags, query) => {
   try {
     const validTags = [
@@ -779,9 +769,6 @@ export const getProductsByTagsService = async (tags, query) => {
   }
 };
 
-/* --------------------------------------------------
-   GET ALL AVAILABLE TAGS WITH COUNTS
---------------------------------------------------- */
 export const getAvailableTagsService = async () => {
   try {
     const tagStats = await Product.aggregate([
@@ -834,9 +821,6 @@ export const getAvailableTagsService = async () => {
   }
 };
 
-/* --------------------------------------------------
-   BULK UPDATE PRODUCT TAGS
---------------------------------------------------- */
 export const bulkUpdateProductTagsService = async (
   productIds,
   tagsToAdd,
@@ -901,7 +885,6 @@ export const bulkUpdateProductTagsService = async (
   }
 };
 
-// Helper function for Arabic tag names
 function getArabicTagName(tag) {
   const arabicNames = {
     best_seller: "الأكثر مبيعاً",

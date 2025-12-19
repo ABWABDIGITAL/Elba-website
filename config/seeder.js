@@ -114,24 +114,30 @@ const seedCategories = async () => {
     },
   ];
 
-  for (const cat of categories) {
-  const existing = await Category.findOne({ "en.slug": cat.en.slug });
-  
+for (const cat of categories) {
+  const existing = await Category.findOne({
+    "ar.name": cat.ar.name
+  });
+
   if (!existing) {
-    // For new categories, set productCount to 0
-    await Category.create({ ...cat, productCount: 0 });
-    console.log(`✓ Created category: ${cat.en.name}`);
+    await Category.create({
+      ...cat,
+      productCount: 0,
+    });
+    console.log(`✓ Created category: ${cat.ar.name}`);
   } else {
-    // For existing categories, update all fields except productCount
     const { productCount, ...updateData } = cat;
+
     await Category.findByIdAndUpdate(
       existing._id,
       { $set: updateData },
       { new: true }
     );
-    console.log(`✓ Updated category: ${cat.en.name} (preserved productCount)`);
+
+    console.log(`✓ Updated category: ${cat.ar.name} (preserved productCount)`);
   }
 }
+
 
 // Clean up categories not in the seed data
 const slugs = categories.map(c => c.en.slug);

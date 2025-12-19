@@ -17,6 +17,7 @@ import {
   uploadProductManual,
   getProductByCatalogController,
   searchProductsController,
+  getAllProductsforAdminController
 } from "../controllers/product.controller.js";
 
 import {
@@ -27,7 +28,7 @@ import {
   previewTagAssignment,
 } from "../controllers/tagAutomation.controller.js";
 
-import { protect } from "../middlewares/authMiddleware.js";
+import { protect , allowTo} from "../middlewares/authMiddleware.js";
 import { requirePermission } from "../middlewares/permission.middleware.js";
 import upload, { productMediaUpload } from "../middlewares/uploadMiddleware.js"; // <-- productMediaUpload هنا
 import parseNestedJson from "../middlewares/ParseNestedDot.js";
@@ -57,7 +58,7 @@ router.post(
    UPDATE PRODUCT
 ---------------------------------------------- */
 router.patch(
-  "/:productId",
+  "/:slug",
   productMediaUpload.fields([
     { name: "images", maxCount: 10 },
     { name: "catalog", maxCount: 1 },
@@ -68,7 +69,7 @@ router.patch(
 
 router.get("/", getAllProductsController);
 
-
+router.get("/admin", protect , allowTo("superAdmin"),getAllProductsforAdminController);
 router.get("/catalog/:keyword", getProductByCatalogController);
 
 router.get("/compare", getCompareProductsController);
@@ -146,6 +147,6 @@ router.post(
 
 router.get("/tag/:tag", getProductsByTag);
 
-router.delete("/:productId", protect, deleteProductController);
+router.delete("/:slug", protect, deleteProductController);
 
 export default router;

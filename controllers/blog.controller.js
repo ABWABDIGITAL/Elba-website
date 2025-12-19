@@ -20,9 +20,18 @@ import { StatusCodes } from "http-status-codes";
 --------------------------------------------------- */
 export const createBlog = async (req, res, next) => {
   try {
-    const blogData = req.body;
-    const blog = await createBlogService(blogData, req.user.id);
+    console.log("BODY:", req.body);
+    console.log("FILE:", req.file);
 
+    const blogData = {
+      ...req.body,
+      featuredImage: req.file
+        ? `/uploads/blogs/${req.file.filename}`
+        : undefined,
+    };
+
+    const blog = await createBlogService(blogData, req.user.id);
+    console.log(blog)
     res.status(StatusCodes.CREATED).json({
       OK: true,
       message: "Blog post created successfully",

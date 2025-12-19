@@ -12,7 +12,7 @@ const router = express.Router();
 
 const upload = imageUpload("home");
 
-router.post("/", protect, allowTo("admin"),createHome);
+router.post("/", protect, allowTo("admin","superAdmin"),createHome);
 router.get("/", getHome);
 router.put("/", protect, upload.fields([
     { name: "hero", maxCount: 20 },
@@ -24,7 +24,7 @@ router.put("/", protect, upload.fields([
 
 // Only include fields that actually exist in your schema & controller
 router.post(
-  "/banners",protect, allowTo("admin"),
+  "/banners",protect, allowTo("admin","superAdmin"),
   upload.fields([
     { name: "hero", maxCount: 10 },
     { name: "gif", maxCount: 10 },

@@ -15,7 +15,8 @@ import {
   bulkUpdateProductTagsService,
   getCategoryAndProductsByType,
   getProductByCatalogService,
-searchProducts
+  searchProducts,
+  getAllProductsForAdminService
 } from "../services/product.services.js";
 
 import { StatusCodes } from "http-status-codes";
@@ -79,14 +80,7 @@ const normalizeFeaturesForLang = (raw) => {
   return arr.map((item) => String(item));
 };
 
-const normalizeCatalogFile = (req) => {
-  const file = req?.files?.catalog?.[0];
-  if (!file) return null;
 
-  return {
-    pdfUrl: `/uploads/products/catalog/${file.filename}`
-  };
-};
 
 
 // images: GLOBAL ONLY
@@ -197,6 +191,15 @@ if (catalog) {
 
   return payload;
 };
+const normalizeCatalogFile = (req) => {
+  const file = req?.files?.catalog?.[0];
+  if (!file) return null;
+
+  return {
+    pdfUrl: `/uploads/products/catalog/${file.filename}`
+  };
+};
+
 
 const normalizeUpdatePayload = (req) => {
   const payload = {};
@@ -261,23 +264,17 @@ const normalizeUpdatePayload = (req) => {
     if (req.body.ar.features !== undefined) {
       payload.ar.features = normalizeFeaturesForLang(req.body.ar.features);
     }
-    if (req.body.ar?.catalog) {
-  payload.ar = payload.ar || {};
-  payload.ar.catalog = {
-    pdfUrl: req.body.ar.catalog.pdfUrl
-  };
-}
-
-if (req.body.en?.catalog) {
-  payload.en = payload.en || {};
-  payload.en.catalog = {
-    pdfUrl: req.body.en.catalog.pdfUrl
-  };
-}
+   
   }
 
 
-
+  const catalog = normalizeCatalogFile(req);
+  if (catalog) {
+    payload.en = payload.en || {};
+    payload.ar = payload.ar || {};
+    payload.en.catalog = catalog;
+    payload.ar.catalog = catalog;
+  }
   // ---------- Global images update ----------
   const images = normalizeImagesGlobal(req);
   if (images.length) {
@@ -308,6 +305,7 @@ if (req.body.en?.catalog) {
   if (req.body.status !== undefined) payload.status = req.body.status;
   if (req.body.category !== undefined) payload.category = req.body.category;
   if (req.body.brand !== undefined) payload.brand = req.body.brand;
+console.log("FILES:", req.files);
 
   return payload;
 };
@@ -332,7 +330,7 @@ export const createProductController = async (req, res, next) => {
 export const updateProductController = async (req, res, next) => {
   try {
     const normalized = normalizeUpdatePayload(req);
-    const result = await updateProductService(req.params.productId, normalized);
+    const result = await updateProductService(req.params.slug, normalized);
     res.status(StatusCodes.OK).json(result);
   } catch (err) {
     next(err);
@@ -342,7 +340,7 @@ export const updateProductController = async (req, res, next) => {
 // DELETE
 export const deleteProductController = async (req, res, next) => {
   try {
-    const result = await deleteProductService(req.params.productId);
+    const result = await deleteProductService(req.params.slug);
     res.status(StatusCodes.OK).json(result);
   } catch (err) {
     next(err);
@@ -353,6 +351,16 @@ export const deleteProductController = async (req, res, next) => {
 export const getAllProductsController = async (req, res, next) => {
   try {
     const result = await getAllProductsService(req.query);
+    res.status(StatusCodes.OK).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+
+export const getAllProductsforAdminController = async (req, res, next) => {
+  try {
+    const result = await getAllProductsForAdminService(req.query);
     res.status(StatusCodes.OK).json(result);
   } catch (err) {
     next(err);

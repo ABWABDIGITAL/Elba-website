@@ -40,9 +40,9 @@ export const createCategory = async ({ ar, en, image, sizeType, status }) => {
 export const getCategories = async () => {
   try {
     const categories = await Category.find({});
-    return { OK: true, data: categories };
+    return { OK: true, msg:"Categories fetched successfully",data: categories };
   } catch {
-    return { OK: false, error: "Server error" };
+    return { OK: false,msg:"something went wrong", error: "Server error" };
   }
 };
 
@@ -50,10 +50,10 @@ export const getCategories = async () => {
 export const getCategory = async ({ id }) => {
   try {
     const category = await Category.findById(id);
-    if (!category) return { OK: false, error: "Category not found" };
-    return { OK: true, data: category };
+    if (!category) return { OK: false, msg: "Category not found" };
+    return { OK: true,msg:"Category fetched successfully", data: category };
   } catch {
-    return { OK: false, error: "Invalid ID format" };
+    return { OK: false,  error: "Invalid ID format" };
   }
 };
 
@@ -77,7 +77,7 @@ export const updateCategory = async ({ id, ar, en, sizeType, image, status }) =>
     if (status) category.status = status;
     await category.save();
 
-    return { OK: true, data: category };
+    return { OK: true,msg:"Category updated successfully", data: category };
 
   } catch {
     return { OK: false, error: "Server error" };
@@ -97,7 +97,7 @@ export const deleteCategory = async ({ id }) => {
 
     await Category.findByIdAndDelete(id);
 
-    return { OK: true, data: category };
+    return { OK: true,msg:"Category deleted successfully", data: category };
 
   } catch {
     return { OK: false, error: "Server error" };

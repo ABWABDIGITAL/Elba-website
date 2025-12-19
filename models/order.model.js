@@ -148,17 +148,15 @@ const orderSchema = new mongoose.Schema(
     // Payment
     paymentMethod: {
       type: String,
-      enum: ["cash_on_delivery", "credit_card", "tabby", "tamara"],
-      required: true,
-      default: "cash_on_delivery",
+      enum: ["cash_on_delivery", "credit_card", "tabby", "tamara","apple_pay","mada"],
     },
 
-    paymentStatus: {
-      type: String,
-      enum: ["pending", "paid", "failed", "refunded"],
-      default: "pending",
-      index: true,
-    },
+   paymentStatus: {
+    type: String,
+    enum: ["pending", "initiated", "awaiting_3ds", "paid", "failed", "refunded"],
+    default: "pending",
+  },
+
 
     paymentResult: {
       id: String,
@@ -192,6 +190,12 @@ const orderSchema = new mongoose.Schema(
       ],
       default: "pending",
       index: true,
+    },
+    myFatoorah: {
+      sessionId: String,
+      invoiceId: String,
+      paymentId: String,
+      customerIdentifier: String, // = userId
     },
 
     // Delivery tracking

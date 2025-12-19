@@ -14,10 +14,11 @@ import {
   incrementLikes,
   incrementShares,
 } from "../controllers/blog.controller.js";
-import { protect } from "../middlewares/authMiddleware.js";
+import { protect , allowTo } from "../middlewares/authMiddleware.js";
 import { requirePermission } from "../middlewares/permission.middleware.js";
 import upload from "../middlewares/uploadMiddleware.js";
 import parseNestedJson from "../middlewares/ParseNestedDot.js";
+import { blogUpload } from "../middlewares/uploadMiddleware.js";
 
 const router = express.Router();
 
@@ -54,8 +55,9 @@ router.post("/:blogId/share", incrementShares);
 router.post(
   "/",
   protect,
+  allowTo("superAdmin", "admin"),
   requirePermission("home", "create"),
-  upload({ folder: "blogs" }).single("featuredImage"),
+  blogUpload().single("featuredImage"),
   parseNestedJson,
   createBlog
 );
@@ -72,8 +74,9 @@ router.get(
 router.put(
   "/:blogId",
   protect,
+  allowTo("superAdmin", "admin"),
   requirePermission("home", "update"),
-  upload({ folder: "blogs" }).single("featuredImage"),
+  upload({ folder: "blogs" }).any(),
   parseNestedJson,
   updateBlog
 );
@@ -82,6 +85,7 @@ router.put(
 router.delete(
   "/:blogId",
   protect,
+  allowTo("superAdmin", "admin"),
   requirePermission("home", "delete"),
   deleteBlog
 );

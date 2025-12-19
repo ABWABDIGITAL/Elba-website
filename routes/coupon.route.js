@@ -48,7 +48,7 @@ router
 router
   .route("/:slug")
   .get(protect,getCouponValidator, getCouponController)
-  .patch(protect, allowTo("admin"),updateCouponValidator, updateCouponController)
-  .delete(protect, allowTo("admin"),deleteCouponValidator, deleteCouponController);
+  .patch(protect, allowTo("admin","superAdmin"),updateCouponValidator, updateCouponController)
+  .delete(protect, allowTo("admin","superAdmin"),deleteCouponValidator, deleteCouponController);
 
 export default router;

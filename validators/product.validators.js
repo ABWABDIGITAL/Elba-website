@@ -91,7 +91,7 @@ export const validateCreateProduct = [
    UPDATE PRODUCT VALIDATION
 ----------------------------------------------------- */
 export const validateUpdateProduct = [
-  param("productId").isMongoId().withMessage("Invalid productId"),
+  param("slug").isString().withMessage("Invalid slug"),
 
   body("price")
     .optional()
@@ -128,7 +128,7 @@ export const validateUpdateProduct = [
    DELETE VALIDATION
 ----------------------------------------------------- */
 export const validateDeleteProduct = [
-  param("productId").isMongoId().withMessage("Invalid productId"),
+  param("slug").isString().withMessage("Invalid slug"),
   handleValidation,
 ];
 

@@ -4,7 +4,6 @@ import Product from "../models/product.model.js";
 import Coupon from "../models/coupon.model.js";
 import User from "../models/user.model.js";
 import ApiError ,{ BadRequest, NotFound, ServerError, Forbidden } from "../utlis/apiError.js";
-import { createMyFatoorahPayment } from "../services/myfatoorah.services.js";
 import mongoose from "mongoose";
 import { sendOrderUpdateWhatsApp } from "./whatsapp.services.js";
 
@@ -48,20 +47,20 @@ export const createOrderService = async (userId, shippingAddress, paymentMethod 
 
     for (const item of cart.cartItems) {
       const product = item.product;
+      //TODO: implement stock reservation by my fatoorah webhook that will update the stock and the payment status
+      // const updatedProduct = await Product.findOneAndUpdate(
+      //   {
+      //     _id: product._id,
+      //     stock: { $gte: item.quantity },
+      //     status: "active",
+      //   },
+      //   { $inc: { stock: -item.quantity, salesCount: item.quantity } },
+      //   { new: true, session }
+      // );
 
-      const updatedProduct = await Product.findOneAndUpdate(
-        {
-          _id: product._id,
-          stock: { $gte: item.quantity },
-          status: "active",
-        },
-        { $inc: { stock: -item.quantity, salesCount: item.quantity } },
-        { new: true, session }
-      );
-
-      if (!updatedProduct) {
-        throw BadRequest(`Insufficient stock for ${product.en?.name}`);
-      }
+      // if (!updatedProduct) {
+      //   throw BadRequest(`Insufficient stock for ${product.en?.name}`);
+      // }
 
       orderItems.push({
         product: product._id,
@@ -105,58 +104,19 @@ console.log("Running hooks? isNew =", order.isNew);
 
     console.log("✔ Order saved. OrderNumber =", order.orderNumber);
 
-    // -------------------------------------------
-
-    // 6) IF PAYMENT IS CREDIT CARD → CALL MYFATOORAH
-    // -------------------------------------------
     if (paymentMethod === "credit_card") {
-      const user = await User.findById(userId).select("firstName lastName email phone");
-
-      // Create payment invoice
-      const paymentData = await createMyFatoorahPayment(order, user);
-
-      // Update order with invoice ID (WITHOUT save()!)
-      await Order.updateOne(
-        { _id: order._id },
-        {
-          $set: {
-            paymentResult: {
-              id: paymentData.InvoiceId?.toString(),
-              status: "pending",
-              update_time: new Date(),
-              email_address: user.email,
-            },
-          },
-        },
-        { session }
-      );
-
-      // Clear cart
-      await Cart.updateOne(
-        { _id: cart._id },
-        {
-          $set: {
-            cartItems: [],
-            totalCartPrice: 0,
-            totalPriceAfterDiscount: 0,
-            appliedCoupon: undefined,
-          },
-        },
-        { session }
-      );
-
       await session.commitTransaction();
       session.endSession();
 
       return {
         OK: true,
-        message: "Order created. Redirect to payment.",
-        paymentUrl: paymentData.InvoiceURL,
-        invoiceId: paymentData.InvoiceId,
+        message: "Order created, proceed to payment",
         orderId: order._id,
         orderNumber: order.orderNumber,
+        paymentRequired: true
       };
     }
+
 
     // -------------------------------------------
     // 7) CASH ON DELIVERY (normal flow)

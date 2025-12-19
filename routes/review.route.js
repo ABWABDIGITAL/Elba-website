@@ -25,7 +25,7 @@ router
   .get(validateGetReviews, getReviewsController)
   .post(
     protect,
-    allowTo("user", "admin"), // adjust roles as needed
+    allowTo("user", "admin","superAdmin"), // adjust roles as needed
     validateCreateReview,
     createReviewController
   );

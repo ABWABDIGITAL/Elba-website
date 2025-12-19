@@ -88,7 +88,8 @@ export const getCategoriesController = async (req, res) => {
   });
 };
 export const getCategoryController = async (req, res) => {
-  const result = await getCategory({ id: req.params.id });
+ try {
+   const result = await getCategory({ id: req.params.id });
 
   if (!result.OK) {
     return res
@@ -100,6 +101,15 @@ export const getCategoryController = async (req, res) => {
     status: "success",
     data: result.data,
   });
+ } catch (error) {
+  if (err instanceof ApiError) throw err;
+    console.error("GET CATEGORY ERROR 👉", err);
+    throw ServerError("Failed to get category", {
+      message: err.message,
+      name: err.name,
+      stack: err.stack,
+    });
+ }
 };
 export const deleteCategoryController = async (req, res) => {
   const result = await deleteCategory({ id: req.params.id });
