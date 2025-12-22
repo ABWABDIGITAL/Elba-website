@@ -1,10 +1,24 @@
 import mongoose from "mongoose";
 
 const WorkingHoursSchema = new mongoose.Schema({
-  open: { type: String, required: true },
-  close: { type: String, required: true },
-  isClosed: { type: Boolean, default: false }
+  open: {
+    type: String,
+    required: function () {
+      return !this.isClosed;
+    }
+  },
+  close: {
+    type: String,
+    required: function () {
+      return !this.isClosed;
+    }
+  },
+  isClosed: {
+    type: Boolean,
+    default: false
+  }
 }, { _id: false });
+
 
 const BranchSchema = new mongoose.Schema({
   // Arabic content

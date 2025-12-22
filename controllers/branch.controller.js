@@ -8,6 +8,13 @@ import {
 
 export const createBranch = async (req, res, next) => {
   try {
+    if (req.files?.images) {
+      req.body.images = req.files.images.map(file => ({
+        url: `/uploads/branches/${file.filename}`,
+        alt: "Branch image"
+      }));
+    }
+
     const branch = await createBranchService(req.body);
 
     res.status(201).json({
@@ -51,11 +58,11 @@ export const getBranches = async (req, res, next) => {
 
 export const updateBranch = async (req, res, next) => {
   try {
+    console.log("AFTER PARSE:", req.body);
     const branch = await updateBranchService({
       id: req.params.id,
       data: req.body,
     });
-
     res.json({
       status: "success",
       message: "Branch updated successfully",

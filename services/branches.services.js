@@ -73,7 +73,7 @@ export const updateBranchService = async ({ id, data }) => {
       new: true,
       runValidators: true,
     });
-
+    console.log(data);
     if (!branch) throw NotFound("Branch not found");
 
     return branch;

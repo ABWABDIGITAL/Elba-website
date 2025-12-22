@@ -6,13 +6,13 @@ import {
   getProductAnalytics,
   getSystemStats,
 } from "../controllers/admin.controller.js";
-import { protect } from "../middlewares/authMiddleware.js";
+import { protect , allowTo } from "../middlewares/authMiddleware.js";
 import { requirePermission } from "../middlewares/permission.middleware.js";
 
 const router = express.Router();
 
 // All admin routes require authentication
-router.use(protect);
+router.use(protect,allowTo("superAdmin","admin"));
 
 // Dashboard analytics (requires analytics:read permission)
 router.get(

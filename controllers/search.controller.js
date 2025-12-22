@@ -1,18 +1,28 @@
 import { vectorSearchService } from "../services/vectorSearch.services.js";
 
-export const vectorSearchController = async (req, res, next) => {
+export async function vectorSearchController(req, res) {
   try {
-    const { query, limit } = req.body;
+    const { query } = req.body;
+
     if (!query) {
-      return res.status(400).json({ message: "query is required" });
+      return res.status(400).json({
+        ok: false,
+        message: "query is required",
+      });
     }
 
-    const results = await vectorSearchService(query, limit);
+    const results = await vectorSearchService(query);
+
     res.json({
       ok: true,
       results,
     });
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    console.error("❌ Vector Search Error:", error.message);
+    res.status(500).json({
+      ok: false,
+      error: error.message,
+    });
   }
-};
+}
+

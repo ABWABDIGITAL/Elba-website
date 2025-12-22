@@ -22,12 +22,12 @@ const addressSchema = new mongoose.Schema({
     enum: allowedCities,
     required: true,
   },
-  district: { type: String, required: true },
+  district: { type: String },
   street: { type: String, required: true },
-  buildingNumber: { type: String, required: true },
+  buildingNumber: { type: String },
   additionalNumber: { type: String },
   postalCode: { type: String, required: true },
-  phoneNumber: { type: String, required: true },
+  phoneNumber: { type: String },
   isDefault: { type: Boolean, default: false },
 }, { timestamps: true });
 

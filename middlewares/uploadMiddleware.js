@@ -13,6 +13,7 @@ export const IMG_MIME = [
   "image/jpg",
   "image/webp",
   "image/gif",
+  "image/svg+xml",
 ];
 
 export const IMG_EXT = [
@@ -21,6 +22,7 @@ export const IMG_EXT = [
   ".jpg",
   ".webp",
   ".gif",
+  ".svg",
 ];
 
 // Videos
