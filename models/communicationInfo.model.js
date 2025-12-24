@@ -20,7 +20,6 @@ const communicationInfoSchema = new mongoose.Schema(
 
     companyName: {
       type: String,
-      required: true,
       trim: true,
       minlength: 3,
       maxlength: 50,

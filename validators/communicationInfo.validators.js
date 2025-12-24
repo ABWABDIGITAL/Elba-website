@@ -11,10 +11,6 @@ export const validateCreateCommunicationInfo = [
     .notEmpty().withMessage("Second name is required")
     .isLength({ min: 3, max: 50 }),
 
-  body("companyName")
-    .notEmpty().withMessage("Company name is required")
-    .isLength({ min: 3, max: 50 }),
-
   body("region")
     .notEmpty().withMessage("Region is required")
     .isString().withMessage("Region must be a string"),
