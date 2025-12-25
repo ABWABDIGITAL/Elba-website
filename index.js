@@ -37,6 +37,8 @@ import { MongoClient } from "mongodb";
 
 // Import server monitoring module
 import { setupMonitoring, bodySecurityMiddleware } from "./middlewares/serverMonitor.middleware.js";
+// Import business analytics module
+import { setupBusinessAnalytics } from "./middlewares/businessAnalytics.middleware.js";
 
 const client = new MongoClient(process.env.MONGO_URI);
 // Set to true to run seeder on startup (disable after first run)
@@ -62,6 +64,19 @@ setupMonitoring(app, {
   mongoClient: client,
   appName: 'Alba E-Commerce API',
   loginPath: '/auth/login',
+});
+
+// Setup business analytics (user tracking, conversion funnels, business metrics)
+setupBusinessAnalytics(app, {
+  appName: 'Alba E-Commerce',
+  basePath: '/analytics',
+  excludePaths: ['/health', '/status', '/analytics', '/favicon.ico', '/uploads'],
+  customFunnels: {
+    'product_purchase': {
+      name: 'Product Purchase Journey',
+      steps: ['landing', 'view_product', 'add_to_cart', 'checkout', 'payment', 'order_complete'],
+    },
+  },
 });
 
 app.use(cors());
