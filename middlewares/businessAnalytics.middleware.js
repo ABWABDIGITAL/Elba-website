@@ -1312,7 +1312,7 @@ const autoTrackEvents = (req) => {
 };
 
 // ═══════════════════════════════════════════════════════════════
-// 📊 ENHANCED DASHBOARD HTML GENERATOR
+// 📊 MAIN DASHBOARD HTML GENERATOR (Apple-style)
 // ═══════════════════════════════════════════════════════════════
 
 const generateDashboard = (appName = 'Business Analytics') => {
@@ -1342,348 +1342,2416 @@ const generateDashboard = (appName = 'Business Analytics') => {
   generateInsights();
   analyzeAndPredict();
 
-  const formatCurrency = (amount) => `$${Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-  const formatDuration = (ms) => {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${minutes}m ${secs}s`;
+  const formatCurrency = (amount) => '$' + Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2 });
+
+  // Get trend info
+  const getTrendClass = (direction) => {
+    if (direction === 'up') return 'trend-up';
+    if (direction === 'down') return 'trend-down';
+    return '';
   };
 
-  // Get trend arrows
   const getTrendIcon = (direction) => {
     if (direction === 'up') return '↑';
     if (direction === 'down') return '↓';
     return '→';
   };
 
-  const getTrendColor = (direction, inverse = false) => {
-    if (inverse) {
-      if (direction === 'up') return '#f87171';
-      if (direction === 'down') return '#34d399';
-    } else {
-      if (direction === 'up') return '#34d399';
-      if (direction === 'down') return '#f87171';
-    }
-    return '#94a3b8';
+  // Build funnel HTML
+  const funnelHtml = (() => {
+    const funnel = analytics.funnels.checkout;
+    const today = getToday();
+    const data = funnel.data[today] || {};
+    const firstStep = data[funnel.steps[0]] || 0;
+
+    return funnel.steps.map((step, i) => {
+      const count = data[step] || 0;
+      const percent = firstStep > 0 ? ((count / firstStep) * 100) : 0;
+      const prevCount = i > 0 ? (data[funnel.steps[i-1]] || 0) : count;
+      const dropoff = i > 0 && prevCount > 0 ? ((1 - count / prevCount) * 100).toFixed(0) : 0;
+      const stepName = step.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+      return '<div class="funnel-step">' +
+        '<div class="funnel-number">' + (i + 1) + '</div>' +
+        '<div class="funnel-bar-container">' +
+          '<div class="funnel-bar-bg">' +
+            '<div class="funnel-bar-fill" style="width: ' + Math.max(percent, 5) + '%; background: var(--accent);">' +
+              '<span class="funnel-label">' + stepName + '</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="funnel-stats">' +
+          '<div class="funnel-stat"><div class="funnel-stat-value">' + count + '</div><div class="funnel-stat-label">Users</div></div>' +
+          (i > 0 ? '<div class="funnel-stat"><div class="funnel-stat-value" style="color: var(--danger);">-' + dropoff + '%</div><div class="funnel-stat-label">Drop</div></div>' : '') +
+        '</div>' +
+      '</div>';
+    }).join('');
+  })();
+
+  // Build insights HTML
+  const insightsHtml = [...analytics.insights.alerts, ...analytics.insights.anomalies].slice(0, 4).map(item => {
+    const isAlert = item.type === 'critical' || item.type === 'warning';
+    const cssClass = item.type === 'critical' ? 'insight-critical' : item.type === 'warning' ? 'insight-warning' : 'insight-info';
+    const icon = item.type === 'critical' ? '🚨' : item.type === 'warning' ? '⚠️' : '🔍';
+    return '<div class="insight-item ' + cssClass + '">' +
+      '<div class="insight-header"><span class="insight-icon">' + icon + '</span><span class="insight-title">' + item.title + '</span></div>' +
+      '<div class="insight-message">' + item.message + '</div>' +
+    '</div>';
+  }).join('');
+
+  // Build top pages HTML
+  const topPagesHtml = topPages.slice(0, 5).map((page, i) => {
+    const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    return '<div class="list-item">' +
+      '<div class="list-info">' +
+        '<div class="list-rank ' + rankClass + '">' + (i + 1) + '</div>' +
+        '<div><div class="list-text">' + page[0] + '</div></div>' +
+      '</div>' +
+      '<div class="list-value">' + page[1].toLocaleString() + '</div>' +
+    '</div>';
+  }).join('') || '<div class="empty-state"><div class="empty-icon">📄</div><p>No page data yet</p></div>';
+
+  // Build top products HTML
+  const topProductsHtml = topProducts.map((prod, i) => {
+    const rankClass = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    return '<div class="list-item">' +
+      '<div class="list-info">' +
+        '<div class="list-rank ' + rankClass + '">' + (i + 1) + '</div>' +
+        '<div><div class="list-text">' + prod[0] + '</div></div>' +
+      '</div>' +
+      '<div class="list-value">' + prod[1].toLocaleString() + ' views</div>' +
+    '</div>';
+  }).join('') || '<div class="empty-state"><div class="empty-icon">📦</div><p>No product data yet</p></div>';
+
+  const content = '<header class="header">' +
+    '<div class="header-left">' +
+      '<h1>📈 Analytics Dashboard</h1>' +
+      '<p>Real-time business intelligence overview</p>' +
+    '</div>' +
+    '<div class="header-right">' +
+      '<div class="realtime-badge">' +
+        '<span class="pulse"></span>' +
+        '<span>' + analytics.realtime.activeVisitors.size + ' active now</span>' +
+      '</div>' +
+    '</div>' +
+  '</header>' +
+
+  '<div class="grid grid-4">' +
+    '<div class="card kpi-card">' +
+      '<div class="kpi-value" style="color: var(--success);">' + formatCurrency(analytics.business.revenue.total) + '</div>' +
+      '<div class="kpi-label">Total Revenue</div>' +
+      '<div class="kpi-trend ' + getTrendClass(analytics.predictions.trends.revenue.direction) + '">' +
+        getTrendIcon(analytics.predictions.trends.revenue.direction) + ' ' + Math.abs(analytics.predictions.trends.revenue.change || 0) + '%' +
+      '</div>' +
+    '</div>' +
+    '<div class="card kpi-card">' +
+      '<div class="kpi-value" style="color: var(--accent);">' + analytics.business.orders.completed + '</div>' +
+      '<div class="kpi-label">Orders Completed</div>' +
+      '<div class="kpi-trend ' + getTrendClass(analytics.predictions.trends.orders.direction) + '">' +
+        getTrendIcon(analytics.predictions.trends.orders.direction) + ' ' + Math.abs(analytics.predictions.trends.orders.change || 0) + '%' +
+      '</div>' +
+    '</div>' +
+    '<div class="card kpi-card">' +
+      '<div class="kpi-value">' + conversionRate + '%</div>' +
+      '<div class="kpi-label">Conversion Rate</div>' +
+      '<span class="badge ' + (parseFloat(conversionRate) >= 3 ? 'badge-success' : parseFloat(conversionRate) >= 1 ? 'badge-warning' : 'badge-danger') + '">' +
+        (parseFloat(conversionRate) >= 3 ? 'Good' : parseFloat(conversionRate) >= 1 ? 'Average' : 'Needs Work') +
+      '</span>' +
+    '</div>' +
+    '<div class="card kpi-card">' +
+      '<div class="kpi-value">' + analytics.users.size.toLocaleString() + '</div>' +
+      '<div class="kpi-label">Unique Visitors</div>' +
+      '<div class="kpi-trend ' + getTrendClass(analytics.predictions.trends.traffic.direction) + '">' +
+        getTrendIcon(analytics.predictions.trends.traffic.direction) + ' ' + Math.abs(analytics.predictions.trends.traffic.change || 0) + '%' +
+      '</div>' +
+    '</div>' +
+  '</div>' +
+
+  (insightsHtml ? '<div class="card" style="margin-bottom: 20px;">' +
+    '<div class="card-header"><span class="card-title">Alerts & Insights</span></div>' +
+    '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">' + insightsHtml + '</div>' +
+  '</div>' : '') +
+
+  '<div class="grid grid-2">' +
+    '<div class="card">' +
+      '<div class="card-header"><span class="card-title">Revenue Trend</span></div>' +
+      '<div class="chart-container"><canvas id="revenueChart"></canvas></div>' +
+    '</div>' +
+    '<div class="card">' +
+      '<div class="card-header"><span class="card-title">Hourly Traffic</span></div>' +
+      '<div class="chart-container"><canvas id="trafficChart"></canvas></div>' +
+    '</div>' +
+  '</div>' +
+
+  '<div class="grid grid-2">' +
+    '<div class="card">' +
+      '<div class="card-header"><span class="card-title">Conversion Funnel</span></div>' +
+      '<div class="funnel-container">' + funnelHtml + '</div>' +
+    '</div>' +
+    '<div class="card">' +
+      '<div class="card-header"><span class="card-title">Quick Stats</span></div>' +
+      '<div class="segment-grid">' +
+        '<div class="segment-card"><div class="segment-count">' + totalSessions.toLocaleString() + '</div><div class="segment-label">Sessions</div></div>' +
+        '<div class="segment-card"><div class="segment-count">' + bounceRate + '%</div><div class="segment-label">Bounce Rate</div></div>' +
+        '<div class="segment-card"><div class="segment-count">' + abandonmentRate + '%</div><div class="segment-label">Cart Abandon</div></div>' +
+        '<div class="segment-card"><div class="segment-count">' + analytics.business.carts.created + '</div><div class="segment-label">Carts Created</div></div>' +
+        '<div class="segment-card"><div class="segment-count">' + analytics.business.carts.converted + '</div><div class="segment-label">Converted</div></div>' +
+        '<div class="segment-card"><div class="segment-count">' + analytics.pageViews.total.toLocaleString() + '</div><div class="segment-label">Page Views</div></div>' +
+      '</div>' +
+    '</div>' +
+  '</div>' +
+
+  '<div class="grid grid-2">' +
+    '<div class="card">' +
+      '<div class="card-header"><span class="card-title">Top Pages</span></div>' +
+      '<div class="scrollable">' + topPagesHtml + '</div>' +
+    '</div>' +
+    '<div class="card">' +
+      '<div class="card-header"><span class="card-title">Top Products</span></div>' +
+      '<div class="scrollable">' + topProductsHtml + '</div>' +
+    '</div>' +
+  '</div>' +
+
+  '<script>' +
+    'const isDark = document.documentElement.getAttribute("data-theme") === "dark";' +
+    'const textColor = isDark ? "#a1a1a6" : "#6e6e73";' +
+    'const gridColor = isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.06)";' +
+    'Chart.defaults.color = textColor;' +
+    'Chart.defaults.borderColor = gridColor;' +
+
+    'const revenueData = ' + JSON.stringify(Object.entries(analytics.business.revenue.byDay || {}).slice(-7)) + ';' +
+    'new Chart(document.getElementById("revenueChart"), {' +
+      'type: "line",' +
+      'data: {' +
+        'labels: revenueData.map(d => d[0]),' +
+        'datasets: [{' +
+          'label: "Revenue",' +
+          'data: revenueData.map(d => d[1]),' +
+          'borderColor: "#34c759",' +
+          'backgroundColor: "rgba(52, 199, 89, 0.1)",' +
+          'fill: true,' +
+          'tension: 0.4' +
+        '}]' +
+      '},' +
+      'options: {' +
+        'responsive: true,' +
+        'maintainAspectRatio: false,' +
+        'plugins: { legend: { display: false } },' +
+        'scales: { y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor } }, x: { grid: { display: false }, ticks: { color: textColor } } }' +
+      '}' +
+    '});' +
+
+    'const hourlyData = ' + JSON.stringify(Array.from({length: 24}, (_, i) => analytics.pageViews.byHour[i] || 0)) + ';' +
+    'new Chart(document.getElementById("trafficChart"), {' +
+      'type: "bar",' +
+      'data: {' +
+        'labels: Array.from({length: 24}, (_, i) => i + ":00"),' +
+        'datasets: [{' +
+          'label: "Page Views",' +
+          'data: hourlyData,' +
+          'backgroundColor: "#0071e3",' +
+          'borderRadius: 4' +
+        '}]' +
+      '},' +
+      'options: {' +
+        'responsive: true,' +
+        'maintainAspectRatio: false,' +
+        'plugins: { legend: { display: false } },' +
+        'scales: { y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor } }, x: { grid: { display: false }, ticks: { color: textColor, maxRotation: 0 } } }' +
+      '}' +
+    '});' +
+  '</script>';
+
+  return generatePageTemplate(appName + ' - Dashboard', content, 'dashboard');
+};
+
+
+
+// ═══════════════════════════════════════════════════════════════
+// 📊 EXECUTIVE DASHBOARD (Apple-style)
+// ═══════════════════════════════════════════════════════════════
+
+const generateExecutiveDashboard = (appName = 'Executive Summary') => {
+  const formatCurrency = (amount) => '$' + Number(amount).toLocaleString('en-US', { minimumFractionDigits: 2 });
+
+  const conversionRate = analytics.business.carts.created > 0
+    ? ((analytics.business.carts.converted / analytics.business.carts.created) * 100).toFixed(1)
+    : 0;
+
+  generateInsights();
+  analyzeAndPredict();
+
+  const getTrendClass = (direction) => direction === 'up' ? 'trend-up' : direction === 'down' ? 'trend-down' : '';
+  const getTrendIcon = (direction) => direction === 'up' ? '↑' : direction === 'down' ? '↓' : '→';
+
+  // Build alerts HTML
+  const alertsHtml = analytics.insights.alerts.length > 0 ?
+    '<div class="card" style="margin-bottom: 20px;">' +
+      '<div class="card-header"><span class="card-title">Requires Attention</span></div>' +
+      analytics.insights.alerts.map(alert =>
+        '<div class="insight-item ' + (alert.type === 'critical' ? 'insight-critical' : 'insight-warning') + '">' +
+          '<div class="insight-header"><span class="insight-icon">' + (alert.type === 'critical' ? '🚨' : '⚠️') + '</span><span class="insight-title">' + alert.title + '</span></div>' +
+          '<div class="insight-message">' + alert.message + '</div>' +
+        '</div>'
+      ).join('') +
+    '</div>' : '';
+
+  const content = '<header class="header">' +
+    '<div class="header-left">' +
+      '<h1>👔 Executive Summary</h1>' +
+      '<p>Real-time business performance at a glance</p>' +
+    '</div>' +
+    '<div class="header-right">' +
+      '<div class="realtime-badge">' +
+        '<span class="pulse"></span>' +
+        '<span>' + analytics.realtime.activeVisitors.size + ' active now</span>' +
+      '</div>' +
+    '</div>' +
+  '</header>' +
+
+  '<div class="grid grid-4">' +
+    '<div class="card kpi-card">' +
+      '<div class="kpi-value" style="color: var(--success);">' + formatCurrency(analytics.business.revenue.total) + '</div>' +
+      '<div class="kpi-label">Total Revenue</div>' +
+      '<div class="kpi-trend ' + getTrendClass(analytics.predictions.trends.revenue.direction) + '">' +
+        getTrendIcon(analytics.predictions.trends.revenue.direction) + ' ' + Math.abs(analytics.predictions.trends.revenue.change || 0) + '% vs last week' +
+      '</div>' +
+    '</div>' +
+    '<div class="card kpi-card">' +
+      '<div class="kpi-value" style="color: var(--accent);">' + analytics.business.orders.completed + '</div>' +
+      '<div class="kpi-label">Orders Completed</div>' +
+      '<div class="kpi-trend ' + getTrendClass(analytics.predictions.trends.orders.direction) + '">' +
+        getTrendIcon(analytics.predictions.trends.orders.direction) + ' ' + Math.abs(analytics.predictions.trends.orders.change || 0) + '% vs last week' +
+      '</div>' +
+    '</div>' +
+    '<div class="card kpi-card">' +
+      '<div class="kpi-value">' + conversionRate + '%</div>' +
+      '<div class="kpi-label">Conversion Rate</div>' +
+      '<span class="badge ' + (parseFloat(conversionRate) >= 3 ? 'badge-success' : parseFloat(conversionRate) >= 1 ? 'badge-warning' : 'badge-danger') + '">' +
+        (parseFloat(conversionRate) >= 3 ? 'Good' : parseFloat(conversionRate) >= 1 ? 'Average' : 'Needs Work') +
+      '</span>' +
+    '</div>' +
+    '<div class="card kpi-card">' +
+      '<div class="kpi-value">' + analytics.users.size.toLocaleString() + '</div>' +
+      '<div class="kpi-label">Unique Visitors</div>' +
+      '<div class="kpi-trend ' + getTrendClass(analytics.predictions.trends.traffic.direction) + '">' +
+        getTrendIcon(analytics.predictions.trends.traffic.direction) + ' ' + Math.abs(analytics.predictions.trends.traffic.change || 0) + '% vs last week' +
+      '</div>' +
+    '</div>' +
+  '</div>' +
+
+  alertsHtml +
+
+  '<div class="grid grid-2">' +
+    '<div class="card">' +
+      '<div class="card-header"><span class="card-title">Customer Segments</span></div>' +
+      '<div class="segment-grid">' +
+        '<div class="segment-card"><div class="segment-icon">💎</div><div class="segment-count">' + (analytics.rfm.segments.champions?.length || 0) + '</div><div class="segment-label">Champions</div></div>' +
+        '<div class="segment-card"><div class="segment-icon">⭐</div><div class="segment-count">' + (analytics.ltv.segments.high?.length || 0) + '</div><div class="segment-label">VIP</div></div>' +
+        '<div class="segment-card"><div class="segment-icon">⚠️</div><div class="segment-count" style="color: var(--danger);">' + (analytics.rfm.segments.atRisk?.length || 0) + '</div><div class="segment-label">At Risk</div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="card">' +
+      '<div class="card-header"><span class="card-title">Best Times</span></div>' +
+      '<div class="scrollable">' +
+        (analytics.predictions.seasonality.peakHours.length > 0 ?
+          '<div class="list-item"><div class="list-text">Peak Hours</div><div class="list-value">' + analytics.predictions.seasonality.peakHours.map(function(h) { return h + ':00'; }).join(', ') + '</div></div>' : '') +
+        (analytics.predictions.seasonality.peakDays.length > 0 ?
+          '<div class="list-item"><div class="list-text">Best Days</div><div class="list-value">' + analytics.predictions.seasonality.peakDays.join(', ') + '</div></div>' : '') +
+        '<div class="list-item"><div class="list-text">Avg Session</div><div class="list-value">' + Math.floor(analytics.engagement.avgSessionDuration / 60000) + 'm ' + Math.floor((analytics.engagement.avgSessionDuration % 60000) / 1000) + 's</div></div>' +
+        '<div class="list-item"><div class="list-text">Bounce Rate</div><div class="list-value">' + (analytics.sessions.size > 0 ? ((analytics.bounceCount / analytics.sessions.size) * 100).toFixed(1) : 0) + '%</div></div>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+
+  return generatePageTemplate(appName + ' - Executive', content, 'executive');
+};
+
+// ═══════════════════════════════════════════════════════════════
+// 📊 VISUAL DASHBOARD GENERATORS (FOR SIDEBAR PAGES)
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Generate suggested actions based on analytics data
+ */
+const generateSuggestedActions = (pageType) => {
+  const actions = [];
+
+  switch(pageType) {
+    case 'users':
+      if (analytics.engagement.avgSessionDuration < 60000) {
+        actions.push({ icon: '⏱', text: 'Improve content engagement', desc: 'Average session is under 1 minute. Consider adding more interactive content.', priority: 'high' });
+      }
+      if (analytics.sessions.size > 0 && (analytics.bounceCount / analytics.sessions.size) > 0.6) {
+        actions.push({ icon: '🚪', text: 'Reduce bounce rate', desc: 'Over 60% of visitors leave immediately. Optimize landing pages.', priority: 'high' });
+      }
+      if (analytics.devices.types.mobile < analytics.devices.types.desktop * 0.5) {
+        actions.push({ icon: '📱', text: 'Improve mobile experience', desc: 'Mobile traffic is low. Ensure responsive design.', priority: 'medium' });
+      }
+      if (analytics.engagement.returningUsers < analytics.engagement.newUsers * 0.2) {
+        actions.push({ icon: '🔄', text: 'Increase retention', desc: 'Few returning users. Consider email campaigns or loyalty programs.', priority: 'high' });
+      }
+      break;
+
+    case 'business':
+      if (analytics.business.carts.abandoned > analytics.business.carts.converted) {
+        actions.push({ icon: '🛒', text: 'Recover abandoned carts', desc: 'More carts abandoned than converted. Implement cart recovery emails.', priority: 'high' });
+      }
+      if (analytics.business.averageOrderValue < 100) {
+        actions.push({ icon: '📦', text: 'Increase order value', desc: 'Consider upselling, bundles, or free shipping thresholds.', priority: 'medium' });
+      }
+      if (analytics.business.orders.cancelled > analytics.business.orders.completed * 0.1) {
+        actions.push({ icon: '❌', text: 'Reduce cancellations', desc: 'High cancellation rate. Review checkout flow and delivery times.', priority: 'high' });
+      }
+      break;
+
+    case 'funnels':
+      Object.entries(analytics.funnels).forEach(([key, funnel]) => {
+        const steps = funnel.steps;
+        const data = funnel.data;
+        for (let i = 1; i < steps.length; i++) {
+          const prev = data[steps[i-1]] || 0;
+          const curr = data[steps[i]] || 0;
+          if (prev > 0 && curr / prev < 0.5) {
+            actions.push({ icon: '🎯', text: 'Optimize ' + steps[i].replace(/_/g, ' '), desc: '50%+ drop at this step. Review and simplify the process.', priority: 'high' });
+            break;
+          }
+        }
+      });
+      break;
+
+    case 'segments':
+      if (analytics.segments.behavioral.cartAbandoners.length > 10) {
+        actions.push({ icon: '🛒', text: 'Target cart abandoners', desc: analytics.segments.behavioral.cartAbandoners.length + ' users with items in cart. Send reminder emails.', priority: 'high' });
+      }
+      if (analytics.segments.behavioral.oneTimeBuyers.length > analytics.segments.behavioral.repeatBuyers.length * 2) {
+        actions.push({ icon: '🔄', text: 'Convert one-time buyers', desc: 'Most customers only buy once. Create post-purchase engagement.', priority: 'medium' });
+      }
+      break;
+
+    case 'rfm':
+      if (analytics.rfm.segments.atRisk.length > 5) {
+        actions.push({ icon: '🚨', text: 'Win back at-risk customers', desc: analytics.rfm.segments.atRisk.length + ' valuable customers slipping away. Send win-back offers.', priority: 'high' });
+      }
+      if (analytics.rfm.segments.potentialLoyalist.length > 10) {
+        actions.push({ icon: '⭐', text: 'Nurture potential loyalists', desc: analytics.rfm.segments.potentialLoyalist.length + ' promising customers. Offer exclusive perks.', priority: 'medium' });
+      }
+      break;
+
+    case 'ltv':
+      if (analytics.ltv.segments.churned.length > analytics.ltv.segments.high.length) {
+        actions.push({ icon: '💔', text: 'Reduce churn', desc: 'More churned than high-value customers. Implement retention strategies.', priority: 'high' });
+      }
+      if (analytics.ltv.segments.high.length > 0) {
+        actions.push({ icon: '👑', text: 'Reward top customers', desc: 'Create VIP program for ' + analytics.ltv.segments.high.length + ' high-value customers.', priority: 'medium' });
+      }
+      break;
+
+    case 'predictions':
+      if (analytics.predictions.trends.revenue.direction === 'down') {
+        actions.push({ icon: '📉', text: 'Address revenue decline', desc: 'Revenue trending downward. Review pricing, marketing, and inventory.', priority: 'high' });
+      }
+      const highChurnRisks = Array.from(analytics.predictions.churnRisk.values()).filter(r => r.probability > 0.7);
+      if (highChurnRisks.length > 0) {
+        actions.push({ icon: '⚠️', text: 'Prevent customer churn', desc: highChurnRisks.length + ' customers at high churn risk. Reach out immediately.', priority: 'high' });
+      }
+      break;
+  }
+
+  // Default actions if none specific
+  if (actions.length === 0) {
+    actions.push({ icon: '✓', text: 'Looking good!', desc: 'No urgent actions needed. Continue monitoring.', priority: 'low' });
+  }
+
+  return actions.slice(0, 3);
+};
+
+/**
+ * Generate base dashboard template with sidebar - Apple-style clean design
+ */
+const generatePageTemplate = (title, content, activeNav = '') => {
+  const suggestedActions = generateSuggestedActions(activeNav);
+
+  const actionsHtml = suggestedActions.map(action =>
+    '<div class="action-item priority-' + action.priority + '">' +
+    '<div class="action-icon">' + action.icon + '</div>' +
+    '<div class="action-content">' +
+    '<div class="action-text">' + action.text + '</div>' +
+    '<div class="action-desc">' + action.desc + '</div>' +
+    '</div>' +
+    '<span class="action-arrow">→</span>' +
+    '</div>'
+  ).join('');
+
+  return '<!DOCTYPE html>' +
+'<html lang="en" data-theme="light">' +
+'<head>' +
+'  <meta charset="UTF-8">' +
+'  <meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+'  <meta http-equiv="refresh" content="30">' +
+'  <title>' + title + '</title>' +
+'  <script src="https://cdn.jsdelivr.net/npm/chart.js"><\/script>' +
+'  <style>' +
+'    * { margin: 0; padding: 0; box-sizing: border-box; }' +
+'' +
+'    /* Light Mode (Default) */' +
+'    :root, [data-theme="light"] {' +
+'      --bg-primary: #ffffff;' +
+'      --bg-secondary: #f5f5f7;' +
+'      --bg-tertiary: #e8e8ed;' +
+'      --bg-hover: #f0f0f5;' +
+'      --text-primary: #1d1d1f;' +
+'      --text-secondary: #6e6e73;' +
+'      --text-muted: #86868b;' +
+'      --accent: #0071e3;' +
+'      --accent-light: rgba(0, 113, 227, 0.1);' +
+'      --success: #34c759;' +
+'      --success-light: rgba(52, 199, 89, 0.1);' +
+'      --warning: #ff9500;' +
+'      --warning-light: rgba(255, 149, 0, 0.1);' +
+'      --danger: #ff3b30;' +
+'      --danger-light: rgba(255, 59, 48, 0.1);' +
+'      --border: rgba(0, 0, 0, 0.08);' +
+'      --shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.04);' +
+'      --shadow-hover: 0 2px 8px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.06);' +
+'    }' +
+'' +
+'    /* Dark Mode */' +
+'    [data-theme="dark"] {' +
+'      --bg-primary: #000000;' +
+'      --bg-secondary: #1c1c1e;' +
+'      --bg-tertiary: #2c2c2e;' +
+'      --bg-hover: #3a3a3c;' +
+'      --text-primary: #f5f5f7;' +
+'      --text-secondary: #a1a1a6;' +
+'      --text-muted: #6e6e73;' +
+'      --accent: #0a84ff;' +
+'      --accent-light: rgba(10, 132, 255, 0.15);' +
+'      --success: #30d158;' +
+'      --success-light: rgba(48, 209, 88, 0.15);' +
+'      --warning: #ff9f0a;' +
+'      --warning-light: rgba(255, 159, 10, 0.15);' +
+'      --danger: #ff453a;' +
+'      --danger-light: rgba(255, 69, 58, 0.15);' +
+'      --border: rgba(255, 255, 255, 0.1);' +
+'      --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);' +
+'      --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.4);' +
+'    }' +
+'' +
+'    body {' +
+'      font-family: -apple-system, BlinkMacSystemFont, \'SF Pro Display\', \'SF Pro Text\', \'Helvetica Neue\', sans-serif;' +
+'      background: var(--bg-primary);' +
+'      color: var(--text-primary);' +
+'      min-height: 100vh;' +
+'      line-height: 1.47059;' +
+'      font-size: 17px;' +
+'      -webkit-font-smoothing: antialiased;' +
+'      transition: background 0.3s, color 0.3s;' +
+'    }' +
+'' +
+'    .dashboard { display: flex; min-height: 100vh; }' +
+'' +
+'    /* Sidebar */' +
+'    .sidebar {' +
+'      width: 280px;' +
+'      background: var(--bg-secondary);' +
+'      border-right: 1px solid var(--border);' +
+'      padding: 24px 16px;' +
+'      position: fixed;' +
+'      height: 100vh;' +
+'      overflow-y: auto;' +
+'      transition: background 0.3s, border 0.3s;' +
+'    }' +
+'' +
+'    .sidebar::-webkit-scrollbar { width: 0; }' +
+'' +
+'    .logo {' +
+'      font-size: 21px;' +
+'      font-weight: 600;' +
+'      margin-bottom: 32px;' +
+'      padding: 0 12px;' +
+'      display: flex;' +
+'      align-items: center;' +
+'      gap: 12px;' +
+'      letter-spacing: -0.02em;' +
+'    }' +
+'' +
+'    .logo-icon {' +
+'      width: 36px;' +
+'      height: 36px;' +
+'      background: var(--accent);' +
+'      border-radius: 10px;' +
+'      display: flex;' +
+'      align-items: center;' +
+'      justify-content: center;' +
+'      font-size: 18px;' +
+'    }' +
+'' +
+'    .nav-section { margin-bottom: 28px; }' +
+'' +
+'    .nav-title {' +
+'      font-size: 12px;' +
+'      font-weight: 600;' +
+'      text-transform: uppercase;' +
+'      letter-spacing: 0.04em;' +
+'      color: var(--text-muted);' +
+'      margin-bottom: 8px;' +
+'      padding: 0 12px;' +
+'    }' +
+'' +
+'    .nav-item {' +
+'      display: flex;' +
+'      align-items: center;' +
+'      gap: 12px;' +
+'      padding: 10px 12px;' +
+'      border-radius: 10px;' +
+'      color: var(--text-secondary);' +
+'      cursor: pointer;' +
+'      transition: all 0.2s ease;' +
+'      margin-bottom: 2px;' +
+'      text-decoration: none;' +
+'      font-size: 15px;' +
+'      font-weight: 500;' +
+'    }' +
+'' +
+'    .nav-item:hover {' +
+'      background: var(--bg-hover);' +
+'      color: var(--text-primary);' +
+'    }' +
+'' +
+'    .nav-item.active {' +
+'      background: var(--accent-light);' +
+'      color: var(--accent);' +
+'      font-weight: 600;' +
+'    }' +
+'' +
+'    .nav-icon { width: 20px; text-align: center; font-size: 16px; }' +
+'' +
+'    /* Theme Toggle */' +
+'    .theme-toggle {' +
+'      display: flex;' +
+'      align-items: center;' +
+'      justify-content: space-between;' +
+'      padding: 12px;' +
+'      margin-top: 16px;' +
+'      border-top: 1px solid var(--border);' +
+'    }' +
+'' +
+'    .theme-toggle-label {' +
+'      font-size: 14px;' +
+'      color: var(--text-secondary);' +
+'      display: flex;' +
+'      align-items: center;' +
+'      gap: 8px;' +
+'    }' +
+'' +
+'    .toggle-switch {' +
+'      width: 51px;' +
+'      height: 31px;' +
+'      background: var(--bg-tertiary);' +
+'      border-radius: 16px;' +
+'      position: relative;' +
+'      cursor: pointer;' +
+'      transition: background 0.3s;' +
+'    }' +
+'' +
+'    .toggle-switch.active {' +
+'      background: var(--accent);' +
+'    }' +
+'' +
+'    .toggle-switch::after {' +
+'      content: \'\';' +
+'      position: absolute;' +
+'      width: 27px;' +
+'      height: 27px;' +
+'      background: white;' +
+'      border-radius: 50%;' +
+'      top: 2px;' +
+'      left: 2px;' +
+'      transition: transform 0.3s;' +
+'      box-shadow: 0 2px 4px rgba(0,0,0,0.2);' +
+'    }' +
+'' +
+'    .toggle-switch.active::after {' +
+'      transform: translateX(20px);' +
+'    }' +
+'' +
+'    /* Main Content */' +
+'    .main {' +
+'      flex: 1;' +
+'      margin-left: 280px;' +
+'      padding: 32px 40px;' +
+'      max-width: 1600px;' +
+'    }' +
+'' +
+'    .header {' +
+'      display: flex;' +
+'      justify-content: space-between;' +
+'      align-items: flex-start;' +
+'      margin-bottom: 32px;' +
+'    }' +
+'' +
+'    .header-left h1 {' +
+'      font-size: 34px;' +
+'      font-weight: 700;' +
+'      margin-bottom: 4px;' +
+'      letter-spacing: -0.02em;' +
+'    }' +
+'' +
+'    .header-left p {' +
+'      color: var(--text-secondary);' +
+'      font-size: 17px;' +
+'    }' +
+'' +
+'    .header-right {' +
+'      display: flex;' +
+'      align-items: center;' +
+'      gap: 12px;' +
+'    }' +
+'' +
+'    .realtime-badge {' +
+'      display: flex;' +
+'      align-items: center;' +
+'      gap: 8px;' +
+'      background: var(--success-light);' +
+'      padding: 8px 16px;' +
+'      border-radius: 20px;' +
+'      font-size: 14px;' +
+'      font-weight: 500;' +
+'      color: var(--success);' +
+'    }' +
+'' +
+'    .pulse {' +
+'      width: 8px;' +
+'      height: 8px;' +
+'      background: var(--success);' +
+'      border-radius: 50%;' +
+'      animation: pulse 2s infinite;' +
+'    }' +
+'' +
+'    @keyframes pulse {' +
+'      0%, 100% { opacity: 1; transform: scale(1); }' +
+'      50% { opacity: 0.5; transform: scale(1.3); }' +
+'    }' +
+'' +
+'    /* Suggested Actions */' +
+'    .actions-bar {' +
+'      background: var(--bg-secondary);' +
+'      border-radius: 16px;' +
+'      padding: 20px 24px;' +
+'      margin-bottom: 28px;' +
+'      border: 1px solid var(--border);' +
+'    }' +
+'' +
+'    .actions-title {' +
+'      font-size: 13px;' +
+'      font-weight: 600;' +
+'      color: var(--text-muted);' +
+'      text-transform: uppercase;' +
+'      letter-spacing: 0.04em;' +
+'      margin-bottom: 16px;' +
+'    }' +
+'' +
+'    .actions-list {' +
+'      display: flex;' +
+'      gap: 16px;' +
+'      flex-wrap: wrap;' +
+'    }' +
+'' +
+'    .action-item {' +
+'      flex: 1;' +
+'      min-width: 260px;' +
+'      background: var(--bg-primary);' +
+'      border-radius: 12px;' +
+'      padding: 16px 20px;' +
+'      display: flex;' +
+'      align-items: flex-start;' +
+'      gap: 14px;' +
+'      cursor: pointer;' +
+'      transition: all 0.2s;' +
+'      border: 1px solid var(--border);' +
+'    }' +
+'' +
+'    .action-item:hover {' +
+'      box-shadow: var(--shadow-hover);' +
+'      transform: translateY(-2px);' +
+'    }' +
+'' +
+'    .action-icon {' +
+'      width: 40px;' +
+'      height: 40px;' +
+'      border-radius: 10px;' +
+'      display: flex;' +
+'      align-items: center;' +
+'      justify-content: center;' +
+'      font-size: 18px;' +
+'      flex-shrink: 0;' +
+'    }' +
+'' +
+'    .action-item.priority-high .action-icon { background: var(--danger-light); }' +
+'    .action-item.priority-medium .action-icon { background: var(--warning-light); }' +
+'    .action-item.priority-low .action-icon { background: var(--success-light); }' +
+'' +
+'    .action-content { flex: 1; }' +
+'' +
+'    .action-text {' +
+'      font-size: 15px;' +
+'      font-weight: 600;' +
+'      color: var(--text-primary);' +
+'      margin-bottom: 4px;' +
+'    }' +
+'' +
+'    .action-desc {' +
+'      font-size: 13px;' +
+'      color: var(--text-secondary);' +
+'      line-height: 1.4;' +
+'    }' +
+'' +
+'    .action-arrow {' +
+'      color: var(--text-muted);' +
+'      font-size: 18px;' +
+'      margin-left: auto;' +
+'      align-self: center;' +
+'    }' +
+'' +
+'    /* Grid */' +
+'    .grid { display: grid; gap: 20px; margin-bottom: 24px; }' +
+'    .grid-4 { grid-template-columns: repeat(4, 1fr); }' +
+'    .grid-3 { grid-template-columns: repeat(3, 1fr); }' +
+'    .grid-2 { grid-template-columns: repeat(2, 1fr); }' +
+'    .grid-1-2 { grid-template-columns: 1fr 2fr; }' +
+'    .grid-2-1 { grid-template-columns: 2fr 1fr; }' +
+'' +
+'    @media (max-width: 1400px) { .grid-4 { grid-template-columns: repeat(2, 1fr); } }' +
+'    @media (max-width: 1024px) {' +
+'      .grid-2, .grid-3, .grid-1-2, .grid-2-1 { grid-template-columns: 1fr; }' +
+'      .sidebar { display: none; }' +
+'      .main { margin-left: 0; padding: 24px 16px; }' +
+'      .actions-list { flex-direction: column; }' +
+'      .action-item { min-width: 100%; }' +
+'    }' +
+'' +
+'    /* Cards */' +
+'    .card {' +
+'      background: var(--bg-secondary);' +
+'      border-radius: 16px;' +
+'      padding: 24px;' +
+'      border: 1px solid var(--border);' +
+'      transition: all 0.3s;' +
+'    }' +
+'' +
+'    .card:hover {' +
+'      box-shadow: var(--shadow);' +
+'    }' +
+'' +
+'    .card-header {' +
+'      display: flex;' +
+'      justify-content: space-between;' +
+'      align-items: center;' +
+'      margin-bottom: 20px;' +
+'    }' +
+'' +
+'    .card-title {' +
+'      font-size: 13px;' +
+'      font-weight: 600;' +
+'      color: var(--text-muted);' +
+'      text-transform: uppercase;' +
+'      letter-spacing: 0.04em;' +
+'    }' +
+'' +
+'    /* KPI Cards */' +
+'    .kpi-card { position: relative; overflow: hidden; }' +
+'' +
+'    .kpi-value {' +
+'      font-size: 34px;' +
+'      font-weight: 700;' +
+'      margin-bottom: 4px;' +
+'      letter-spacing: -0.02em;' +
+'      color: var(--text-primary);' +
+'    }' +
+'' +
+'    .kpi-label {' +
+'      color: var(--text-secondary);' +
+'      font-size: 14px;' +
+'      font-weight: 500;' +
+'    }' +
+'' +
+'    .kpi-trend {' +
+'      display: inline-flex;' +
+'      align-items: center;' +
+'      gap: 4px;' +
+'      font-size: 13px;' +
+'      padding: 4px 10px;' +
+'      border-radius: 6px;' +
+'      font-weight: 600;' +
+'      margin-top: 8px;' +
+'    }' +
+'' +
+'    .trend-up { background: var(--success-light); color: var(--success); }' +
+'    .trend-down { background: var(--danger-light); color: var(--danger); }' +
+'' +
+'    /* Charts */' +
+'    .chart-container { position: relative; height: 280px; width: 100%; }' +
+'    .chart-container-sm { height: 180px; }' +
+'' +
+'    /* Progress */' +
+'    .progress-item { margin-bottom: 16px; }' +
+'    .progress-header { display: flex; justify-content: space-between; margin-bottom: 8px; }' +
+'    .progress-label { font-size: 14px; color: var(--text-primary); font-weight: 500; }' +
+'    .progress-value { font-size: 14px; font-weight: 600; }' +
+'    .progress-bar { height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden; }' +
+'    .progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }' +
+'' +
+'    /* Lists */' +
+'    .list-item {' +
+'      display: flex;' +
+'      justify-content: space-between;' +
+'      align-items: center;' +
+'      padding: 14px 16px;' +
+'      background: var(--bg-primary);' +
+'      border-radius: 12px;' +
+'      margin-bottom: 8px;' +
+'      transition: all 0.2s;' +
+'    }' +
+'' +
+'    .list-item:hover { background: var(--bg-hover); }' +
+'    .list-item:last-child { margin-bottom: 0; }' +
+'    .list-info { display: flex; align-items: center; gap: 12px; }' +
+'' +
+'    .list-rank {' +
+'      width: 28px;' +
+'      height: 28px;' +
+'      border-radius: 8px;' +
+'      display: flex;' +
+'      align-items: center;' +
+'      justify-content: center;' +
+'      font-size: 12px;' +
+'      font-weight: 700;' +
+'      background: var(--bg-tertiary);' +
+'      color: var(--text-secondary);' +
+'    }' +
+'' +
+'    .list-rank.gold { background: linear-gradient(135deg, #FFD700, #FFA500); color: #000; }' +
+'    .list-rank.silver { background: linear-gradient(135deg, #C0C0C0, #808080); color: #000; }' +
+'    .list-rank.bronze { background: linear-gradient(135deg, #CD7F32, #8B4513); color: #fff; }' +
+'' +
+'    .list-text { font-size: 15px; color: var(--text-primary); font-weight: 500; }' +
+'    .list-subtext { font-size: 12px; color: var(--text-muted); margin-top: 2px; }' +
+'    .list-value { font-weight: 600; color: var(--accent); font-size: 15px; }' +
+'' +
+'    /* Segments */' +
+'    .segment-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }' +
+'' +
+'    .segment-card {' +
+'      background: var(--bg-primary);' +
+'      border-radius: 14px;' +
+'      padding: 20px;' +
+'      text-align: center;' +
+'      border: 1px solid var(--border);' +
+'      transition: all 0.3s;' +
+'    }' +
+'' +
+'    .segment-card:hover {' +
+'      transform: translateY(-3px);' +
+'      box-shadow: var(--shadow-hover);' +
+'      border-color: var(--accent);' +
+'    }' +
+'' +
+'    .segment-icon { font-size: 28px; margin-bottom: 8px; }' +
+'    .segment-count { font-size: 28px; font-weight: 700; color: var(--text-primary); letter-spacing: -0.02em; }' +
+'    .segment-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 4px; font-weight: 600; }' +
+'    .segment-desc { font-size: 12px; color: var(--text-secondary); margin-top: 8px; line-height: 1.4; }' +
+'' +
+'    /* Tables */' +
+'    .data-table { width: 100%; border-collapse: collapse; }' +
+'    .data-table th, .data-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid var(--border); }' +
+'    .data-table th { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; background: var(--bg-primary); }' +
+'    .data-table td { font-size: 14px; }' +
+'    .data-table tr:hover td { background: var(--bg-hover); }' +
+'' +
+'    /* Insights */' +
+'    .insight-item {' +
+'      padding: 16px 20px;' +
+'      background: var(--bg-primary);' +
+'      border-radius: 12px;' +
+'      margin-bottom: 12px;' +
+'      border-left: 4px solid;' +
+'      transition: all 0.2s;' +
+'    }' +
+'' +
+'    .insight-item:hover { transform: translateX(4px); }' +
+'' +
+'    .insight-critical { border-color: var(--danger); background: var(--danger-light); }' +
+'    .insight-warning { border-color: var(--warning); background: var(--warning-light); }' +
+'    .insight-success { border-color: var(--success); background: var(--success-light); }' +
+'    .insight-info { border-color: var(--accent); background: var(--accent-light); }' +
+'' +
+'    .insight-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }' +
+'    .insight-icon { font-size: 16px; }' +
+'    .insight-title { font-weight: 600; font-size: 15px; }' +
+'    .insight-message { font-size: 14px; color: var(--text-secondary); line-height: 1.5; }' +
+'' +
+'    /* Badges */' +
+'    .badge {' +
+'      display: inline-flex;' +
+'      align-items: center;' +
+'      gap: 4px;' +
+'      padding: 4px 12px;' +
+'      border-radius: 100px;' +
+'      font-size: 12px;' +
+'      font-weight: 600;' +
+'    }' +
+'' +
+'    .badge-success { background: var(--success-light); color: var(--success); }' +
+'    .badge-warning { background: var(--warning-light); color: var(--warning); }' +
+'    .badge-danger { background: var(--danger-light); color: var(--danger); }' +
+'    .badge-info { background: var(--accent-light); color: var(--accent); }' +
+'' +
+'    /* Funnels */' +
+'    .funnel-container { padding: 16px 0; }' +
+'' +
+'    .funnel-step { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }' +
+'' +
+'    .funnel-number {' +
+'      width: 36px;' +
+'      height: 36px;' +
+'      background: var(--bg-tertiary);' +
+'      border-radius: 50%;' +
+'      display: flex;' +
+'      align-items: center;' +
+'      justify-content: center;' +
+'      font-size: 14px;' +
+'      font-weight: 700;' +
+'      flex-shrink: 0;' +
+'      color: var(--text-secondary);' +
+'    }' +
+'' +
+'    .funnel-bar-container { flex: 1; }' +
+'' +
+'    .funnel-bar-bg {' +
+'      height: 44px;' +
+'      background: var(--bg-tertiary);' +
+'      border-radius: 10px;' +
+'      overflow: hidden;' +
+'      position: relative;' +
+'    }' +
+'' +
+'    .funnel-bar-fill {' +
+'      height: 100%;' +
+'      border-radius: 10px;' +
+'      display: flex;' +
+'      align-items: center;' +
+'      padding-left: 16px;' +
+'      transition: width 0.5s ease;' +
+'    }' +
+'' +
+'    .funnel-label { font-size: 14px; color: #fff; font-weight: 600; white-space: nowrap; }' +
+'' +
+'    .funnel-stats { display: flex; gap: 24px; width: 200px; justify-content: flex-end; flex-shrink: 0; }' +
+'    .funnel-stat { text-align: right; }' +
+'    .funnel-stat-value { font-size: 16px; font-weight: 700; }' +
+'    .funnel-stat-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; }' +
+'' +
+'    /* Empty State */' +
+'    .empty-state { text-align: center; padding: 48px 24px; color: var(--text-muted); }' +
+'    .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }' +
+'    .empty-title { font-size: 20px; margin-bottom: 8px; color: var(--text-secondary); font-weight: 600; }' +
+'' +
+'    /* Scrollable */' +
+'    .scrollable { max-height: 380px; overflow-y: auto; }' +
+'    .scrollable::-webkit-scrollbar { width: 6px; }' +
+'    .scrollable::-webkit-scrollbar-track { background: transparent; }' +
+'    .scrollable::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 3px; }' +
+'' +
+'    /* Footer */' +
+'    .footer {' +
+'      text-align: center;' +
+'      padding: 32px;' +
+'      color: var(--text-muted);' +
+'      font-size: 13px;' +
+'      border-top: 1px solid var(--border);' +
+'      margin-top: 40px;' +
+'    }' +
+'' +
+'    .footer a { color: var(--accent); text-decoration: none; }' +
+'    .footer a:hover { text-decoration: underline; }' +
+'  </style>' +
+'</head>' +
+'<body>' +
+'  <div class="dashboard">' +
+'    <aside class="sidebar">' +
+'      <div class="logo">' +
+'        <div class="logo-icon">📊</div>' +
+'        <span>Analytics</span>' +
+'      </div>' +
+'      <nav>' +
+'        <div class="nav-section">' +
+'          <div class="nav-title">Overview</div>' +
+'          <a href="/analytics/dashboard" class="nav-item ' + (activeNav === 'dashboard' ? 'active' : '') + '"><span class="nav-icon">📈</span> Dashboard</a>' +
+'          <a href="/analytics/executive" class="nav-item ' + (activeNav === 'executive' ? 'active' : '') + '"><span class="nav-icon">👔</span> Executive</a>' +
+'        </div>' +
+'        <div class="nav-section">' +
+'          <div class="nav-title">Analytics</div>' +
+'          <a href="/analytics/users" class="nav-item ' + (activeNav === 'users' ? 'active' : '') + '"><span class="nav-icon">👥</span> Users</a>' +
+'          <a href="/analytics/business" class="nav-item ' + (activeNav === 'business' ? 'active' : '') + '"><span class="nav-icon">💰</span> Revenue</a>' +
+'          <a href="/analytics/funnels" class="nav-item ' + (activeNav === 'funnels' ? 'active' : '') + '"><span class="nav-icon">🎯</span> Funnels</a>' +
+'        </div>' +
+'        <div class="nav-section">' +
+'          <div class="nav-title">Advanced</div>' +
+'          <a href="/analytics/segments" class="nav-item ' + (activeNav === 'segments' ? 'active' : '') + '"><span class="nav-icon">🧩</span> Segments</a>' +
+'          <a href="/analytics/cohorts" class="nav-item ' + (activeNav === 'cohorts' ? 'active' : '') + '"><span class="nav-icon">📅</span> Cohorts</a>' +
+'          <a href="/analytics/rfm" class="nav-item ' + (activeNav === 'rfm' ? 'active' : '') + '"><span class="nav-icon">⭐</span> RFM</a>' +
+'          <a href="/analytics/ltv" class="nav-item ' + (activeNav === 'ltv' ? 'active' : '') + '"><span class="nav-icon">💎</span> LTV</a>' +
+'        </div>' +
+'        <div class="nav-section">' +
+'          <div class="nav-title">Intelligence</div>' +
+'          <a href="/analytics/predictions" class="nav-item ' + (activeNav === 'predictions' ? 'active' : '') + '"><span class="nav-icon">🔮</span> Predictions</a>' +
+'          <a href="/analytics/insights" class="nav-item ' + (activeNav === 'insights' ? 'active' : '') + '"><span class="nav-icon">💡</span> Insights</a>' +
+'        </div>' +
+'      </nav>' +
+'      <div class="theme-toggle">' +
+'        <span class="theme-toggle-label">' +
+'          <span>☀️</span> Light Mode' +
+'        </span>' +
+'        <div class="toggle-switch" id="themeToggle" onclick="toggleTheme()"></div>' +
+'      </div>' +
+'    </aside>' +
+'    <main class="main">' +
+'      ' + content + '' +
+'' +
+'      <div class="actions-bar">' +
+'        <div class="actions-title">Suggested Actions</div>' +
+'        <div class="actions-list">' +
+'          ' + actionsHtml + '' +
+'        </div>' +
+'      </div>' +
+'' +
+'      <footer class="footer">' +
+'        <p>Last updated: ' + new Date().toLocaleString() + ' · Auto-refreshes every 30 seconds</p>' +
+'        <p style="margin-top: 8px;"><a href="/analytics/dashboard">← Back to Dashboard</a></p>' +
+'      </footer>' +
+'    </main>' +
+'  </div>' +
+'' +
+'  <script>' +
+'    // Theme toggle functionality' +
+'    function toggleTheme() {' +
+'      const html = document.documentElement;' +
+'      const toggle = document.getElementById(\'themeToggle\');' +
+'      const label = document.querySelector(\'.theme-toggle-label\');' +
+'' +
+'      if (html.getAttribute(\'data-theme\') === \'dark\') {' +
+'        html.setAttribute(\'data-theme\', \'light\');' +
+'        toggle.classList.remove(\'active\');' +
+'        label.innerHTML = \'<span>☀️</span> Light Mode\';' +
+'        localStorage.setItem(\'theme\', \'light\');' +
+'      } else {' +
+'        html.setAttribute(\'data-theme\', \'dark\');' +
+'        toggle.classList.add(\'active\');' +
+'        label.innerHTML = \'<span>🌙</span> Dark Mode\';' +
+'        localStorage.setItem(\'theme\', \'dark\');' +
+'      }' +
+'' +
+'      // Update chart colors' +
+'      updateChartColors();' +
+'    }' +
+'' +
+'    // Load saved theme' +
+'    document.addEventListener(\'DOMContentLoaded\', () => {' +
+'      const savedTheme = localStorage.getItem(\'theme\') || \'light\';' +
+'      const html = document.documentElement;' +
+'      const toggle = document.getElementById(\'themeToggle\');' +
+'      const label = document.querySelector(\'.theme-toggle-label\');' +
+'' +
+'      html.setAttribute(\'data-theme\', savedTheme);' +
+'      if (savedTheme === \'dark\') {' +
+'        toggle.classList.add(\'active\');' +
+'        label.innerHTML = \'<span>🌙</span> Dark Mode\';' +
+'      }' +
+'    });' +
+'' +
+'    // Update chart colors based on theme' +
+'    function updateChartColors() {' +
+'      const isDark = document.documentElement.getAttribute(\'data-theme\') === \'dark\';' +
+'      const textColor = isDark ? \'#a1a1a6\' : \'#6e6e73\';' +
+'      const gridColor = isDark ? \'rgba(255,255,255,0.06)\' : \'rgba(0,0,0,0.06)\';' +
+'' +
+'      Chart.defaults.color = textColor;' +
+'      Chart.defaults.borderColor = gridColor;' +
+'' +
+'      // Redraw all charts' +
+'      Object.values(Chart.instances).forEach(chart => {' +
+'        if (chart.options.scales?.x) {' +
+'          chart.options.scales.x.ticks.color = textColor;' +
+'          chart.options.scales.x.grid.color = gridColor;' +
+'        }' +
+'        if (chart.options.scales?.y) {' +
+'          chart.options.scales.y.ticks.color = textColor;' +
+'          chart.options.scales.y.grid.color = gridColor;' +
+'        }' +
+'        chart.update();' +
+'      });' +
+'    }' +
+'' +
+'    // Initialize chart defaults' +
+'    const isDark = document.documentElement.getAttribute(\'data-theme\') === \'dark\';' +
+'    Chart.defaults.color = isDark ? \'#a1a1a6\' : \'#6e6e73\';' +
+'    Chart.defaults.borderColor = isDark ? \'rgba(255,255,255,0.06)\' : \'rgba(0,0,0,0.06)\';' +
+'  </script>' +
+'</body>' +
+'</html>';
+};
+
+/**
+ * Generate User Analytics Dashboard
+ */
+const generateUsersDashboard = (appName) => {
+  const totalVisitors = analytics.users.size;
+  const totalSessions = analytics.sessions.size;
+  const bounceRate = totalSessions > 0 ? ((analytics.bounceCount / totalSessions) * 100).toFixed(1) : 0;
+
+  const deviceData = analytics.devices.types;
+  const browserEntries = Object.entries(analytics.devices.browsers).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const osEntries = Object.entries(analytics.devices.os).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const languageEntries = Object.entries(analytics.geographic.languages).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  const content = `
+    <header class="header">
+      <div class="header-left">
+        <h1>👥 User Analytics</h1>
+        <p>Understand your audience and their behavior</p>
+      </div>
+      <div class="header-right">
+        <div class="realtime-badge">
+          <span class="pulse"></span>
+          <span>${analytics.realtime.activeVisitors.size} active now</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="grid grid-4">
+      <div class="card kpi-card kpi-blue">
+        <div class="kpi-icon" style="background: rgba(96, 165, 250, 0.2);">👥</div>
+        <div class="kpi-value">${totalVisitors.toLocaleString()}</div>
+        <div class="kpi-label">Total Visitors</div>
+      </div>
+      <div class="card kpi-card kpi-green">
+        <div class="kpi-icon" style="background: rgba(52, 211, 153, 0.2);">🔄</div>
+        <div class="kpi-value">${totalSessions.toLocaleString()}</div>
+        <div class="kpi-label">Total Sessions</div>
+      </div>
+      <div class="card kpi-card kpi-purple">
+        <div class="kpi-icon" style="background: rgba(167, 139, 250, 0.2);">⏱️</div>
+        <div class="kpi-value">${Math.floor(analytics.engagement.avgSessionDuration / 60000)}m ${Math.floor((analytics.engagement.avgSessionDuration % 60000) / 1000)}s</div>
+        <div class="kpi-label">Avg Session Duration</div>
+      </div>
+      <div class="card kpi-card kpi-yellow">
+        <div class="kpi-icon" style="background: rgba(251, 191, 36, 0.2);">📊</div>
+        <div class="kpi-value">${bounceRate}%</div>
+        <div class="kpi-label">Bounce Rate</div>
+      </div>
+    </div>
+
+    <div class="grid grid-3">
+      <div class="card kpi-card kpi-green">
+        <div class="kpi-value" style="color: var(--accent-green);">${analytics.engagement.newUsers.toLocaleString()}</div>
+        <div class="kpi-label">New Users</div>
+      </div>
+      <div class="card kpi-card kpi-blue">
+        <div class="kpi-value" style="color: var(--accent-blue);">${analytics.engagement.returningUsers.toLocaleString()}</div>
+        <div class="kpi-label">Returning Users</div>
+      </div>
+      <div class="card kpi-card kpi-purple">
+        <div class="kpi-value" style="color: var(--accent-purple);">${analytics.engagement.avgPagesPerSession.toFixed(1)}</div>
+        <div class="kpi-label">Pages per Session</div>
+      </div>
+    </div>
+
+    <div class="grid grid-3">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📱 Device Types</span>
+        </div>
+        <div class="chart-container-sm">
+          <canvas id="deviceChart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🌐 Browsers</span>
+        </div>
+        <div class="scrollable">
+          ${browserEntries.length > 0 ? browserEntries.map(([browser, count], i) => `
+            <div class="list-item">
+              <div class="list-info">
+                <span class="list-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</span>
+                <span class="list-text">${browser}</span>
+              </div>
+              <span class="list-value">${count.toLocaleString()}</span>
+            </div>
+          `).join('') : '<div class="empty-state"><div class="empty-icon">🌐</div><p>No browser data yet</p></div>'}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">💻 Operating Systems</span>
+        </div>
+        <div class="scrollable">
+          ${osEntries.length > 0 ? osEntries.map(([os, count], i) => `
+            <div class="list-item">
+              <div class="list-info">
+                <span class="list-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</span>
+                <span class="list-text">${os}</span>
+              </div>
+              <span class="list-value">${count.toLocaleString()}</span>
+            </div>
+          `).join('') : '<div class="empty-state"><div class="empty-icon">💻</div><p>No OS data yet</p></div>'}
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🌍 Languages</span>
+        </div>
+        <div class="scrollable">
+          ${languageEntries.length > 0 ? languageEntries.map(([lang, count], i) => `
+            <div class="list-item">
+              <div class="list-info">
+                <span class="list-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</span>
+                <span class="list-text">${lang.toUpperCase()}</span>
+              </div>
+              <span class="list-value">${count.toLocaleString()}</span>
+            </div>
+          `).join('') : '<div class="empty-state"><div class="empty-icon">🌍</div><p>No language data yet</p></div>'}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📈 Active Users</span>
+        </div>
+        <div class="grid grid-3" style="margin-top: 1rem;">
+          <div class="segment-card">
+            <div class="segment-count" style="color: var(--accent-green);">${analytics.engagement.activeUsers.daily.size}</div>
+            <div class="segment-label">Daily Active</div>
+          </div>
+          <div class="segment-card">
+            <div class="segment-count" style="color: var(--accent-blue);">${analytics.engagement.activeUsers.weekly.size}</div>
+            <div class="segment-label">Weekly Active</div>
+          </div>
+          <div class="segment-card">
+            <div class="segment-count" style="color: var(--accent-purple);">${analytics.engagement.activeUsers.monthly.size}</div>
+            <div class="segment-label">Monthly Active</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      new Chart(document.getElementById('deviceChart'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Desktop', 'Mobile', 'Tablet'],
+          datasets: [{
+            data: [${deviceData.desktop || 0}, ${deviceData.mobile || 0}, ${deviceData.tablet || 0}],
+            backgroundColor: ['#60a5fa', '#34d399', '#a78bfa'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', padding: 15 } } },
+          cutout: '60%'
+        }
+      });
+    </script>
+  `;
+
+  return generatePageTemplate(`${appName} - User Analytics`, content, 'users');
+};
+
+/**
+ * Generate Business/Revenue Dashboard
+ */
+const generateBusinessDashboard = (appName) => {
+  const formatCurrency = (amount) => '$' + Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+  const conversionRate = analytics.business.carts.created > 0
+    ? ((analytics.business.carts.converted / analytics.business.carts.created) * 100).toFixed(1)
+    : 0;
+  const abandonmentRate = analytics.business.carts.created > 0
+    ? ((analytics.business.carts.abandoned / analytics.business.carts.created) * 100).toFixed(1)
+    : 0;
+
+  const topProductsByViews = Object.entries(analytics.business.products.views).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const topProductsByCart = Object.entries(analytics.business.products.addedToCart).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  const topProductsByPurchase = Object.entries(analytics.business.products.purchased).sort((a, b) => b[1] - a[1]).slice(0, 10);
+
+  const revenueByDay = Object.entries(analytics.business.revenue.byDay || {}).slice(-7);
+
+  const content = `
+    <header class="header">
+      <div class="header-left">
+        <h1>💰 Revenue Analytics</h1>
+        <p>Track your business performance and revenue metrics</p>
+      </div>
+    </header>
+
+    <div class="grid grid-4">
+      <div class="card kpi-card kpi-green">
+        <div class="kpi-icon" style="background: rgba(52, 211, 153, 0.2);">💵</div>
+        <div class="kpi-value" style="color: var(--accent-green);">${formatCurrency(analytics.business.revenue.total)}</div>
+        <div class="kpi-label">Total Revenue</div>
+      </div>
+      <div class="card kpi-card kpi-blue">
+        <div class="kpi-icon" style="background: rgba(96, 165, 250, 0.2);">📦</div>
+        <div class="kpi-value">${analytics.business.orders.total.toLocaleString()}</div>
+        <div class="kpi-label">Total Orders</div>
+      </div>
+      <div class="card kpi-card kpi-purple">
+        <div class="kpi-icon" style="background: rgba(167, 139, 250, 0.2);">📊</div>
+        <div class="kpi-value">${formatCurrency(analytics.business.averageOrderValue)}</div>
+        <div class="kpi-label">Avg Order Value</div>
+      </div>
+      <div class="card kpi-card kpi-cyan">
+        <div class="kpi-icon" style="background: rgba(34, 211, 238, 0.2);">🎯</div>
+        <div class="kpi-value">${conversionRate}%</div>
+        <div class="kpi-label">Conversion Rate</div>
+      </div>
+    </div>
+
+    <div class="grid grid-4">
+      <div class="card kpi-card kpi-green">
+        <div class="kpi-value" style="color: var(--accent-green);">${formatCurrency(analytics.business.revenue.today)}</div>
+        <div class="kpi-label">Today's Revenue</div>
+      </div>
+      <div class="card kpi-card kpi-blue">
+        <div class="kpi-value">${analytics.business.orders.completed}</div>
+        <div class="kpi-label">Completed Orders</div>
+      </div>
+      <div class="card kpi-card kpi-yellow">
+        <div class="kpi-value">${analytics.business.orders.pending}</div>
+        <div class="kpi-label">Pending Orders</div>
+      </div>
+      <div class="card kpi-card kpi-red">
+        <div class="kpi-value">${analytics.business.orders.cancelled}</div>
+        <div class="kpi-label">Cancelled Orders</div>
+      </div>
+    </div>
+
+    <div class="grid grid-3">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🛒 Cart Analytics</span>
+        </div>
+        <div class="segment-grid" style="grid-template-columns: repeat(3, 1fr);">
+          <div class="segment-card">
+            <div class="segment-count" style="color: var(--accent-blue);">${analytics.business.carts.created}</div>
+            <div class="segment-label">Carts Created</div>
+          </div>
+          <div class="segment-card">
+            <div class="segment-count" style="color: var(--accent-green);">${analytics.business.carts.converted}</div>
+            <div class="segment-label">Converted</div>
+          </div>
+          <div class="segment-card">
+            <div class="segment-count" style="color: var(--accent-red);">${analytics.business.carts.abandoned}</div>
+            <div class="segment-label">Abandoned</div>
+          </div>
+        </div>
+        <div style="margin-top: 1rem;">
+          <div class="progress-item">
+            <div class="progress-header">
+              <span class="progress-label">Abandonment Rate</span>
+              <span class="progress-value" style="color: var(--accent-red);">${abandonmentRate}%</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: ${abandonmentRate}%; background: var(--accent-red);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="grid-column: span 2;">
+        <div class="card-header">
+          <span class="card-title">📈 Revenue Trend (Last 7 Days)</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="revenueChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-3">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">👁️ Top Viewed Products</span>
+        </div>
+        <div class="scrollable">
+          ${topProductsByViews.length > 0 ? topProductsByViews.map(([product, views], i) => `
+            <div class="list-item">
+              <div class="list-info">
+                <span class="list-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</span>
+                <span class="list-text">${product}</span>
+              </div>
+              <span class="list-value">${views.toLocaleString()}</span>
+            </div>
+          `).join('') : '<div class="empty-state"><div class="empty-icon">👁️</div><p>No product views yet</p></div>'}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🛒 Top Added to Cart</span>
+        </div>
+        <div class="scrollable">
+          ${topProductsByCart.length > 0 ? topProductsByCart.map(([product, count], i) => `
+            <div class="list-item">
+              <div class="list-info">
+                <span class="list-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</span>
+                <span class="list-text">${product}</span>
+              </div>
+              <span class="list-value">${count.toLocaleString()}</span>
+            </div>
+          `).join('') : '<div class="empty-state"><div class="empty-icon">🛒</div><p>No cart additions yet</p></div>'}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">💰 Top Purchased</span>
+        </div>
+        <div class="scrollable">
+          ${topProductsByPurchase.length > 0 ? topProductsByPurchase.map(([product, count], i) => `
+            <div class="list-item">
+              <div class="list-info">
+                <span class="list-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</span>
+                <span class="list-text">${product}</span>
+              </div>
+              <span class="list-value">${count.toLocaleString()}</span>
+            </div>
+          `).join('') : '<div class="empty-state"><div class="empty-icon">💰</div><p>No purchases yet</p></div>'}
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const revenueData = ${JSON.stringify(revenueByDay)};
+      new Chart(document.getElementById('revenueChart'), {
+        type: 'line',
+        data: {
+          labels: revenueData.map(d => d[0]),
+          datasets: [{
+            label: 'Revenue',
+            data: revenueData.map(d => d[1]),
+            borderColor: '#34d399',
+            backgroundColor: 'rgba(52, 211, 153, 0.1)',
+            fill: true,
+            tension: 0.4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { color: 'rgba(148, 163, 184, 0.1)' }, ticks: { color: '#94a3b8' } },
+            y: { grid: { color: 'rgba(148, 163, 184, 0.1)' }, ticks: { color: '#94a3b8', callback: (v) => '$' + v } }
+          }
+        }
+      });
+    </script>
+  `;
+
+  return generatePageTemplate(`${appName} - Revenue Analytics`, content, 'business');
+};
+
+/**
+ * Generate Funnels Dashboard
+ */
+const generateFunnelsDashboard = (appName) => {
+  const funnelColors = ['#60a5fa', '#34d399', '#a78bfa', '#fbbf24', '#f87171', '#22d3ee'];
+
+  let funnelsHtml = '';
+  Object.entries(analytics.funnels).forEach(([key, funnel]) => {
+    const steps = funnel.steps;
+    const data = funnel.data;
+    const firstStepCount = data[steps[0]] || 0;
+
+    funnelsHtml += '<div class="card" style="margin-bottom: 1.5rem;">';
+    funnelsHtml += '<div class="card-header"><span class="card-title">🎯 ' + funnel.name + '</span></div>';
+    funnelsHtml += '<div class="funnel-container">';
+
+    steps.forEach((step, index) => {
+      const count = data[step] || 0;
+      const percentage = firstStepCount > 0 ? ((count / firstStepCount) * 100).toFixed(1) : 0;
+      const prevCount = index > 0 ? (data[steps[index - 1]] || 0) : count;
+      const dropoff = prevCount > 0 ? (((prevCount - count) / prevCount) * 100).toFixed(1) : 0;
+      const color = funnelColors[index % funnelColors.length];
+
+      funnelsHtml += '<div class="funnel-step">';
+      funnelsHtml += '<div class="funnel-number">' + (index + 1) + '</div>';
+      funnelsHtml += '<div class="funnel-bar-container">';
+      funnelsHtml += '<div class="funnel-bar-bg">';
+      funnelsHtml += '<div class="funnel-bar-fill" style="width: ' + percentage + '%; background: ' + color + ';">';
+      funnelsHtml += '<span class="funnel-label">' + step.replace(/_/g, ' ') + '</span>';
+      funnelsHtml += '</div></div></div>';
+      funnelsHtml += '<div class="funnel-stats">';
+      funnelsHtml += '<div class="funnel-stat"><div class="funnel-stat-value">' + count.toLocaleString() + '</div><div class="funnel-stat-label">Users</div></div>';
+      funnelsHtml += '<div class="funnel-stat"><div class="funnel-stat-value">' + percentage + '%</div><div class="funnel-stat-label">Conv.</div></div>';
+      if (index > 0) {
+        funnelsHtml += '<div class="funnel-stat"><div class="funnel-stat-value" style="color: var(--accent-red);">-' + dropoff + '%</div><div class="funnel-stat-label">Drop</div></div>';
+      }
+      funnelsHtml += '</div></div>';
+    });
+
+    funnelsHtml += '</div></div>';
+  });
+
+  if (Object.keys(analytics.funnels).length === 0) {
+    funnelsHtml = '<div class="card"><div class="empty-state"><div class="empty-icon">🎯</div><div class="empty-title">No Funnels Defined</div><p>Define conversion funnels in your analytics setup to track user journeys</p></div></div>';
+  }
+
+  const content = `
+    <header class="header">
+      <div class="header-left">
+        <h1>🎯 Conversion Funnels</h1>
+        <p>Track user journeys and identify conversion bottlenecks</p>
+      </div>
+    </header>
+    ${funnelsHtml}
+  `;
+
+  return generatePageTemplate(`${appName} - Conversion Funnels`, content, 'funnels');
+};
+
+/**
+ * Generate Segments Dashboard
+ */
+const generateSegmentsDashboard = (appName) => {
+  updateSegments();
+
+  const content = `
+    <header class="header">
+      <div class="header-left">
+        <h1>🧩 Customer Segments</h1>
+        <p>Understand your customer base through behavioral, value, and engagement segments</p>
+      </div>
+    </header>
+
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-header">
+        <span class="card-title">🎭 Behavioral Segments</span>
+      </div>
+      <div class="segment-grid">
+        <div class="segment-card">
+          <div class="segment-icon">👀</div>
+          <div class="segment-count">${analytics.segments.behavioral.browsers.length}</div>
+          <div class="segment-label">Browsers</div>
+          <div class="segment-desc">View products but don't buy</div>
+        </div>
+        <div class="segment-card">
+          <div class="segment-icon">❤️</div>
+          <div class="segment-count">${analytics.segments.behavioral.wishlisters.length}</div>
+          <div class="segment-label">Wishlisters</div>
+          <div class="segment-desc">Add to favorites/wishlist</div>
+        </div>
+        <div class="segment-card">
+          <div class="segment-icon">🛒</div>
+          <div class="segment-count">${analytics.segments.behavioral.cartAbandoners.length}</div>
+          <div class="segment-label">Cart Abandoners</div>
+          <div class="segment-desc">Add to cart but don't checkout</div>
+        </div>
+        <div class="segment-card">
+          <div class="segment-icon">1️⃣</div>
+          <div class="segment-count">${analytics.segments.behavioral.oneTimeBuyers.length}</div>
+          <div class="segment-label">One-Time Buyers</div>
+          <div class="segment-desc">Purchased only once</div>
+        </div>
+        <div class="segment-card">
+          <div class="segment-icon">🔄</div>
+          <div class="segment-count">${analytics.segments.behavioral.repeatBuyers.length}</div>
+          <div class="segment-label">Repeat Buyers</div>
+          <div class="segment-desc">Purchased 2-5 times</div>
+        </div>
+        <div class="segment-card">
+          <div class="segment-icon">👑</div>
+          <div class="segment-count">${analytics.segments.behavioral.loyalists.length}</div>
+          <div class="segment-label">Loyalists</div>
+          <div class="segment-desc">Purchased 6+ times</div>
+        </div>
+        <div class="segment-card">
+          <div class="segment-icon">😴</div>
+          <div class="segment-count">${analytics.segments.behavioral.inactive.length}</div>
+          <div class="segment-label">Inactive</div>
+          <div class="segment-desc">No activity in 30+ days</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">💎 Value Segments</span>
+        </div>
+        <div class="segment-grid" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="segment-card">
+            <div class="segment-icon">🏆</div>
+            <div class="segment-count" style="color: var(--accent-yellow);">${analytics.segments.value.vip.length}</div>
+            <div class="segment-label">VIP</div>
+            <div class="segment-desc">Top 10% spenders</div>
+          </div>
+          <div class="segment-card">
+            <div class="segment-icon">⭐</div>
+            <div class="segment-count" style="color: var(--accent-green);">${analytics.segments.value.highValue.length}</div>
+            <div class="segment-label">High Value</div>
+            <div class="segment-desc">70-90 percentile</div>
+          </div>
+          <div class="segment-card">
+            <div class="segment-icon">📊</div>
+            <div class="segment-count" style="color: var(--accent-blue);">${analytics.segments.value.mediumValue.length}</div>
+            <div class="segment-label">Medium Value</div>
+            <div class="segment-desc">30-70 percentile</div>
+          </div>
+          <div class="segment-card">
+            <div class="segment-icon">📉</div>
+            <div class="segment-count" style="color: var(--text-secondary);">${analytics.segments.value.lowValue.length}</div>
+            <div class="segment-label">Low Value</div>
+            <div class="segment-desc">Bottom 30%</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">⚡ Engagement Segments</span>
+        </div>
+        <div class="segment-grid" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="segment-card">
+            <div class="segment-icon">🔥</div>
+            <div class="segment-count" style="color: var(--accent-red);">${analytics.segments.engagement.superActive.length}</div>
+            <div class="segment-label">Super Active</div>
+            <div class="segment-desc">Daily visits</div>
+          </div>
+          <div class="segment-card">
+            <div class="segment-icon">✨</div>
+            <div class="segment-count" style="color: var(--accent-green);">${analytics.segments.engagement.active.length}</div>
+            <div class="segment-label">Active</div>
+            <div class="segment-desc">Weekly visits</div>
+          </div>
+          <div class="segment-card">
+            <div class="segment-icon">🌙</div>
+            <div class="segment-count" style="color: var(--accent-blue);">${analytics.segments.engagement.casual.length}</div>
+            <div class="segment-label">Casual</div>
+            <div class="segment-desc">Monthly visits</div>
+          </div>
+          <div class="segment-card">
+            <div class="segment-icon">💤</div>
+            <div class="segment-count" style="color: var(--text-muted);">${analytics.segments.engagement.dormant.length}</div>
+            <div class="segment-label">Dormant</div>
+            <div class="segment-desc">30+ days inactive</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  return generatePageTemplate(`${appName} - Customer Segments`, content, 'segments');
+};
+
+/**
+ * Generate Cohorts Dashboard
+ */
+const generateCohortsDashboard = (appName) => {
+  calculateCohortRetention();
+
+  const monthCohorts = Object.entries(analytics.cohorts.byMonth).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 6);
+  const weekCohorts = Object.entries(analytics.cohorts.byWeek).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 8);
+
+  const getRetentionColor = (rate) => {
+    if (rate >= 80) return 'rgba(52, 211, 153, 0.8)';
+    if (rate >= 60) return 'rgba(52, 211, 153, 0.6)';
+    if (rate >= 40) return 'rgba(251, 191, 36, 0.6)';
+    if (rate >= 20) return 'rgba(248, 113, 113, 0.4)';
+    return 'rgba(248, 113, 113, 0.2)';
   };
 
-  return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="refresh" content="30">
-  <title>${appName} - Advanced Analytics Dashboard</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    :root {
-      --bg-primary: #0f172a;
-      --bg-secondary: #1e293b;
-      --bg-tertiary: #334155;
-      --text-primary: #f1f5f9;
-      --text-secondary: #94a3b8;
-      --text-muted: #64748b;
-      --accent-green: #34d399;
-      --accent-red: #f87171;
-      --accent-blue: #60a5fa;
-      --accent-purple: #a78bfa;
-      --accent-yellow: #fbbf24;
-      --accent-cyan: #22d3ee;
-      --accent-orange: #fb923c;
-      --border: #334155;
-    }
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      min-height: 100vh;
-      line-height: 1.5;
-    }
-    .dashboard { display: flex; min-height: 100vh; }
-
-    /* Sidebar */
-    .sidebar {
-      width: 260px;
-      background: var(--bg-secondary);
-      border-right: 1px solid var(--border);
-      padding: 1.5rem;
-      position: fixed;
-      height: 100vh;
-      overflow-y: auto;
-    }
-    .logo { font-size: 1.5rem; font-weight: 700; margin-bottom: 2rem; display: flex; align-items: center; gap: 0.5rem; }
-    .logo-icon { width: 32px; height: 32px; background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple)); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
-    .nav-section { margin-bottom: 1.5rem; }
-    .nav-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 0.75rem; }
-    .nav-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; border-radius: 8px; color: var(--text-secondary); cursor: pointer; transition: all 0.2s; margin-bottom: 0.25rem; text-decoration: none; }
-    .nav-item:hover, .nav-item.active { background: var(--bg-tertiary); color: var(--text-primary); }
-    .nav-item.active { background: linear-gradient(90deg, rgba(99, 102, 241, 0.2), transparent); border-left: 3px solid var(--accent-blue); }
-    .nav-icon { width: 20px; text-align: center; }
-
-    /* Main Content */
-    .main { flex: 1; margin-left: 260px; padding: 2rem; }
-
-    /* Header */
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
-    .header-left h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
-    .header-left p { color: var(--text-secondary); }
-    .header-right { display: flex; align-items: center; gap: 1rem; }
-    .realtime-badge { display: flex; align-items: center; gap: 0.5rem; background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.3); padding: 0.5rem 1rem; border-radius: 20px; }
-    .pulse { width: 8px; height: 8px; background: var(--accent-green); border-radius: 50%; animation: pulse 2s infinite; }
-    @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.2); } }
-
-    /* Grid System */
-    .grid { display: grid; gap: 1.5rem; margin-bottom: 1.5rem; }
-    .grid-4 { grid-template-columns: repeat(4, 1fr); }
-    .grid-3 { grid-template-columns: repeat(3, 1fr); }
-    .grid-2 { grid-template-columns: repeat(2, 1fr); }
-    .grid-1-2 { grid-template-columns: 1fr 2fr; }
-    .grid-2-1 { grid-template-columns: 2fr 1fr; }
-    @media (max-width: 1400px) { .grid-4 { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 1024px) { .grid-2, .grid-3, .grid-1-2, .grid-2-1 { grid-template-columns: 1fr; } .sidebar { display: none; } .main { margin-left: 0; } }
-
-    /* Cards */
-    .card { background: var(--bg-secondary); border-radius: 16px; padding: 1.5rem; border: 1px solid var(--border); }
-    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .card-title { font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
-    .card-action { color: var(--accent-blue); font-size: 0.85rem; cursor: pointer; }
-
-    /* KPI Cards */
-    .kpi-card { position: relative; overflow: hidden; }
-    .kpi-card::before { content: ''; position: absolute; top: 0; right: 0; width: 120px; height: 120px; border-radius: 50%; opacity: 0.1; transform: translate(30%, -30%); }
-    .kpi-green::before { background: var(--accent-green); }
-    .kpi-blue::before { background: var(--accent-blue); }
-    .kpi-purple::before { background: var(--accent-purple); }
-    .kpi-yellow::before { background: var(--accent-yellow); }
-    .kpi-icon { width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; margin-bottom: 1rem; }
-    .kpi-value { font-size: 2rem; font-weight: 700; margin-bottom: 0.25rem; }
-    .kpi-label { color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.5rem; }
-    .kpi-trend { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.8rem; padding: 0.25rem 0.5rem; border-radius: 4px; }
-    .trend-up { background: rgba(52, 211, 153, 0.1); color: var(--accent-green); }
-    .trend-down { background: rgba(248, 113, 113, 0.1); color: var(--accent-red); }
-    .trend-neutral { background: rgba(148, 163, 184, 0.1); color: var(--text-secondary); }
-
-    /* Charts */
-    .chart-container { position: relative; height: 250px; width: 100%; }
-    .chart-container-sm { height: 180px; }
-
-    /* Progress Bars */
-    .progress-item { margin-bottom: 1rem; }
-    .progress-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
-    .progress-label { font-size: 0.875rem; color: var(--text-primary); }
-    .progress-value { font-size: 0.875rem; font-weight: 600; }
-    .progress-bar { height: 8px; background: var(--bg-tertiary); border-radius: 4px; overflow: hidden; }
-    .progress-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
-
-    /* Lists */
-    .list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.875rem; background: var(--bg-primary); border-radius: 8px; margin-bottom: 0.5rem; }
-    .list-item:last-child { margin-bottom: 0; }
-    .list-info { display: flex; align-items: center; gap: 0.75rem; }
-    .list-rank { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; background: var(--bg-tertiary); }
-    .list-rank.gold { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #000; }
-    .list-rank.silver { background: linear-gradient(135deg, #94a3b8, #64748b); color: #000; }
-    .list-rank.bronze { background: linear-gradient(135deg, #fb923c, #ea580c); color: #000; }
-    .list-text { font-size: 0.875rem; color: var(--text-primary); }
-    .list-subtext { font-size: 0.75rem; color: var(--text-muted); }
-    .list-value { font-weight: 600; color: var(--accent-blue); }
-
-    /* Insights Panel */
-    .insight-item { padding: 1rem; background: var(--bg-primary); border-radius: 8px; margin-bottom: 0.75rem; border-left: 4px solid; }
-    .insight-critical { border-color: var(--accent-red); background: rgba(248, 113, 113, 0.05); }
-    .insight-warning { border-color: var(--accent-yellow); background: rgba(251, 191, 36, 0.05); }
-    .insight-success { border-color: var(--accent-green); background: rgba(52, 211, 153, 0.05); }
-    .insight-info { border-color: var(--accent-blue); background: rgba(96, 165, 250, 0.05); }
-    .insight-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; }
-    .insight-icon { font-size: 1rem; }
-    .insight-title { font-weight: 600; font-size: 0.9rem; }
-    .insight-message { font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5; }
-
-    /* RFM Segments */
-    .segment-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
-    .segment-item { text-align: center; padding: 0.75rem; background: var(--bg-primary); border-radius: 8px; }
-    .segment-count { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); }
-    .segment-label { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; }
-
-    /* Funnel */
-    .funnel-step { display: flex; align-items: center; gap: 1rem; padding: 0.75rem; margin-bottom: 0.5rem; }
-    .funnel-number { width: 28px; height: 28px; background: var(--bg-tertiary); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600; }
-    .funnel-bar-container { flex: 1; }
-    .funnel-bar-bg { height: 28px; background: var(--bg-tertiary); border-radius: 6px; overflow: hidden; position: relative; }
-    .funnel-bar-fill { height: 100%; border-radius: 6px; display: flex; align-items: center; padding-left: 0.75rem; transition: width 0.5s ease; }
-    .funnel-label { font-size: 0.8rem; color: #fff; font-weight: 500; white-space: nowrap; }
-    .funnel-stats { display: flex; gap: 1rem; width: 140px; justify-content: flex-end; }
-    .funnel-stat { text-align: right; }
-    .funnel-stat-value { font-size: 0.9rem; font-weight: 600; }
-    .funnel-stat-label { font-size: 0.7rem; color: var(--text-muted); }
-
-    /* Tabs */
-    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
-    .tab { padding: 0.5rem 1rem; border-radius: 6px 6px 0 0; color: var(--text-secondary); cursor: pointer; font-size: 0.875rem; transition: all 0.2s; }
-    .tab:hover { color: var(--text-primary); }
-    .tab.active { background: var(--bg-tertiary); color: var(--accent-blue); }
-
-    /* Badges */
-    .badge { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
-    .badge-success { background: rgba(52, 211, 153, 0.15); color: var(--accent-green); }
-    .badge-warning { background: rgba(251, 191, 36, 0.15); color: var(--accent-yellow); }
-    .badge-danger { background: rgba(248, 113, 113, 0.15); color: var(--accent-red); }
-    .badge-info { background: rgba(96, 165, 250, 0.15); color: var(--accent-blue); }
-
-    /* Data Table */
-    .data-table { width: 100%; border-collapse: collapse; }
-    .data-table th, .data-table td { padding: 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
-    .data-table th { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
-    .data-table td { font-size: 0.875rem; }
-    .data-table tr:hover td { background: var(--bg-primary); }
-
-    /* Cohort Heatmap */
-    .cohort-grid { display: grid; grid-template-columns: 120px repeat(6, 1fr); gap: 2px; font-size: 0.75rem; }
-    .cohort-header { padding: 0.5rem; background: var(--bg-tertiary); text-align: center; font-weight: 600; }
-    .cohort-cell { padding: 0.5rem; text-align: center; border-radius: 4px; }
-    .cohort-label { background: var(--bg-tertiary); text-align: left; padding-left: 0.75rem; }
-
-    /* Mini Stats */
-    .mini-stats { display: flex; gap: 2rem; flex-wrap: wrap; }
-    .mini-stat { }
-    .mini-stat-value { font-size: 1.5rem; font-weight: 700; }
-    .mini-stat-label { font-size: 0.75rem; color: var(--text-muted); }
-
-    /* Scrollable */
-    .scrollable { max-height: 300px; overflow-y: auto; }
-    .scrollable::-webkit-scrollbar { width: 6px; }
-    .scrollable::-webkit-scrollbar-track { background: var(--bg-primary); border-radius: 3px; }
-    .scrollable::-webkit-scrollbar-thumb { background: var(--bg-tertiary); border-radius: 3px; }
-
-    /* Empty State */
-    .empty-state { text-align: center; padding: 2rem; color: var(--text-muted); }
-    .empty-icon { font-size: 3rem; margin-bottom: 1rem; opacity: 0.5; }
-
-    /* Footer */
-    .footer { text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.85rem; }
-
-    /* Animations */
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-    .animate-in { animation: fadeIn 0.5s ease-out; }
-  </style>
-</head>
-<body>
-  <div class="dashboard">
-    <!-- Sidebar -->
-    <aside class="sidebar">
-      <div class="logo">
-        <div class="logo-icon">📊</div>
-        <span>Analytics</span>
+  const content = `
+    <header class="header">
+      <div class="header-left">
+        <h1>📅 Cohort Analysis</h1>
+        <p>Track customer retention and engagement over time</p>
       </div>
+    </header>
 
-      <nav>
-        <div class="nav-section">
-          <div class="nav-title">Overview</div>
-          <a href="#" class="nav-item active"><span class="nav-icon">📈</span> Dashboard</a>
-          <a href="/analytics/executive" class="nav-item"><span class="nav-icon">👔</span> Executive View</a>
-        </div>
-
-        <div class="nav-section">
-          <div class="nav-title">Analytics</div>
-          <a href="/analytics/users" class="nav-item"><span class="nav-icon">👥</span> User Analytics</a>
-          <a href="/analytics/business" class="nav-item"><span class="nav-icon">💰</span> Revenue</a>
-          <a href="/analytics/funnels" class="nav-item"><span class="nav-icon">🎯</span> Funnels</a>
-        </div>
-
-        <div class="nav-section">
-          <div class="nav-title">Advanced</div>
-          <a href="/analytics/segments" class="nav-item"><span class="nav-icon">🧩</span> Segments</a>
-          <a href="/analytics/cohorts" class="nav-item"><span class="nav-icon">📅</span> Cohorts</a>
-          <a href="/analytics/rfm" class="nav-item"><span class="nav-icon">⭐</span> RFM Analysis</a>
-          <a href="/analytics/ltv" class="nav-item"><span class="nav-icon">💎</span> Customer LTV</a>
-        </div>
-
-        <div class="nav-section">
-          <div class="nav-title">Intelligence</div>
-          <a href="/analytics/predictions" class="nav-item"><span class="nav-icon">🔮</span> Predictions</a>
-          <a href="/analytics/insights" class="nav-item"><span class="nav-icon">💡</span> Insights</a>
-        </div>
-      </nav>
-    </aside>
-
-    <!-- Main Content -->
-    <main class="main">
-      <!-- Header -->
-      <header class="header">
-        <div class="header-left">
-          <h1>${appName}</h1>
-          <p>Advanced Business Intelligence Dashboard</p>
-        </div>
-        <div class="header-right">
-          <div class="realtime-badge">
-            <span class="pulse"></span>
-            <strong>${analytics.realtime.activeVisitors.size}</strong> active now
-          </div>
-          <span style="color: var(--text-muted); font-size: 0.85rem;">
-            Updated: ${new Date().toLocaleTimeString()}
-          </span>
-        </div>
-      </header>
-
-      <!-- KPI Cards -->
-      <div class="grid grid-4 animate-in">
-        <div class="card kpi-card kpi-green">
-          <div class="kpi-icon" style="background: linear-gradient(135deg, rgba(52, 211, 153, 0.2), rgba(16, 185, 129, 0.1));">💰</div>
-          <div class="kpi-value" style="color: var(--accent-green);">${formatCurrency(analytics.business.revenue.total)}</div>
-          <div class="kpi-label">Total Revenue</div>
-          <div class="kpi-trend ${analytics.predictions.trends.revenue.direction === 'up' ? 'trend-up' : analytics.predictions.trends.revenue.direction === 'down' ? 'trend-down' : 'trend-neutral'}">
-            ${getTrendIcon(analytics.predictions.trends.revenue.direction)} ${Math.abs(analytics.predictions.trends.revenue.change || 0)}% vs last week
-          </div>
-        </div>
-
-        <div class="card kpi-card kpi-blue">
-          <div class="kpi-icon" style="background: linear-gradient(135deg, rgba(96, 165, 250, 0.2), rgba(59, 130, 246, 0.1));">📦</div>
-          <div class="kpi-value" style="color: var(--accent-blue);">${analytics.business.orders.completed}</div>
-          <div class="kpi-label">Orders Completed</div>
-          <div class="kpi-trend ${analytics.predictions.trends.orders.direction === 'up' ? 'trend-up' : analytics.predictions.trends.orders.direction === 'down' ? 'trend-down' : 'trend-neutral'}">
-            ${getTrendIcon(analytics.predictions.trends.orders.direction)} ${Math.abs(analytics.predictions.trends.orders.change || 0)}% vs last week
-          </div>
-        </div>
-
-        <div class="card kpi-card kpi-purple">
-          <div class="kpi-icon" style="background: linear-gradient(135deg, rgba(167, 139, 250, 0.2), rgba(139, 92, 246, 0.1));">🎯</div>
-          <div class="kpi-value" style="color: var(--accent-purple);">${conversionRate}%</div>
-          <div class="kpi-label">Conversion Rate</div>
-          <span class="badge ${parseFloat(conversionRate) >= 3 ? 'badge-success' : parseFloat(conversionRate) >= 1 ? 'badge-warning' : 'badge-danger'}">
-            ${parseFloat(conversionRate) >= 3 ? 'Good' : parseFloat(conversionRate) >= 1 ? 'Average' : 'Low'}
-          </span>
-        </div>
-
-        <div class="card kpi-card kpi-yellow">
-          <div class="kpi-icon" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.1));">👥</div>
-          <div class="kpi-value" style="color: var(--accent-yellow);">${analytics.users.size.toLocaleString()}</div>
-          <div class="kpi-label">Unique Visitors</div>
-          <div class="kpi-trend ${analytics.predictions.trends.traffic.direction === 'up' ? 'trend-up' : analytics.predictions.trends.traffic.direction === 'down' ? 'trend-down' : 'trend-neutral'}">
-            ${getTrendIcon(analytics.predictions.trends.traffic.direction)} ${Math.abs(analytics.predictions.trends.traffic.change || 0)}% vs last week
-          </div>
-        </div>
+    <div class="grid grid-4">
+      <div class="card kpi-card kpi-green">
+        <div class="kpi-value">${analytics.cohorts.retention.day1.toFixed(1)}%</div>
+        <div class="kpi-label">Day 1 Retention</div>
       </div>
+      <div class="card kpi-card kpi-blue">
+        <div class="kpi-value">${analytics.cohorts.retention.day7.toFixed(1)}%</div>
+        <div class="kpi-label">Day 7 Retention</div>
+      </div>
+      <div class="card kpi-card kpi-purple">
+        <div class="kpi-value">${analytics.cohorts.retention.day30.toFixed(1)}%</div>
+        <div class="kpi-label">Day 30 Retention</div>
+      </div>
+      <div class="card kpi-card kpi-yellow">
+        <div class="kpi-value">${analytics.cohorts.retention.day90.toFixed(1)}%</div>
+        <div class="kpi-label">Day 90 Retention</div>
+      </div>
+    </div>
 
-      <!-- Insights & Alerts Row -->
-      ${analytics.insights.alerts.length > 0 || analytics.insights.anomalies.length > 0 ? `
-      <div class="card animate-in" style="margin-bottom: 1.5rem;">
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-header">
+        <span class="card-title">📊 Monthly Cohort Retention</span>
+      </div>
+      ${monthCohorts.length > 0 ? `
+        <div style="overflow-x: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Cohort</th>
+                <th>Users</th>
+                <th>Week 1</th>
+                <th>Week 2</th>
+                <th>Week 3</th>
+                <th>Week 4</th>
+                <th>Revenue</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${monthCohorts.map(([month, data]) => `
+                <tr>
+                  <td><strong>${month}</strong></td>
+                  <td>${(data.users || []).length}</td>
+                  <td style="background: ${getRetentionColor(data.retention?.week1 || 0)};">${(data.retention?.week1 || 0).toFixed(0)}%</td>
+                  <td style="background: ${getRetentionColor(data.retention?.week2 || 0)};">${(data.retention?.week2 || 0).toFixed(0)}%</td>
+                  <td style="background: ${getRetentionColor(data.retention?.week3 || 0)};">${(data.retention?.week3 || 0).toFixed(0)}%</td>
+                  <td style="background: ${getRetentionColor(data.retention?.week4 || 0)};">${(data.retention?.week4 || 0).toFixed(0)}%</td>
+                  <td>$${(data.revenue || 0).toLocaleString()}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : '<div class="empty-state"><div class="empty-icon">📅</div><div class="empty-title">No Cohort Data Yet</div><p>Cohorts will appear as users make purchases over time</p></div>'}
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📈 Weekly Cohorts</span>
+      </div>
+      ${weekCohorts.length > 0 ? `
+        <div class="scrollable">
+          ${weekCohorts.map(([week, data]) => `
+            <div class="list-item">
+              <div class="list-info">
+                <span class="list-text"><strong>${week}</strong></span>
+                <span class="list-subtext">${(data.users || []).length} users</span>
+              </div>
+              <span class="list-value">$${(data.revenue || 0).toLocaleString()}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : '<div class="empty-state"><div class="empty-icon">📈</div><p>No weekly cohort data yet</p></div>'}
+    </div>
+  `;
+
+  return generatePageTemplate(`${appName} - Cohort Analysis`, content, 'cohorts');
+};
+
+/**
+ * Generate RFM Analysis Dashboard
+ */
+const generateRFMDashboard = (appName) => {
+  updateRFMSegments();
+
+  const segmentInfo = {
+    champions: { icon: '🏆', color: '#fbbf24', desc: 'Best customers - high recency, frequency & monetary' },
+    loyalCustomers: { icon: '💎', color: '#34d399', desc: 'Good overall engagement across all metrics' },
+    potentialLoyalist: { icon: '⭐', color: '#60a5fa', desc: 'Recent customers with growth potential' },
+    newCustomers: { icon: '🌱', color: '#22d3ee', desc: 'Very recent first-time purchasers' },
+    promising: { icon: '📈', color: '#a78bfa', desc: 'Recent with medium engagement levels' },
+    needsAttention: { icon: '⚠️', color: '#fbbf24', desc: 'Above average but slipping away' },
+    aboutToSleep: { icon: '😴', color: '#fb923c', desc: 'Low recency, was previously engaged' },
+    atRisk: { icon: '🚨', color: '#f87171', desc: 'Spent big money but now inactive' },
+    cantLoseThem: { icon: '💔', color: '#ef4444', desc: 'Made big purchases, urgent win-back needed' },
+    hibernating: { icon: '❄️', color: '#94a3b8', desc: 'Low across all metrics' },
+    lost: { icon: '👋', color: '#64748b', desc: 'Very low engagement - likely churned' }
+  };
+
+  const topScores = Array.from(analytics.rfm.scores.values()).sort((a, b) => parseInt(b.score) - parseInt(a.score)).slice(0, 10);
+
+  const content = `
+    <header class="header">
+      <div class="header-left">
+        <h1>⭐ RFM Analysis</h1>
+        <p>Customer segmentation based on Recency, Frequency, and Monetary value</p>
+      </div>
+      <div class="header-right">
+        <span class="badge badge-info">Last updated: ${analytics.rfm.lastUpdated ? new Date(analytics.rfm.lastUpdated).toLocaleString() : 'Never'}</span>
+      </div>
+    </header>
+
+    <div class="grid grid-3">
+      <div class="card kpi-card kpi-blue">
+        <div class="kpi-icon" style="background: rgba(96, 165, 250, 0.2);">📊</div>
+        <div class="kpi-value">${analytics.rfm.scores.size}</div>
+        <div class="kpi-label">Total Scored</div>
+      </div>
+      <div class="card kpi-card kpi-green">
+        <div class="kpi-icon" style="background: rgba(52, 211, 153, 0.2);">🏆</div>
+        <div class="kpi-value">${analytics.rfm.segments.champions.length}</div>
+        <div class="kpi-label">Champions</div>
+      </div>
+      <div class="card kpi-card kpi-red">
+        <div class="kpi-icon" style="background: rgba(248, 113, 113, 0.2);">🚨</div>
+        <div class="kpi-value">${analytics.rfm.segments.atRisk.length + analytics.rfm.segments.cantLoseThem.length}</div>
+        <div class="kpi-label">At Risk</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-header">
+        <span class="card-title">📊 RFM Segments Overview</span>
+      </div>
+      <div class="segment-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+        ${Object.entries(segmentInfo).map(([segment, info]) => `
+          <div class="segment-card" style="border-left: 4px solid ${info.color};">
+            <div class="segment-icon">${info.icon}</div>
+            <div class="segment-count" style="color: ${info.color};">${analytics.rfm.segments[segment]?.length || 0}</div>
+            <div class="segment-label">${segment.replace(/([A-Z])/g, ' $1').trim()}</div>
+            <div class="segment-desc">${info.desc}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
         <div class="card-header">
-          <span class="card-title">⚠️ Alerts & Anomalies</span>
+          <span class="card-title">🏆 Top RFM Scores</span>
         </div>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">
-          ${analytics.insights.alerts.map(alert => `
-            <div class="insight-item ${alert.type === 'critical' ? 'insight-critical' : 'insight-warning'}">
+        ${topScores.length > 0 ? `
+          <div class="scrollable">
+            ${topScores.map((score, i) => `
+              <div class="list-item">
+                <div class="list-info">
+                  <span class="list-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</span>
+                  <div>
+                    <span class="list-text">${score.customerId}</span>
+                    <div class="list-subtext">R:${score.recency} F:${score.frequency} M:${score.monetary}</div>
+                  </div>
+                </div>
+                <div style="text-align: right;">
+                  <span class="list-value">${score.score}</span>
+                  <div class="list-subtext">${score.segment}</div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        ` : '<div class="empty-state"><div class="empty-icon">📊</div><p>No RFM scores calculated yet</p></div>'}
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📈 RFM Score Distribution</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="rfmChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const rfmData = ${JSON.stringify(Object.entries(segmentInfo).map(([seg]) => ({
+        segment: seg.replace(/([A-Z])/g, ' $1').trim(),
+        count: analytics.rfm.segments[seg]?.length || 0
+      })))};
+
+      new Chart(document.getElementById('rfmChart'), {
+        type: 'bar',
+        data: {
+          labels: rfmData.map(d => d.segment),
+          datasets: [{
+            label: 'Customers',
+            data: rfmData.map(d => d.count),
+            backgroundColor: ['#fbbf24', '#34d399', '#60a5fa', '#22d3ee', '#a78bfa', '#fbbf24', '#fb923c', '#f87171', '#ef4444', '#94a3b8', '#64748b'],
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: '#94a3b8', maxRotation: 45 } },
+            y: { grid: { color: 'rgba(148, 163, 184, 0.1)' }, ticks: { color: '#94a3b8' } }
+          }
+        }
+      });
+    </script>
+  `;
+
+  return generatePageTemplate(`${appName} - RFM Analysis`, content, 'rfm');
+};
+
+/**
+ * Generate LTV Dashboard
+ */
+const generateLTVDashboard = (appName) => {
+  const formatCurrency = (amount) => '$' + Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 });
+  const customers = Array.from(analytics.ltv.customers.values()).sort((a, b) => b.predictedLTV - a.predictedLTV);
+  const topCustomers = customers.slice(0, 15);
+
+  const content = `
+    <header class="header">
+      <div class="header-left">
+        <h1>💎 Customer Lifetime Value</h1>
+        <p>Understand and predict customer value over time</p>
+      </div>
+    </header>
+
+    <div class="grid grid-4">
+      <div class="card kpi-card kpi-green">
+        <div class="kpi-icon" style="background: rgba(52, 211, 153, 0.2);">💵</div>
+        <div class="kpi-value">${formatCurrency(analytics.ltv.averageLTV)}</div>
+        <div class="kpi-label">Average LTV</div>
+      </div>
+      <div class="card kpi-card kpi-blue">
+        <div class="kpi-icon" style="background: rgba(96, 165, 250, 0.2);">👥</div>
+        <div class="kpi-value">${analytics.ltv.totalCustomers}</div>
+        <div class="kpi-label">Total Customers</div>
+      </div>
+      <div class="card kpi-card kpi-yellow">
+        <div class="kpi-icon" style="background: rgba(251, 191, 36, 0.2);">⭐</div>
+        <div class="kpi-value">${analytics.ltv.segments.high.length}</div>
+        <div class="kpi-label">High Value</div>
+      </div>
+      <div class="card kpi-card kpi-red">
+        <div class="kpi-icon" style="background: rgba(248, 113, 113, 0.2);">⚠️</div>
+        <div class="kpi-value">${analytics.ltv.segments.churned.length}</div>
+        <div class="kpi-label">Churned</div>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📊 LTV Segments</span>
+        </div>
+        <div class="segment-grid" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="segment-card">
+            <div class="segment-icon">🏆</div>
+            <div class="segment-count" style="color: var(--accent-yellow);">${analytics.ltv.segments.high.length}</div>
+            <div class="segment-label">High Value</div>
+            <div class="segment-desc">Top 20% by predicted LTV</div>
+          </div>
+          <div class="segment-card">
+            <div class="segment-icon">📊</div>
+            <div class="segment-count" style="color: var(--accent-blue);">${analytics.ltv.segments.medium.length}</div>
+            <div class="segment-label">Medium Value</div>
+            <div class="segment-desc">20-50% by predicted LTV</div>
+          </div>
+          <div class="segment-card">
+            <div class="segment-icon">📉</div>
+            <div class="segment-count" style="color: var(--text-secondary);">${analytics.ltv.segments.low.length}</div>
+            <div class="segment-label">Low Value</div>
+            <div class="segment-desc">Bottom 50%, still active</div>
+          </div>
+          <div class="segment-card">
+            <div class="segment-icon">👋</div>
+            <div class="segment-count" style="color: var(--accent-red);">${analytics.ltv.segments.churned.length}</div>
+            <div class="segment-label">Churned</div>
+            <div class="segment-desc">No activity in 90+ days</div>
+          </div>
+        </div>
+        <div class="chart-container-sm" style="margin-top: 1rem;">
+          <canvas id="ltvPieChart"></canvas>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">💰 LTV Distribution</span>
+        </div>
+        <div class="chart-container">
+          <canvas id="ltvDistChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🏆 Top Customers by Predicted LTV</span>
+      </div>
+      ${topCustomers.length > 0 ? `
+        <div style="overflow-x: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Customer ID</th>
+                <th>Total Spent</th>
+                <th>Orders</th>
+                <th>Avg Order</th>
+                <th>Predicted LTV</th>
+                <th>Health Score</th>
+                <th>Last Purchase</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${topCustomers.map((c, i) => `
+                <tr>
+                  <td><span class="list-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</span></td>
+                  <td>${c.customerId}</td>
+                  <td>${formatCurrency(c.totalSpent)}</td>
+                  <td>${c.orderCount}</td>
+                  <td>${formatCurrency(c.avgOrderValue)}</td>
+                  <td style="color: var(--accent-green); font-weight: 600;">${formatCurrency(c.predictedLTV)}</td>
+                  <td>
+                    <div class="progress-bar" style="width: 60px; display: inline-block; vertical-align: middle;">
+                      <div class="progress-fill" style="width: ${c.healthScore}%; background: ${c.healthScore >= 70 ? 'var(--accent-green)' : c.healthScore >= 40 ? 'var(--accent-yellow)' : 'var(--accent-red)'};"></div>
+                    </div>
+                    <span style="margin-left: 0.5rem;">${c.healthScore.toFixed(0)}%</span>
+                  </td>
+                  <td>${Math.round(c.daysSinceLastPurchase)}d ago</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : '<div class="empty-state"><div class="empty-icon">💎</div><div class="empty-title">No LTV Data Yet</div><p>LTV calculations will appear after customers make purchases</p></div>'}
+    </div>
+
+    <script>
+      // LTV Segments Pie Chart
+      new Chart(document.getElementById('ltvPieChart'), {
+        type: 'doughnut',
+        data: {
+          labels: ['High Value', 'Medium Value', 'Low Value', 'Churned'],
+          datasets: [{
+            data: [${analytics.ltv.segments.high.length}, ${analytics.ltv.segments.medium.length}, ${analytics.ltv.segments.low.length}, ${analytics.ltv.segments.churned.length}],
+            backgroundColor: ['#fbbf24', '#60a5fa', '#94a3b8', '#f87171'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'right', labels: { color: '#94a3b8', padding: 10 } } },
+          cutout: '60%'
+        }
+      });
+
+      // LTV Distribution Chart
+      const ltvData = ${JSON.stringify(customers.slice(0, 20).map(c => ({ id: c.customerId.substring(0, 8), ltv: c.predictedLTV })))};
+      new Chart(document.getElementById('ltvDistChart'), {
+        type: 'bar',
+        data: {
+          labels: ltvData.map(d => d.id),
+          datasets: [{
+            label: 'Predicted LTV',
+            data: ltvData.map(d => d.ltv),
+            backgroundColor: '#34d399',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: '#94a3b8', maxRotation: 45 } },
+            y: { grid: { color: 'rgba(148, 163, 184, 0.1)' }, ticks: { color: '#94a3b8', callback: (v) => '$' + v } }
+          }
+        }
+      });
+    </script>
+  `;
+
+  return generatePageTemplate(`${appName} - Customer LTV`, content, 'ltv');
+};
+
+/**
+ * Generate Predictions Dashboard
+ */
+const generatePredictionsDashboard = (appName) => {
+  analyzeAndPredict();
+
+  const getTrendClass = (direction) => direction === 'up' ? 'trend-up' : direction === 'down' ? 'trend-down' : '';
+  const getTrendIcon = (direction) => direction === 'up' ? '↑' : direction === 'down' ? '↓' : '→';
+
+  const churnRisks = Array.from(analytics.predictions.churnRisk.entries())
+    .sort((a, b) => b[1].probability - a[1].probability)
+    .slice(0, 10);
+
+  const content = `
+    <header class="header">
+      <div class="header-left">
+        <h1>🔮 Predictive Analytics</h1>
+        <p>AI-powered forecasts and trend analysis</p>
+      </div>
+    </header>
+
+    <div class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-header">
+        <span class="card-title">📈 Trend Analysis</span>
+      </div>
+      <div class="grid grid-3">
+        <div class="segment-card">
+          <div class="segment-icon">💵</div>
+          <div class="segment-count ${getTrendClass(analytics.predictions.trends.revenue.direction)}" style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+            ${getTrendIcon(analytics.predictions.trends.revenue.direction)}
+            ${Math.abs(analytics.predictions.trends.revenue.change || 0).toFixed(1)}%
+          </div>
+          <div class="segment-label">Revenue Trend</div>
+          <div class="segment-desc">${analytics.predictions.trends.revenue.direction === 'up' ? 'Growing' : analytics.predictions.trends.revenue.direction === 'down' ? 'Declining' : 'Stable'}</div>
+        </div>
+        <div class="segment-card">
+          <div class="segment-icon">📦</div>
+          <div class="segment-count ${getTrendClass(analytics.predictions.trends.orders.direction)}" style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+            ${getTrendIcon(analytics.predictions.trends.orders.direction)}
+            ${Math.abs(analytics.predictions.trends.orders.change || 0).toFixed(1)}%
+          </div>
+          <div class="segment-label">Orders Trend</div>
+          <div class="segment-desc">${analytics.predictions.trends.orders.direction === 'up' ? 'Growing' : analytics.predictions.trends.orders.direction === 'down' ? 'Declining' : 'Stable'}</div>
+        </div>
+        <div class="segment-card">
+          <div class="segment-icon">👥</div>
+          <div class="segment-count ${getTrendClass(analytics.predictions.trends.traffic.direction)}" style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+            ${getTrendIcon(analytics.predictions.trends.traffic.direction)}
+            ${Math.abs(analytics.predictions.trends.traffic.change || 0).toFixed(1)}%
+          </div>
+          <div class="segment-label">Traffic Trend</div>
+          <div class="segment-desc">${analytics.predictions.trends.traffic.direction === 'up' ? 'Growing' : analytics.predictions.trends.traffic.direction === 'down' ? 'Declining' : 'Stable'}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-2">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">⏰ Seasonality Patterns</span>
+        </div>
+        ${analytics.predictions.seasonality.peakHours.length > 0 || analytics.predictions.seasonality.peakDays.length > 0 ? `
+          <div style="padding: 1rem 0;">
+            ${analytics.predictions.seasonality.peakHours.length > 0 ? `
+              <div class="list-item">
+                <div class="list-info">
+                  <span class="segment-icon">🕐</span>
+                  <span class="list-text">Peak Hours</span>
+                </div>
+                <span class="list-value">${analytics.predictions.seasonality.peakHours.map(h => h + ':00').join(', ')}</span>
+              </div>
+            ` : ''}
+            ${analytics.predictions.seasonality.peakDays.length > 0 ? `
+              <div class="list-item">
+                <div class="list-info">
+                  <span class="segment-icon">📅</span>
+                  <span class="list-text">Peak Days</span>
+                </div>
+                <span class="list-value">${analytics.predictions.seasonality.peakDays.join(', ')}</span>
+              </div>
+            ` : ''}
+          </div>
+        ` : '<div class="empty-state"><div class="empty-icon">⏰</div><p>Not enough data for seasonality analysis</p></div>'}
+      </div>
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">📊 Revenue Forecast</span>
+        </div>
+        ${analytics.predictions.revenueForecasts.length > 0 ? `
+          <div class="chart-container-sm">
+            <canvas id="forecastChart"></canvas>
+          </div>
+        ` : '<div class="empty-state"><div class="empty-icon">📊</div><p>Not enough data for forecasting</p></div>'}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🚨 Churn Risk Analysis</span>
+      </div>
+      ${churnRisks.length > 0 ? `
+        <div style="overflow-x: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Customer ID</th>
+                <th>Churn Probability</th>
+                <th>Risk Level</th>
+                <th>Risk Factors</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${churnRisks.map(([customerId, data]) => `
+                <tr>
+                  <td>${customerId}</td>
+                  <td>
+                    <div class="progress-bar" style="width: 100px; display: inline-block; vertical-align: middle;">
+                      <div class="progress-fill" style="width: ${(data.probability * 100).toFixed(0)}%; background: ${data.probability >= 0.7 ? 'var(--accent-red)' : data.probability >= 0.4 ? 'var(--accent-yellow)' : 'var(--accent-green)'};"></div>
+                    </div>
+                    <span style="margin-left: 0.5rem;">${(data.probability * 100).toFixed(0)}%</span>
+                  </td>
+                  <td>
+                    <span class="badge ${data.probability >= 0.7 ? 'badge-danger' : data.probability >= 0.4 ? 'badge-warning' : 'badge-success'}">
+                      ${data.probability >= 0.7 ? 'High' : data.probability >= 0.4 ? 'Medium' : 'Low'}
+                    </span>
+                  </td>
+                  <td>${(data.factors || []).join(', ') || 'No factors identified'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      ` : '<div class="empty-state"><div class="empty-icon">🚨</div><div class="empty-title">No Churn Risk Data</div><p>Churn predictions will appear as customer purchase patterns are analyzed</p></div>'}
+    </div>
+
+    <script>
+      ${analytics.predictions.revenueForecasts.length > 0 ? `
+        const forecastData = ${JSON.stringify(analytics.predictions.revenueForecasts.slice(-14))};
+        new Chart(document.getElementById('forecastChart'), {
+          type: 'line',
+          data: {
+            labels: forecastData.map(d => d.date),
+            datasets: [
+              {
+                label: 'Actual',
+                data: forecastData.map(d => d.actual),
+                borderColor: '#34d399',
+                backgroundColor: 'transparent',
+                tension: 0.4
+              },
+              {
+                label: 'Predicted',
+                data: forecastData.map(d => d.predicted),
+                borderColor: '#60a5fa',
+                backgroundColor: 'transparent',
+                borderDash: [5, 5],
+                tension: 0.4
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { position: 'top', labels: { color: '#94a3b8' } } },
+            scales: {
+              x: { grid: { color: 'rgba(148, 163, 184, 0.1)' }, ticks: { color: '#94a3b8' } },
+              y: { grid: { color: 'rgba(148, 163, 184, 0.1)' }, ticks: { color: '#94a3b8', callback: (v) => '$' + v } }
+            }
+          }
+        });
+      ` : ''}
+    </script>
+  `;
+
+  return generatePageTemplate(`${appName} - Predictions`, content, 'predictions');
+};
+
+/**
+ * Generate Insights Dashboard
+ */
+const generateInsightsDashboard = (appName) => {
+  const insights = generateInsights();
+
+  const getInsightClass = (type) => {
+    switch(type) {
+      case 'critical': return 'insight-critical';
+      case 'warning': return 'insight-warning';
+      case 'success': return 'insight-success';
+      default: return 'insight-info';
+    }
+  };
+
+  const getInsightIcon = (type) => {
+    switch(type) {
+      case 'critical': return '🚨';
+      case 'warning': return '⚠️';
+      case 'success': return '✅';
+      default: return '💡';
+    }
+  };
+
+  const content = `
+    <header class="header">
+      <div class="header-left">
+        <h1>💡 Actionable Insights</h1>
+        <p>AI-generated recommendations to improve your business</p>
+      </div>
+      <div class="header-right">
+        <span class="badge badge-info">Generated: ${insights.lastGenerated ? new Date(insights.lastGenerated).toLocaleString() : 'Just now'}</span>
+      </div>
+    </header>
+
+    ${insights.alerts && insights.alerts.length > 0 ? `
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+          <span class="card-title">🚨 Alerts Requiring Attention</span>
+          <span class="badge badge-danger">${insights.alerts.length} alerts</span>
+        </div>
+        <div class="scrollable">
+          ${insights.alerts.map(alert => `
+            <div class="insight-item ${getInsightClass(alert.type)}">
               <div class="insight-header">
-                <span class="insight-icon">${alert.type === 'critical' ? '🚨' : '⚠️'}</span>
+                <span class="insight-icon">${getInsightIcon(alert.type)}</span>
                 <span class="insight-title">${alert.title}</span>
               </div>
               <div class="insight-message">${alert.message}</div>
+              ${alert.action ? `<div style="margin-top: 0.75rem;"><span class="badge badge-info">Action: ${alert.action}</span></div>` : ''}
             </div>
           `).join('')}
-          ${analytics.insights.anomalies.map(anomaly => `
+        </div>
+      </div>
+    ` : ''}
+
+    ${insights.opportunities && insights.opportunities.length > 0 ? `
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+          <span class="card-title">🚀 Growth Opportunities</span>
+          <span class="badge badge-success">${insights.opportunities.length} found</span>
+        </div>
+        <div class="scrollable">
+          ${insights.opportunities.map(opp => `
+            <div class="insight-item insight-success">
+              <div class="insight-header">
+                <span class="insight-icon">💰</span>
+                <span class="insight-title">${opp.title}</span>
+              </div>
+              <div class="insight-message">${opp.message}</div>
+              ${opp.potentialValue ? `<div style="margin-top: 0.75rem;"><span class="badge badge-success">Potential: $${opp.potentialValue.toLocaleString()}</span></div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
+
+    ${insights.recommendations && insights.recommendations.length > 0 ? `
+      <div class="card" style="margin-bottom: 1.5rem;">
+        <div class="card-header">
+          <span class="card-title">💡 Recommendations</span>
+        </div>
+        <div class="scrollable">
+          ${insights.recommendations.map(rec => `
             <div class="insight-item insight-info">
+              <div class="insight-header">
+                <span class="insight-icon">💡</span>
+                <span class="insight-title">${rec.title}</span>
+              </div>
+              <div class="insight-message">${rec.message}</div>
+              ${rec.priority ? `<div style="margin-top: 0.75rem;"><span class="badge ${rec.priority === 'high' ? 'badge-danger' : rec.priority === 'medium' ? 'badge-warning' : 'badge-info'}">Priority: ${rec.priority}</span></div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
+
+    ${insights.anomalies && insights.anomalies.length > 0 ? `
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">🔍 Detected Anomalies</span>
+          <span class="badge badge-warning">${insights.anomalies.length} detected</span>
+        </div>
+        <div class="scrollable">
+          ${insights.anomalies.map(anomaly => `
+            <div class="insight-item insight-warning">
               <div class="insight-header">
                 <span class="insight-icon">🔍</span>
                 <span class="insight-title">${anomaly.title}</span>
@@ -1693,512 +3761,23 @@ const generateDashboard = (appName = 'Business Analytics') => {
           `).join('')}
         </div>
       </div>
-      ` : ''}
+    ` : ''}
 
-      <!-- Charts Row -->
-      <div class="grid grid-2 animate-in">
-        <!-- Revenue Chart -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">📈 Revenue Trend & Forecast</span>
-          </div>
-          <div class="chart-container">
-            <canvas id="revenueChart"></canvas>
-          </div>
-        </div>
-
-        <!-- Traffic Chart -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">👁️ Hourly Traffic Pattern</span>
-          </div>
-          <div class="chart-container">
-            <canvas id="trafficChart"></canvas>
-          </div>
+    ${(!insights.alerts || insights.alerts.length === 0) &&
+      (!insights.opportunities || insights.opportunities.length === 0) &&
+      (!insights.recommendations || insights.recommendations.length === 0) &&
+      (!insights.anomalies || insights.anomalies.length === 0) ? `
+      <div class="card">
+        <div class="empty-state">
+          <div class="empty-icon">💡</div>
+          <div class="empty-title">No Insights Available Yet</div>
+          <p>As your business data grows, AI-powered insights will appear here with actionable recommendations.</p>
         </div>
       </div>
+    ` : ''}
+  `;
 
-      <!-- Funnel & Segments Row -->
-      <div class="grid grid-2 animate-in">
-        <!-- Conversion Funnel -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">🎯 Conversion Funnel</span>
-            <span class="badge badge-info">${(() => {
-              const funnel = analytics.funnels.checkout;
-              const today = getToday();
-              const data = funnel.data[today] || {};
-              const first = data[funnel.steps[0]] || 0;
-              const last = data[funnel.steps[funnel.steps.length - 1]] || 0;
-              const rate = first > 0 ? ((last / first) * 100).toFixed(1) : 0;
-              return `${rate}% overall`;
-            })()}</span>
-          </div>
-          <div>
-            ${(() => {
-              const funnel = analytics.funnels.checkout;
-              const today = getToday();
-              const data = funnel.data[today] || {};
-              const firstStep = data[funnel.steps[0]] || 0;
-              const colors = ['#3b82f6', '#6366f1', '#8b5cf6', '#a855f7', '#d946ef', '#ec4899'];
-
-              return funnel.steps.map((step, i) => {
-                const count = data[step] || 0;
-                const percent = firstStep > 0 ? ((count / firstStep) * 100) : 0;
-                const prevCount = i > 0 ? (data[funnel.steps[i-1]] || 0) : count;
-                const dropoff = i > 0 && prevCount > 0 ? ((1 - count / prevCount) * 100).toFixed(0) : 0;
-
-                return `
-                  <div class="funnel-step">
-                    <div class="funnel-number" style="background: \${colors[i % colors.length]}; color: #fff;">\${i + 1}</div>
-                    <div class="funnel-bar-container">
-                      <div class="funnel-bar-bg">
-                        <div class="funnel-bar-fill" style="width: \${Math.max(percent, 5)}%; background: linear-gradient(90deg, \${colors[i % colors.length]}, \${colors[(i + 1) % colors.length]});">
-                          <span class="funnel-label">\${step.replace(/_/g, ' ')}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="funnel-stats">
-                      <div class="funnel-stat">
-                        <div class="funnel-stat-value">\${count}</div>
-                        <div class="funnel-stat-label">users</div>
-                      </div>
-                      <div class="funnel-stat">
-                        <div class="funnel-stat-value" style="color: \${i > 0 && dropoff > 50 ? 'var(--accent-red)' : 'var(--text-secondary)'}">\${i > 0 ? '-' + dropoff + '%' : '100%'}</div>
-                        <div class="funnel-stat-label">\${i > 0 ? 'dropoff' : 'start'}</div>
-                      </div>
-                    </div>
-                  </div>
-                `;
-              }).join('');
-            })()}
-          </div>
-        </div>
-
-        <!-- Customer Segments -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">⭐ RFM Customer Segments</span>
-            <a href="/analytics/rfm" class="card-action">View All →</a>
-          </div>
-          <div class="segment-grid">
-            <div class="segment-item" style="background: linear-gradient(135deg, rgba(52, 211, 153, 0.1), transparent);">
-              <div class="segment-count" style="color: var(--accent-green);">${analytics.rfm.segments.champions?.length || 0}</div>
-              <div class="segment-label">Champions</div>
-            </div>
-            <div class="segment-item" style="background: linear-gradient(135deg, rgba(96, 165, 250, 0.1), transparent);">
-              <div class="segment-count" style="color: var(--accent-blue);">${analytics.rfm.segments.loyalCustomers?.length || 0}</div>
-              <div class="segment-label">Loyal</div>
-            </div>
-            <div class="segment-item" style="background: linear-gradient(135deg, rgba(167, 139, 250, 0.1), transparent);">
-              <div class="segment-count" style="color: var(--accent-purple);">${analytics.rfm.segments.potentialLoyalist?.length || 0}</div>
-              <div class="segment-label">Potential</div>
-            </div>
-            <div class="segment-item" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), transparent);">
-              <div class="segment-count" style="color: var(--accent-yellow);">${analytics.rfm.segments.promising?.length || 0}</div>
-              <div class="segment-label">Promising</div>
-            </div>
-            <div class="segment-item" style="background: linear-gradient(135deg, rgba(251, 146, 60, 0.1), transparent);">
-              <div class="segment-count" style="color: var(--accent-orange);">${analytics.rfm.segments.needsAttention?.length || 0}</div>
-              <div class="segment-label">Needs Attention</div>
-            </div>
-            <div class="segment-item" style="background: linear-gradient(135deg, rgba(248, 113, 113, 0.1), transparent);">
-              <div class="segment-count" style="color: var(--accent-red);">${analytics.rfm.segments.atRisk?.length || 0}</div>
-              <div class="segment-label">At Risk</div>
-            </div>
-          </div>
-
-          <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border);">
-            <div class="card-title" style="margin-bottom: 1rem;">Customer Lifetime Value</div>
-            <div class="mini-stats">
-              <div class="mini-stat">
-                <div class="mini-stat-value" style="color: var(--accent-green);">${formatCurrency(analytics.ltv.averageLTV || 0)}</div>
-                <div class="mini-stat-label">Average LTV</div>
-              </div>
-              <div class="mini-stat">
-                <div class="mini-stat-value">${analytics.ltv.totalCustomers}</div>
-                <div class="mini-stat-label">Total Customers</div>
-              </div>
-              <div class="mini-stat">
-                <div class="mini-stat-value" style="color: var(--accent-blue);">${analytics.ltv.segments.high?.length || 0}</div>
-                <div class="mini-stat-label">VIP Customers</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Engagement & Products Row -->
-      <div class="grid grid-3 animate-in">
-        <!-- User Engagement -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">👥 User Engagement</span>
-          </div>
-          <div class="progress-item">
-            <div class="progress-header">
-              <span class="progress-label">Session Duration</span>
-              <span class="progress-value">${formatDuration(analytics.engagement.avgSessionDuration)}</span>
-            </div>
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: ${Math.min((analytics.engagement.avgSessionDuration / 300000) * 100, 100)}%; background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));"></div>
-            </div>
-          </div>
-          <div class="progress-item">
-            <div class="progress-header">
-              <span class="progress-label">Pages/Session</span>
-              <span class="progress-value">${analytics.engagement.avgPagesPerSession.toFixed(1)}</span>
-            </div>
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: ${Math.min((analytics.engagement.avgPagesPerSession / 10) * 100, 100)}%; background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan));"></div>
-            </div>
-          </div>
-          <div class="progress-item">
-            <div class="progress-header">
-              <span class="progress-label">Bounce Rate</span>
-              <span class="progress-value" style="color: ${parseFloat(bounceRate) > 60 ? 'var(--accent-red)' : 'var(--text-primary)'};">${bounceRate}%</span>
-            </div>
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: ${bounceRate}%; background: linear-gradient(90deg, ${parseFloat(bounceRate) > 60 ? 'var(--accent-orange), var(--accent-red)' : 'var(--accent-green), var(--accent-yellow)'});"></div>
-            </div>
-          </div>
-          <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
-            <div style="display: flex; gap: 1rem;">
-              <div style="flex: 1; text-align: center;">
-                <div style="font-size: 1.25rem; font-weight: 700; color: var(--accent-green);">${analytics.engagement.newUsers}</div>
-                <div style="font-size: 0.7rem; color: var(--text-muted);">New Users</div>
-              </div>
-              <div style="flex: 1; text-align: center;">
-                <div style="font-size: 1.25rem; font-weight: 700; color: var(--accent-blue);">${analytics.engagement.returningUsers}</div>
-                <div style="font-size: 0.7rem; color: var(--text-muted);">Returning</div>
-              </div>
-              <div style="flex: 1; text-align: center;">
-                <div style="font-size: 1.25rem; font-weight: 700; color: var(--accent-purple);">${analytics.engagement.activeUsers.daily.size}</div>
-                <div style="font-size: 0.7rem; color: var(--text-muted);">DAU</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Top Pages -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">📄 Top Pages</span>
-          </div>
-          <div class="scrollable">
-            ${topPages.length > 0 ? topPages.slice(0, 8).map(([page, views], i) => `
-              <div class="list-item">
-                <div class="list-info">
-                  <div class="list-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</div>
-                  <div>
-                    <div class="list-text" style="max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${page}</div>
-                  </div>
-                </div>
-                <div class="list-value">${views.toLocaleString()}</div>
-              </div>
-            `).join('') : '<div class="empty-state"><div class="empty-icon">📄</div><p>No page views yet</p></div>'}
-          </div>
-        </div>
-
-        <!-- Top Products -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">🛍️ Top Products</span>
-          </div>
-          <div class="scrollable">
-            ${topProducts.length > 0 ? topProducts.map(([productId, views], i) => `
-              <div class="list-item">
-                <div class="list-info">
-                  <div class="list-rank ${i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : ''}">${i + 1}</div>
-                  <div>
-                    <div class="list-text">${productId}</div>
-                    <div class="list-subtext">${views} views</div>
-                  </div>
-                </div>
-                <div class="list-value">${(analytics.business.products.addedToCart[productId] || 0)} carts</div>
-              </div>
-            `).join('') : '<div class="empty-state"><div class="empty-icon">🛍️</div><p>No product views yet</p></div>'}
-          </div>
-        </div>
-      </div>
-
-      <!-- Recommendations & Devices Row -->
-      <div class="grid grid-2 animate-in">
-        <!-- AI Recommendations -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">💡 AI Recommendations</span>
-          </div>
-          <div class="scrollable" style="max-height: 280px;">
-            ${analytics.insights.recommendations.length > 0 ? analytics.insights.recommendations.map(rec => `
-              <div class="insight-item insight-success">
-                <div class="insight-header">
-                  <span class="insight-icon">💡</span>
-                  <span class="insight-title">${rec.title}</span>
-                </div>
-                <div class="insight-message">${rec.message}</div>
-              </div>
-            `).join('') : ''}
-            ${analytics.insights.opportunities.length > 0 ? analytics.insights.opportunities.map(opp => `
-              <div class="insight-item insight-info">
-                <div class="insight-header">
-                  <span class="insight-icon">🚀</span>
-                  <span class="insight-title">${opp.title}</span>
-                </div>
-                <div class="insight-message">${opp.message}</div>
-              </div>
-            `).join('') : ''}
-            ${analytics.insights.recommendations.length === 0 && analytics.insights.opportunities.length === 0 ? `
-              <div class="empty-state">
-                <div class="empty-icon">💡</div>
-                <p>Insights will appear as more data is collected</p>
-              </div>
-            ` : ''}
-          </div>
-        </div>
-
-        <!-- Device & Browser -->
-        <div class="card">
-          <div class="card-header">
-            <span class="card-title">📱 Device Analytics</span>
-          </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
-            <div>
-              <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem; text-transform: uppercase;">Devices</div>
-              <div class="chart-container-sm">
-                <canvas id="deviceChart"></canvas>
-              </div>
-            </div>
-            <div>
-              <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.75rem; text-transform: uppercase;">Browsers</div>
-              <div class="chart-container-sm">
-                <canvas id="browserChart"></canvas>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Predictions Row -->
-      ${analytics.predictions.revenueForecasts.length > 0 ? `
-      <div class="card animate-in">
-        <div class="card-header">
-          <span class="card-title">🔮 7-Day Revenue Forecast</span>
-          <span class="badge badge-info">Predictive</span>
-        </div>
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Predicted Revenue</th>
-              <th>Confidence</th>
-              <th>Trend</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${analytics.predictions.revenueForecasts.map((forecast, i) => `
-              <tr>
-                <td>${new Date(forecast.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</td>
-                <td><strong>${formatCurrency(forecast.predicted)}</strong></td>
-                <td>
-                  <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <div style="flex: 1; height: 6px; background: var(--bg-tertiary); border-radius: 3px; overflow: hidden;">
-                      <div style="height: 100%; width: ${forecast.confidence}%; background: linear-gradient(90deg, var(--accent-green), var(--accent-cyan));"></div>
-                    </div>
-                    <span style="font-size: 0.8rem;">${forecast.confidence}%</span>
-                  </div>
-                </td>
-                <td>
-                  <span class="kpi-trend ${analytics.predictions.trends.revenue.direction === 'up' ? 'trend-up' : analytics.predictions.trends.revenue.direction === 'down' ? 'trend-down' : 'trend-neutral'}">
-                    ${getTrendIcon(analytics.predictions.trends.revenue.direction)} ${Math.abs(analytics.predictions.trends.revenue.change || 0)}%
-                  </span>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-      ` : ''}
-
-      <!-- Seasonality -->
-      ${analytics.predictions.seasonality.peakHours.length > 0 || analytics.predictions.seasonality.peakDays.length > 0 ? `
-      <div class="card animate-in">
-        <div class="card-header">
-          <span class="card-title">📅 Traffic Patterns</span>
-        </div>
-        <div style="display: flex; gap: 2rem; flex-wrap: wrap;">
-          ${analytics.predictions.seasonality.peakHours.length > 0 ? `
-            <div>
-              <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">Peak Hours</div>
-              <div style="display: flex; gap: 0.5rem;">
-                ${analytics.predictions.seasonality.peakHours.map(hour => `
-                  <span class="badge badge-success">${hour}:00</span>
-                `).join('')}
-              </div>
-            </div>
-          ` : ''}
-          ${analytics.predictions.seasonality.peakDays.length > 0 ? `
-            <div>
-              <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">Best Days</div>
-              <div style="display: flex; gap: 0.5rem;">
-                ${analytics.predictions.seasonality.peakDays.map(day => `
-                  <span class="badge badge-info">${day}</span>
-                `).join('')}
-              </div>
-            </div>
-          ` : ''}
-        </div>
-      </div>
-      ` : ''}
-
-      <!-- Recent Events -->
-      <div class="card animate-in">
-        <div class="card-header">
-          <span class="card-title">🔔 Recent Events</span>
-          <a href="/analytics/events" class="card-action">View All →</a>
-        </div>
-        <div class="scrollable" style="max-height: 200px;">
-          ${analytics.events.slice(-10).reverse().map(event => `
-            <div class="list-item">
-              <div class="list-info">
-                <span class="badge badge-info">${event.name}</span>
-                <span style="font-size: 0.75rem; color: var(--text-muted); margin-left: 0.5rem;">${new Date(event.timestamp).toLocaleTimeString()}</span>
-              </div>
-              <span style="font-size: 0.8rem; color: var(--text-secondary);">${JSON.stringify(event.data).substring(0, 50)}${JSON.stringify(event.data).length > 50 ? '...' : ''}</span>
-            </div>
-          `).join('') || '<div class="empty-state"><div class="empty-icon">🔔</div><p>No events tracked yet</p></div>'}
-        </div>
-      </div>
-
-      <!-- Footer -->
-      <footer class="footer">
-        <p>Advanced Business Analytics Dashboard • Auto-refreshes every 30 seconds</p>
-        <p style="margin-top: 0.5rem;">Last updated: ${new Date().toISOString()}</p>
-      </footer>
-    </main>
-  </div>
-
-  <!-- Chart.js Scripts -->
-  <script>
-    // Revenue Chart
-    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
-    const historicalData = ${JSON.stringify(analytics.historical.daily.slice(-14))};
-    const forecasts = ${JSON.stringify(analytics.predictions.revenueForecasts)};
-
-    new Chart(revenueCtx, {
-      type: 'line',
-      data: {
-        labels: [...historicalData.map(d => d.date), ...forecasts.map(f => f.date)],
-        datasets: [{
-          label: 'Actual Revenue',
-          data: [...historicalData.map(d => d.revenue), ...Array(forecasts.length).fill(null)],
-          borderColor: '#3b82f6',
-          backgroundColor: 'rgba(59, 130, 246, 0.1)',
-          fill: true,
-          tension: 0.4,
-        }, {
-          label: 'Forecast',
-          data: [...Array(historicalData.length).fill(null), ...forecasts.map(f => parseFloat(f.predicted))],
-          borderColor: '#8b5cf6',
-          borderDash: [5, 5],
-          backgroundColor: 'rgba(139, 92, 246, 0.1)',
-          fill: true,
-          tension: 0.4,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'top', labels: { color: '#94a3b8', usePointStyle: true, pointStyle: 'circle' } }
-        },
-        scales: {
-          x: { grid: { color: 'rgba(51, 65, 85, 0.5)' }, ticks: { color: '#64748b' } },
-          y: { grid: { color: 'rgba(51, 65, 85, 0.5)' }, ticks: { color: '#64748b', callback: v => '$' + v } }
-        }
-      }
-    });
-
-    // Traffic Chart
-    const trafficCtx = document.getElementById('trafficChart').getContext('2d');
-    const hourlyData = ${JSON.stringify(analytics.pageViews.byHour)};
-
-    new Chart(trafficCtx, {
-      type: 'bar',
-      data: {
-        labels: Array.from({length: 24}, (_, i) => i + ':00'),
-        datasets: [{
-          label: 'Page Views',
-          data: hourlyData,
-          backgroundColor: hourlyData.map((_, i) => {
-            const peakHours = ${JSON.stringify(analytics.predictions.seasonality.peakHours)};
-            return peakHours.includes(i) ? 'rgba(52, 211, 153, 0.8)' : 'rgba(59, 130, 246, 0.6)';
-          }),
-          borderRadius: 4,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { grid: { display: false }, ticks: { color: '#64748b', maxRotation: 0, autoSkip: true, maxTicksLimit: 12 } },
-          y: { grid: { color: 'rgba(51, 65, 85, 0.5)' }, ticks: { color: '#64748b' } }
-        }
-      }
-    });
-
-    // Device Chart
-    const deviceCtx = document.getElementById('deviceChart').getContext('2d');
-    const deviceData = ${JSON.stringify(analytics.devices.types)};
-
-    new Chart(deviceCtx, {
-      type: 'doughnut',
-      data: {
-        labels: Object.keys(deviceData),
-        datasets: [{
-          data: Object.values(deviceData),
-          backgroundColor: ['#3b82f6', '#8b5cf6', '#ec4899'],
-          borderWidth: 0,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'bottom', labels: { color: '#94a3b8', usePointStyle: true, pointStyle: 'circle', padding: 15, font: { size: 11 } } }
-        },
-        cutout: '65%',
-      }
-    });
-
-    // Browser Chart
-    const browserCtx = document.getElementById('browserChart').getContext('2d');
-    const browserData = ${JSON.stringify(analytics.devices.browsers)};
-    const sortedBrowsers = Object.entries(browserData).sort((a, b) => b[1] - a[1]).slice(0, 5);
-
-    new Chart(browserCtx, {
-      type: 'doughnut',
-      data: {
-        labels: sortedBrowsers.map(b => b[0]),
-        datasets: [{
-          data: sortedBrowsers.map(b => b[1]),
-          backgroundColor: ['#f59e0b', '#22d3ee', '#34d399', '#f87171', '#94a3b8'],
-          borderWidth: 0,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { position: 'bottom', labels: { color: '#94a3b8', usePointStyle: true, pointStyle: 'circle', padding: 15, font: { size: 11 } } }
-        },
-        cutout: '65%',
-      }
-    });
-  </script>
-</body>
-</html>`;
+  return generatePageTemplate(`${appName} - Insights`, content, 'insights');
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -2241,8 +3820,15 @@ export const setupBusinessAnalytics = (app, options = {}) => {
     res.send(html);
   });
 
-  // User analytics API
+  // User analytics - Visual Dashboard
   app.get(`${basePath}/users`, (req, res) => {
+    const html = generateUsersDashboard(appName);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  });
+
+  // User analytics - JSON API
+  app.get(`${basePath}/users/json`, (req, res) => {
     res.json({
       totalVisitors: analytics.users.size,
       totalSessions: analytics.sessions.size,
@@ -2265,8 +3851,15 @@ export const setupBusinessAnalytics = (app, options = {}) => {
     });
   });
 
-  // Business metrics API
+  // Business metrics - Visual Dashboard
   app.get(`${basePath}/business`, (req, res) => {
+    const html = generateBusinessDashboard(appName);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  });
+
+  // Business metrics - JSON API
+  app.get(`${basePath}/business/json`, (req, res) => {
     res.json({
       revenue: analytics.business.revenue,
       orders: analytics.business.orders,
@@ -2310,8 +3903,15 @@ export const setupBusinessAnalytics = (app, options = {}) => {
     });
   });
 
-  // Funnel analytics API
+  // Funnel analytics - Visual Dashboard
   app.get(`${basePath}/funnels`, (req, res) => {
+    const html = generateFunnelsDashboard(appName);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  });
+
+  // Funnel analytics - JSON API
+  app.get(`${basePath}/funnels/json`, (req, res) => {
     const funnelData = {};
     Object.entries(analytics.funnels).forEach(([key, funnel]) => {
       funnelData[key] = {
@@ -2356,8 +3956,15 @@ export const setupBusinessAnalytics = (app, options = {}) => {
   // 🚀 ADVANCED ANALYTICS ENDPOINTS
   // ═══════════════════════════════════════════════════════════════
 
-  // LTV (Customer Lifetime Value) API
+  // LTV (Customer Lifetime Value) - Visual Dashboard
   app.get(`${basePath}/ltv`, (req, res) => {
+    const html = generateLTVDashboard(appName);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  });
+
+  // LTV - JSON API
+  app.get(`${basePath}/ltv/json`, (req, res) => {
     const customers = Array.from(analytics.ltv.customers.values())
       .sort((a, b) => b.predictedLTV - a.predictedLTV);
 
@@ -2388,8 +3995,15 @@ export const setupBusinessAnalytics = (app, options = {}) => {
     });
   });
 
-  // RFM Analysis API
+  // RFM Analysis - Visual Dashboard
   app.get(`${basePath}/rfm`, (req, res) => {
+    const html = generateRFMDashboard(appName);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  });
+
+  // RFM Analysis - JSON API
+  app.get(`${basePath}/rfm/json`, (req, res) => {
     updateRFMSegments();
 
     const segmentCounts = {};
@@ -2420,8 +4034,15 @@ export const setupBusinessAnalytics = (app, options = {}) => {
     });
   });
 
-  // Cohort Analysis API
+  // Cohort Analysis - Visual Dashboard
   app.get(`${basePath}/cohorts`, (req, res) => {
+    const html = generateCohortsDashboard(appName);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  });
+
+  // Cohort Analysis - JSON API
+  app.get(`${basePath}/cohorts/json`, (req, res) => {
     calculateCohortRetention();
 
     res.json({
@@ -2436,8 +4057,15 @@ export const setupBusinessAnalytics = (app, options = {}) => {
     });
   });
 
-  // Predictions API
+  // Predictions - Visual Dashboard
   app.get(`${basePath}/predictions`, (req, res) => {
+    const html = generatePredictionsDashboard(appName);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  });
+
+  // Predictions - JSON API
+  app.get(`${basePath}/predictions/json`, (req, res) => {
     analyzeAndPredict();
 
     res.json({
@@ -2451,8 +4079,15 @@ export const setupBusinessAnalytics = (app, options = {}) => {
     });
   });
 
-  // Customer Segments API
+  // Customer Segments - Visual Dashboard
   app.get(`${basePath}/segments`, (req, res) => {
+    const html = generateSegmentsDashboard(appName);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  });
+
+  // Customer Segments - JSON API
+  app.get(`${basePath}/segments/json`, (req, res) => {
     updateSegments();
 
     res.json({
@@ -2480,8 +4115,15 @@ export const setupBusinessAnalytics = (app, options = {}) => {
     });
   });
 
-  // Insights API
+  // Insights - Visual Dashboard
   app.get(`${basePath}/insights`, (req, res) => {
+    const html = generateInsightsDashboard(appName);
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  });
+
+  // Insights - JSON API
+  app.get(`${basePath}/insights/json`, (req, res) => {
     const insights = generateInsights();
     res.json(insights);
   });
