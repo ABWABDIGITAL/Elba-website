@@ -23,8 +23,6 @@ couponSchema.pre("save", function (next) {
   next();
 });
 
-// Indexes
-couponSchema.index({ slug: 1 }, { unique: true });
-couponSchema.index({ code: 1 }, { unique: true });
+// Indexes - slug and code already have unique: true in schema, so no need to duplicate
 
 export default mongoose.model("Coupon", couponSchema);

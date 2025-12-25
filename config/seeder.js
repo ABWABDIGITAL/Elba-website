@@ -2138,6 +2138,7 @@ const seedBlogs = async () => {
     {
       ar: {
         title: "أفضل 10 نصائح لصيانة الثلاجة وإطالة عمرها",
+        subtitle: "دليل عملي لصيانة الثلاجة",
         slug: "best-10-refrigerator-maintenance-tips",
         excerpt: "تعرف على أهم النصائح العملية للحفاظ على ثلاجتك في أفضل حالة وإطالة عمرها الافتراضي مع توفير استهلاك الكهرباء",
         content: `<h2>مقدمة</h2>
@@ -2185,6 +2186,7 @@ const seedBlogs = async () => {
       },
       en: {
         title: "Top 10 Refrigerator Maintenance Tips to Extend Its Life",
+        subtitle: "Practical Guide to Refrigerator Maintenance",
         slug: "top-10-refrigerator-maintenance-tips-extend-life",
         excerpt: "Learn the most practical tips to keep your refrigerator in top condition, extend its lifespan, and save on electricity bills",
         content: `<h2>Introduction</h2>
@@ -2245,6 +2247,7 @@ const seedBlogs = async () => {
     {
       ar: {
         title: "دليل شامل لاختيار الغسالة المناسبة لمنزلك في 2024",
+        subtitle: "كيف تختار الغسالة المثالية",
         slug: "complete-guide-choose-right-washing-machine-2024",
         excerpt: "كل ما تحتاج معرفته قبل شراء غسالة جديدة: الأنواع، السعات، التقنيات، والعلامات التجارية الموثوقة",
         content: `<h2>مقدمة</h2>
@@ -2324,6 +2327,7 @@ const seedBlogs = async () => {
       },
       en: {
         title: "Complete Guide to Choosing the Right Washing Machine in 2024",
+        subtitle: "How to Choose the Perfect Washing Machine",
         slug: "complete-guide-choose-right-washing-machine-home-2024",
         excerpt: "Everything you need to know before buying a new washer: types, capacities, technologies, and trusted brands",
         content: `<h2>Introduction</h2>
@@ -2435,6 +2439,7 @@ const seedBlogs = async () => {
     blogs.push({
       ar: {
         title: `${topic.ar} - دليل شامل ${2024}`,
+        subtitle: `نصائح وإرشادات حول ${topic.ar}`,
         slug: `${topic.en.toLowerCase().replace(/\s+/g, '-')}-complete-guide-${i + 3}`,
         excerpt: `دليل متكامل عن ${topic.ar} مع نصائح عملية ومعلومات مفيدة لكل منزل`,
         content: `<h2>مقدمة</h2><p>مقال شامل عن ${topic.ar} يقدم لك كل المعلومات التي تحتاجها...</p><h3>النقاط الرئيسية</h3><p>محتوى تفصيلي عن الموضوع مع أمثلة عملية...</p>`,
@@ -2448,6 +2453,7 @@ const seedBlogs = async () => {
       },
       en: {
         title: `${topic.en} - Complete Guide ${2024}`,
+        subtitle: `Tips and Guidance on ${topic.en}`,
         slug: `${topic.en.toLowerCase().replace(/\s+/g, '-')}-complete-guide-en-${i + 3}`,
         excerpt: `Comprehensive guide about ${topic.en} with practical tips and useful information for every home`,
         content: `<h2>Introduction</h2><p>Complete article about ${topic.en} providing you with all the information you need...</p><h3>Key Points</h3><p>Detailed content about the topic with practical examples...</p>`,

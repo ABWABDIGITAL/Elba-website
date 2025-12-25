@@ -67,8 +67,7 @@ const newsletterSchema = new mongoose.Schema(
   }
 );
 
-// Index for quick lookups
-newsletterSchema.index({ email: 1 });
+// Index for quick lookups (email already indexed via unique: true)
 newsletterSchema.index({ isActive: 1 });
 newsletterSchema.index({ "preferences.receiveEmail": 1 });
 newsletterSchema.index({ "preferences.receiveWhatsApp": 1 });

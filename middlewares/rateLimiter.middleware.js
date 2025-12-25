@@ -1,5 +1,5 @@
 // middlewares/rateLimiter.middleware.js
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import RedisStore from "rate-limit-redis";
 import Redis from "ioredis";
 
@@ -38,10 +38,8 @@ export const webhookRateLimiter = rateLimit({
   // Don't count successful requests
   skipSuccessfulRequests: false,
   
-  // Custom key generator (by IP)
-  keyGenerator: (req) => {
-    return req.ip || req.headers["x-forwarded-for"]?.split(",")[0] || "unknown";
-  },
+  // Custom key generator (by IP) - using ipKeyGenerator for proper IPv6 handling
+  keyGenerator: (req) => ipKeyGenerator(req),
   
   // Handler for rate limit exceeded
   handler: (req, res, next, options) => {
@@ -76,7 +74,7 @@ export const paymentRateLimiter = rateLimit({
   
   // Custom key: combine IP + user ID for more precise limiting
   keyGenerator: (req) => {
-    const ip = req.ip || "unknown";
+    const ip = ipKeyGenerator(req);
     const userId = req.user?._id?.toString() || "anonymous";
     return `${ip}:${userId}`;
   },

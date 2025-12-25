@@ -63,7 +63,7 @@ const productSchema = new mongoose.Schema(
     images: [{ url: { type: String, required: true } }],
 
     /* ------------------------ IDENTIFIERS -------------------------- */
-    slug: { type: String, unique: true, index: true },
+    slug: { type: String, unique: true },
 
     sku: {
       type: String,
