@@ -29,6 +29,8 @@ import settingsRoutes from "./routes/settings.route.js";
 import chatRoutes from "./routes/chat.route.js";
 import searchRoutes from "./routes/search.routes.js";
 import communicationRoutes from "./routes/communicationInfo.route.js";
+import analyticsRouter  from "./routes/analytics.routes.js";
+import dashboardRoutes from "./routes/dashboard.routes.js";
 import seedRoles , { seedAdmin } from "./config/seedRoles.js";
 import runSeeder from "./config/seeder.js";
 
@@ -112,6 +114,8 @@ app.use("/api/v1/settings", settingsRoutes);
 app.use("/api/v1/chat", chatRoutes);
 app.use("/api/v1/search", searchRoutes);
 app.use("/api/v1/communicationInfo", communicationRoutes);
+app.use("/api/v1/dashboard", dashboardRoutes);
+app.use("/api/v1/analytics", analyticsRouter);
 app.use("/uploads" , express.static(path.join(process.cwd(), "uploads")));
 app.use(errorMiddleware);
 

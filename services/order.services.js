@@ -6,6 +6,8 @@ import User from "../models/user.model.js";
 import ApiError ,{ BadRequest, NotFound, ServerError, Forbidden } from "../utlis/apiError.js";
 import mongoose from "mongoose";
 import { sendOrderUpdateWhatsApp } from "./whatsapp.services.js";
+import { trackOrderPlaced, trackOrderStatusChange } from '../services/analytics.services.js';
+
 
 /* --------------------------------------------------
    HELPER FUNCTIONS
@@ -107,7 +109,7 @@ console.log("Running hooks? isNew =", order.isNew);
     if (paymentMethod === "credit_card") {
       await session.commitTransaction();
       session.endSession();
-
+      
       return {
         OK: true,
         message: "Order created, proceed to payment",
@@ -136,7 +138,7 @@ console.log("Running hooks? isNew =", order.isNew);
 
     await session.commitTransaction();
     session.endSession();
-
+     await trackOrderPlaced(req, order);
     return {
       OK: true,
       message: "Order created successfully",
@@ -340,7 +342,7 @@ export const updateOrderStatusService = async (orderId, status, note = null) => 
         console.error("Failed to send order update WhatsApp:", err);
       });
     }
-
+    await trackOrderStatusChange(order, status, req);
     return {
       OK: true,
       message: `Order status updated to ${status}`,

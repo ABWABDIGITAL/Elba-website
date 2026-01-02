@@ -370,7 +370,7 @@ export const getAllProductsforAdminController = async (req, res, next) => {
 // GET SINGLE PRODUCT BY SKU
 export const getProductBySlugController = async (req, res, next) => {
   try {
-    const result = await getProductByslugService(req.params.slug);
+    const result = await getProductByslugService(req , req.params.slug);
     res.status(StatusCodes.OK).json(result);
   } catch (err) {
     next(err);

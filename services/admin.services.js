@@ -32,11 +32,12 @@ export const getDashboardAnalyticsService = async () => {
     ]);
 
     // Products analytics
-    const [totalProducts, activeProducts, outOfStock, lowStock] = await Promise.all([
+    const [totalProducts, activeProducts, outOfStock, lowStock , discountProducts] = await Promise.all([
       Product.countDocuments(),
       Product.countDocuments({ status: "active" }),
       Product.countDocuments({ status: "out_of_stock" }),
       Product.countDocuments({ stock: { $lte: 10, $gt: 0 } }),
+      Product.countDocuments({ discount: { $gt: 0 } }),
     ]);
 
     // Orders analytics
@@ -113,7 +114,7 @@ export const getDashboardAnalyticsService = async () => {
       .populate("user", "name email")
       .select("orderNumber totalAmount status createdAt")
       .lean();
-
+    
     // Category distribution
     const [categoryCount, brandCount] = await Promise.all([
       Category.countDocuments(),
@@ -134,8 +135,9 @@ export const getDashboardAnalyticsService = async () => {
       products: {
         total: totalProducts,
         active: activeProducts,
-        outOfStock,
-        lowStock,
+        outOfStock: outOfStock,
+        lowStock: lowStock,
+        discount: discountProducts,
       },
       orders: {
         total: totalOrders,

@@ -55,7 +55,7 @@ export const validateRegister = [
     .custom(async (roleName) => {
       const role = await Role.findOne({ name: roleName });
       if (!role) throw new Error("Invalid role name");
-      if (!role.isActive) throw new Error("Role is not active");
+      // if (!role.isActive) throw new Error("Role is not active assssaaa");
       return true;
     }),
 

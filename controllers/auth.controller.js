@@ -54,7 +54,7 @@ export const adminRegisterController = async (req, res, next) => {
 ========================================================== */
 export const loginController = async (req, res, next) => {
   try {
-    const result = await loginService(req.body);
+    const result = await loginService(req, req.body);
 
     return res.status(StatusCodes.OK).json({
       status: "success",

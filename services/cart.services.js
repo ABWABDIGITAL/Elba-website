@@ -2,12 +2,7 @@ import Cart from "../models/cart.model.js";
 import Product from "../models/product.model.js";
 import Coupon from "../models/coupon.model.js";
 import ApiError, { BadRequest, NotFound, ServerError } from "../utlis/apiError.js";
-
-/* --------------------------------------------------
-   HELPER FUNCTIONS
---------------------------------------------------- */
-
-// Calculate cart totals
+import { trackAddToCart, trackRemoveFromCart } from '../services/analytics.services.js';
 const calculateCartTotals = (cartItems) => {
   const totalCartPrice = cartItems.reduce((sum, item) => {
     return sum + item.price * item.quantity;
@@ -99,6 +94,7 @@ export const addToCartService = async (userId, slug, quantity = 1, color = null)
       path: "cartItems.product",
       select: "en.name ar.name en.slug ar.slug sku images stock status price discountPrice",
     });
+      await trackAddToCart(req, product, quantity, cart);
 
     return {
       OK: true,
@@ -256,7 +252,7 @@ export const removeCartItemService = async (userId, slug) => {
       path: "cartItems.product",
       select: "en.name ar.name en.slug ar.slug sku en.images ar.images stock status",
     });
-
+await trackRemoveFromCart(req, product, quantity, updatedCart);
     return {
       OK: true,
       message: "Product removed from cart successfully",

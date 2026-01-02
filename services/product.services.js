@@ -8,6 +8,7 @@ import ApiError, {
 } from "../utlis/apiError.js";
 import ApiFeatures from "../utlis/apiFeatures.js";
 import slugify from "slugify";
+import { trackProductView } from '../services/analytics.services.js';
 export const buildCompareDTO = (p) => {
   if (!p) return null;
   return {
@@ -336,7 +337,7 @@ export const getAllProductsForAdminService = async (query) => {
   }
 };
     
-export const getProductByslugService = async (slug) => {
+export const getProductByslugService = async (req , slug) => {
   const product = await Product.findOneAndUpdate(
     { slug },
     { $inc: { views: 1 } },
@@ -356,7 +357,7 @@ export const getProductByslugService = async (slug) => {
     .populate("brand", "ar.name ar.slug en.name en.slug logo")
     .limit(10)
     .sort({ ratingsAverage: -1, salesCount: -1 });
-
+await trackProductView(req, product);
   return {
     OK: true,
     message: "Product fetched successfully",

@@ -8,6 +8,7 @@ import {
 } from "../utlis/apiError.js";
 import crypto from "crypto";
 import { sendRegistrationWhatsApp } from "./whatsapp.services.js";
+import { trackUserRegistration, trackUserLogin } from '../services/analytics.services.js';
 
 /* ==========================================================
    USER DTO
@@ -21,9 +22,7 @@ const buildUserDTO = (user) => ({
   role: user.role,
 });
 
-/* ==========================================================
-   REGISTER SERVICE (FIXED)
-========================================================== */
+
 export const registerService = async ({
   firstName,
   lastName,
@@ -31,70 +30,37 @@ export const registerService = async ({
   BirthDate,
   email,
   password,
-  confirmPassword,
-  role,
   phone,
-  address
+  address,
+  validatedRoleId, // Passed from validator middleware!
 }) => {
-  if (!firstName ||!lastName||!gender||!BirthDate||!email || !password || !confirmPassword || !phone) {
-    throw BadRequest("All fields are required");
+  // Validator already checked everything, just get role if not passed
+  let roleId = validatedRoleId;
+  
+  if (!roleId) {
+    const defaultRole = await Role.findOne({ name: "user" }).select('_id').lean();
+    roleId = defaultRole?._id;
+    if (!roleId) throw BadRequest("User role not found");
   }
 
-  if (password !== confirmPassword) {
-    throw BadRequest("Passwords do not match");
-  }
-
-  const normalizedEmail = email.toLowerCase().trim();
-  const normalizedPhone = phone.trim();
-  const normalizedAddress = address?.trim();
-
-  // Double check for duplicates
-  const emailExists = await User.findOne({ email: normalizedEmail });
-  if (emailExists) throw BadRequest("Email already registered");
-
-  const phoneExists = await User.findOne({ phone: normalizedPhone });
-  if (phoneExists) throw BadRequest("Phone already registered");
-
-  const allowedPublicRoles = ["user"]; 
-
-  let assignedRoleId;
-  if (role) {
-    if (!allowedPublicRoles.includes(role)) {
-      throw BadRequest("You can only register as a 'user'. Contact admin for other roles.");
-    }
-
-    const roleDoc = await Role.findOne({ name: role });
-    if (!roleDoc || roleDoc.status !== "active") {
-      throw BadRequest("Invalid or inactive role");
-    }
-    assignedRoleId = roleDoc._id;
-  } else {
-    const defaultRole = await Role.findOne({ name: "user" });
-    assignedRoleId = defaultRole?._id;
-
-    if (!assignedRoleId) {
-      throw BadRequest("User role not found in the system");
-    }
-  }
-
+  // Create user directly - no duplicate checks!
   const newUser = await User.create({
-    firstName,
-    lastName,
+    firstName: firstName.trim(),
+    lastName: lastName.trim(),
     gender,
-    BirthDate,
-    email: normalizedEmail,
+    dateOfBirth: BirthDate,
+    email: email.toLowerCase().trim(),
     password,
-    phone: normalizedPhone,
-    role: assignedRoleId,
-    address: normalizedAddress,
+    phone: phone.trim(),
+    role: roleId,
+    address: address?.trim(),
   });
 
   const token = newUser.generateToken();
 
-  sendRegistrationWhatsApp(newUser).catch(err => {
-    console.error("Failed to send registration WhatsApp:", err);
-  });
-
+  // Fire-and-forget
+  sendRegistrationWhatsApp(newUser).catch(console.error);
+  await trackUserRegistration(req, newUser);
   return {
     OK: true,
     message: "User registered successfully",
@@ -180,7 +146,7 @@ export const adminRegisterService = async ({
 /* ==========================================================
    LOGIN SERVICE
 ========================================================== */
-export const loginService = async ({ phone, password }) => {
+export const loginService = async (req, { phone, password }) => {
   if (!phone || !password) {
     throw BadRequest("Phone and password are required");
   }
@@ -198,7 +164,11 @@ export const loginService = async ({ phone, password }) => {
   if (!isMatch) throw BadRequest("Invalid phone or password");
 
   const token = user.generateToken();
-
+  
+  // Only track login if analytics is enabled
+  if (process.env.ANALYTICS_ENABLED === 'true') {
+    await trackUserLogin(req, user);
+  }
   return {
     OK: true,
     message: "User logged in successfully",
