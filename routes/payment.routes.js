@@ -4,7 +4,7 @@ import {
   initiateEmbeddedPaymentSession,
   myFatoorahWebhookController,
 } from "../controllers/payment.controller.js";
-import { protect, allowTo } from "../middlewares/authMiddleware.js";
+import { protect } from "../middlewares/authMiddleware.js";
 import {
   verifyWebhookSignature,
   verifyWebhookIP,
@@ -17,6 +17,7 @@ import {
   validateInitiatePayment,
   validateWebhookPayload,
 } from "../validators/payment.validator.js";
+import { requirePermission } from "../middlewares/permission.middleware.js";
 
 const router = express.Router();
 
@@ -27,7 +28,7 @@ router.post(
   "/init-session",
   paymentRateLimiter,           // 1. Rate limit: 10 req/min per IP
   protect,                       // 2. Must be logged in
-  allowTo("user"),              // 3. Must be a user (not admin)
+  requirePermission("payment", "create"), // 3. Must have payment create permission
   validateInitiatePayment,      // 4. Validate request body
   initiateEmbeddedPaymentSession
 );

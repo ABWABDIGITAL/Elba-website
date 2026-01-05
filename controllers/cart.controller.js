@@ -17,7 +17,7 @@ export const addToCartController = async (req, res, next) => {
     const userId = req.user._id;
     const { slug, quantity, color } = req.body;
 
-    const result = await addToCartService(userId, slug, quantity, color);
+    const result = await addToCartService(req,userId, slug, quantity, color);
 
     res.status(StatusCodes.CREATED).json(result);
   } catch (err) {

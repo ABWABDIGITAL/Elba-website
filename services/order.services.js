@@ -30,12 +30,17 @@ const calculateShipping = (totalPrice) => {
 /* --------------------------------------------------
    CREATE ORDER FROM CART (WITH ATOMIC STOCK UPDATES)
 --------------------------------------------------- */
-export const createOrderService = async (userId, shippingAddress, paymentMethod = "cash_on_delivery") => {
+export const createOrderService = async (
+  req,
+  userId,
+  shippingAddress,
+  paymentMethod = "cash_on_delivery"
+) => {
   const session = await mongoose.startSession();
-  session.startTransaction();
 
   try {
-    // 1) Get user's active cart
+    session.startTransaction();
+
     const cart = await Cart.findOne({ user: userId, isActive: true })
       .populate("cartItems.product")
       .session(session);
@@ -44,48 +49,24 @@ export const createOrderService = async (userId, shippingAddress, paymentMethod 
       throw BadRequest("Cart is empty");
     }
 
-    // 2) Validate & reserve stock
-    const orderItems = [];
+    const orderItems = cart.cartItems.map(item => ({
+      product: item.product._id,
+      quantity: item.quantity,
+      color: item.color,
+      price: item.price,
+      productName: {
+        en: item.product.en?.title,
+        ar: item.product.ar?.title,
+      },  
+      productSku: item.product.sku,
+    }));
 
-    for (const item of cart.cartItems) {
-      const product = item.product;
-      //TODO: implement stock reservation by my fatoorah webhook that will update the stock and the payment status
-      // const updatedProduct = await Product.findOneAndUpdate(
-      //   {
-      //     _id: product._id,
-      //     stock: { $gte: item.quantity },
-      //     status: "active",
-      //   },
-      //   { $inc: { stock: -item.quantity, salesCount: item.quantity } },
-      //   { new: true, session }
-      // );
-
-      // if (!updatedProduct) {
-      //   throw BadRequest(`Insufficient stock for ${product.en?.name}`);
-      // }
-
-      orderItems.push({
-        product: product._id,
-        quantity: item.quantity,
-        color: item.color,
-        price: item.price,
-        productName: {
-          en: product.en?.name,
-          ar: product.ar?.name,
-        },
-        productSku: product.sku,
-      });
-    }
-
-    // 3) Calculate pricing
     const itemsPrice = cart.totalCartPrice;
-    const shippingPrice = 0;
     const discountAmount = itemsPrice - cart.totalPriceAfterDiscount;
-    const subtotal = itemsPrice - discountAmount + shippingPrice;
+    const shippingPrice = 0;
     const taxPrice = 0;
-    const totalPrice = subtotal + taxPrice;
+    const totalPrice = itemsPrice - discountAmount + shippingPrice + taxPrice;
 
-    // 4) Create order object (NOT SAVED YET)
     const order = new Order({
       user: userId,
       orderItems,
@@ -99,30 +80,20 @@ export const createOrderService = async (userId, shippingAddress, paymentMethod 
       paymentStatus: "pending",
       orderStatus: "pending",
     });
-console.log("Running hooks? isNew =", order.isNew);
 
-    // 5) Save the order ONCE (Triggers pre-save hook → generates orderNumber)
     await order.save({ session });
-
-    console.log("✔ Order saved. OrderNumber =", order.orderNumber);
 
     if (paymentMethod === "credit_card") {
       await session.commitTransaction();
-      session.endSession();
-      
       return {
         OK: true,
         message: "Order created, proceed to payment",
         orderId: order._id,
         orderNumber: order.orderNumber,
-        paymentRequired: true
+        paymentRequired: true,
       };
     }
 
-
-    // -------------------------------------------
-    // 7) CASH ON DELIVERY (normal flow)
-    // -------------------------------------------
     await Cart.updateOne(
       { _id: cart._id },
       {
@@ -137,20 +108,24 @@ console.log("Running hooks? isNew =", order.isNew);
     );
 
     await session.commitTransaction();
-    session.endSession();
-     await trackOrderPlaced(req, order);
+
+    // 🔥 SIDE EFFECTS AFTER COMMIT
+    trackOrderPlaced(order).catch(console.error);
+
     return {
       OK: true,
       message: "Order created successfully",
       data: order,
     };
-
   } catch (err) {
-    await session.abortTransaction();
-    session.endSession();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
 
     if (err instanceof ApiError) throw err;
     throw ServerError("Failed to create order", err.message);
+  } finally {
+    session.endSession();
   }
 };
 

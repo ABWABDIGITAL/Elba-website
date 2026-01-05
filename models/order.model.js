@@ -148,7 +148,7 @@ const orderSchema = new mongoose.Schema(
     // Payment
     paymentMethod: {
       type: String,
-      enum: ["cash_on_delivery", "credit_card", "tabby", "tamara","apple_pay","mada"],
+      enum: ["cash_on_delivery", "credit_card", "tabby", "tamara","apple_pay","mada","myfatoorah"],
     },
 
    paymentStatus: {

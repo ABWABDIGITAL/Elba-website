@@ -22,7 +22,7 @@ export const createOrderController = async (req, res, next) => {
     const userId = req.user._id;
     const { shippingAddress, paymentMethod } = req.body;
 
-    const result = await createOrderService(userId, shippingAddress, paymentMethod);
+    const result = await createOrderService(req, userId, shippingAddress, paymentMethod);
 
     res.status(StatusCodes.CREATED).json(result);
   } catch (err) {

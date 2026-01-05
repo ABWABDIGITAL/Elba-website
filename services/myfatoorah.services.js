@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const MF_BASE_URL = "https://apitest.myfatoorah.com"; // SAUDI TEST
+const MF_BASE_URL = "https://apitest.myfatoorah.com";
 const MF_API_KEY = process.env.MF_API_KEY;
 
 const mf = axios.create({
@@ -10,45 +10,34 @@ const mf = axios.create({
     "Content-Type": "application/json",
   },
 });
-export const initiateMyFatoorahSession = async ( orderId) => {
-  const response = await axios.post(
-    `${MF_BASE_URL}/v2/InitiateSession`,
-    {
-      CustomerIdentifier: orderId,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${MF_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-    }
-  );
 
-  if (!response.data.IsSuccess) {
-    throw new Error(response.data.Message);
+/**
+ * STEP 1: Initiate Payment Session
+ */
+export const initiateMyFatoorahSession = async (orderId) => {
+  const { data } = await mf.post("/v2/InitiateSession", {
+    CustomerIdentifier: orderId.toString(),
+  });
+
+  if (!data.IsSuccess) {
+    throw new Error(data.Message || "Failed to initiate session");
   }
 
-  return response.data.Data;
+  return data.Data;
 };
 
+/**
+ * STEP 2: Check Payment Status (Webhook / Polling)
+ */
 export const getMyFatoorahPaymentStatus = async (invoiceId) => {
-  const response = await axios.post(
-    `${MF_BASE_URL}/v2/GetPaymentStatus`,
-    {
-      Key: invoiceId,
-      KeyType: "InvoiceId",
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${MF_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-    }
-  );
+  const { data } = await mf.post("/v2/GetPaymentStatus", {
+    Key: invoiceId,
+    KeyType: "InvoiceId",
+  });
 
-  if (!response.data.IsSuccess) {
-    throw new Error("Failed to verify payment");
+  if (!data.IsSuccess) {
+    throw new Error(data.Message || "Failed to verify payment");
   }
 
-  return response.data.Data;
+  return data.Data;
 };

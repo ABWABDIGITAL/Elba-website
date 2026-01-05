@@ -17,7 +17,7 @@ const calculateCartTotals = (cartItems) => {
 /* --------------------------------------------------
    ADD TO CART
 --------------------------------------------------- */
-export const addToCartService = async (userId, slug, quantity = 1, color = null) => {
+export const addToCartService = async (req, userId, slug, quantity = 1, color = null) => {
   try {
     // Validate product exists and has stock
     const product = await Product.findOne({ slug });
@@ -105,7 +105,7 @@ export const addToCartService = async (userId, slug, quantity = 1, color = null)
     if (err.name === "ApiError" || err instanceof ApiError || err instanceof ApiError) {
       throw err;
     }
-    throw ServerError("Failed to add product to cart", err);
+    throw ServerError("Failed to add product to cart", err.message);
   }
 };
 

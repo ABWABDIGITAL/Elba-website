@@ -247,7 +247,7 @@ export const trackOrderPlaced = async (req, order) => {
     eventName: "order_placed",
     eventCategory: "order",
     userId: req.user?.id || req.user?._id || order.user,
-    sessionId: req.sessionId || req.cookies?.sessionId || req.headers["x-session-id"],
+    sessionId: req.sessionId || req.cookies?.sessionId || req.headers["session-id"],
     order: {
       orderId: order._id,
       orderNumber: order.orderNumber,
