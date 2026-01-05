@@ -122,6 +122,7 @@ app.use("/api/v1/analytics", analyticsRouter);
 app.use("/api/v1/support", supportRoutes);
 app.use("/api/v1/tickets", ticketRoutes);
 
+
 app.use("/uploads" , express.static(path.join(process.cwd(), "uploads")));
 app.use(errorMiddleware);
 
