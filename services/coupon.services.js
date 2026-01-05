@@ -96,7 +96,7 @@ export const getCouponService = async (slug) => {
  */
 export const getCouponsService = async (query) => {
   try {
-    const features = new ApiFeatures(Coupon.find(), query, {
+    const features = new ApiFeatures(Coupon.find({isActive:true}), query, {
       allowedFilterFields: ["isActive", "discount"],
       searchFields: ["name", "code"],
     });

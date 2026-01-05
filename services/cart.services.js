@@ -116,7 +116,7 @@ export const getCartService = async (userId) => {
   try {
     const cart = await Cart.findOne({ user: userId, isActive: true }).populate({
       path: "cartItems.product",
-      select: "en.title ar.title en.slug ar.slug sku slug images stock status price discountPrice",
+      select: "en.title ar.title sku slug images stock status price discountPrice",
     });
 
     if (!cart) {

@@ -1,17 +1,369 @@
-// ============================================================
-// IMPORTS
-// ============================================================
 import { ChatGroq } from "@langchain/groq";
-import { HumanMessage, AIMessage } from "@langchain/core/messages";
 import { HfInference } from "@huggingface/inference";
 import mongoose from "mongoose";
+import { createTicket, checkRepeatIssue } from "../services/ticket.services.js";
 import "dotenv/config";
 
 const { Binary } = mongoose.mongo;
 const hf = new HfInference(process.env.HUGGINGFACE_API_KEY);
 
 // ============================================================
-// HELPERS
+// SUPPORT KNOWLEDGE BASE
+// ============================================================
+
+const SUPPORT_KNOWLEDGE = {
+  order_tracking: {
+    canSolve: false,
+    confidence: "low",
+    info: "نحتاج نتحقق من حالة الطلب في النظام"
+  },
+  return_exchange: {
+    canSolve: true,
+    confidence: "high",
+    info: `سياسة الاسترجاع:
+• 15 يوم من الاستلام
+• المنتج بحالته الأصلية مع الفاتورة
+• استرجاع مجاني للمنتجات المعيبة
+• 25 ريال رسوم شحن للمنتجات السليمة
+• المبلغ يرجع خلال 5-7 أيام عمل`
+  },
+  payment_issue: {
+    canSolve: "partial",
+    confidence: "medium",
+    info: `طرق الدفع:
+• فيزا/ماستركارد/مدى
+• Apple Pay / STC Pay
+• تابي وتمارا (تقسيط)
+• الدفع عند الاستلام (أقل من 500 ريال)
+
+مشاكل شائعة:
+• تأكد من صلاحية البطاقة والرصيد
+• جرب طريقة دفع أخرى`
+  },
+  warranty: {
+    canSolve: true,
+    confidence: "high",
+    info: `الضمان:
+• الأجهزة الكبيرة: سنتين
+• الأجهزة الصغيرة: سنة
+• الإكسسوارات: 6 أشهر
+
+للمطالبة: رقم الطلب + وصف المشكلة + صورة`
+  },
+  complaint: {
+    canSolve: false,
+    confidence: "low",
+    info: "الشكاوى تحتاج متابعة من فريق متخصص"
+  },
+  general_support: {
+    canSolve: true,
+    confidence: "high",
+    info: `معلومات عامة:
+• التوصيل: 2-5 أيام عمل
+• توصيل مجاني فوق 200 ريال
+• خدمة العملاء: 9ص - 11م
+• واتساب: 0500123456`
+  }
+};
+
+// ============================================================
+// CHECK IF AI CAN SOLVE
+// ============================================================
+
+function canAISolve(userQuery, supportType) {
+  const q = userQuery.toLowerCase();
+  const knowledge = SUPPORT_KNOWLEDGE[supportType];
+
+  // User explicitly wants human
+  const wantsHuman = [/أبي موظف/, /كلم بشر/, /شكوى رسمية/, /مديرك/].some(p => p.test(q));
+  if (wantsHuman) {
+    return { canSolve: false, confidence: "low", reason: "العميل طلب موظف" };
+  }
+
+  // Complaint always needs human
+  if (supportType === "complaint") {
+    return { canSolve: false, confidence: "low", reason: "شكوى تحتاج متابعة" };
+  }
+
+  // Order tracking needs system lookup
+  if (supportType === "order_tracking" && /\d{5,}/.test(q)) {
+    return { canSolve: false, confidence: "low", reason: "يحتاج البحث في النظام" };
+  }
+
+  // Check knowledge base
+  if (knowledge?.canSolve === true) {
+    return { canSolve: true, confidence: knowledge.confidence, reason: null };
+  }
+
+  if (knowledge?.canSolve === "partial") {
+    return { canSolve: true, confidence: "medium", reason: "قد يحتاج متابعة" };
+  }
+
+  return { canSolve: false, confidence: "low", reason: "يحتاج مراجعة بشرية" };
+}
+
+// ============================================================
+// GENERATE AI SUPPORT RESPONSE
+// ============================================================
+
+async function generateSupportResponse(salesModel, {
+  userQuery,
+  conversationHistory,
+  supportType,
+  canSolve,
+  ticketInfo,
+  repeatInfo
+}) {
+  const knowledge = SUPPORT_KNOWLEDGE[supportType]?.info || "";
+
+  const historyText = conversationHistory
+    .slice(-4)
+    .map(m => `${m.role === "user" ? "العميل" : "أنت"}: ${m.content}`)
+    .join("\n");
+
+  // Build context for AI
+  let context = "";
+
+  if (repeatInfo?.isRepeat) {
+    context += `
+⚠️ ملاحظة: هذا العميل عنده مشكلة متكررة (${repeatInfo.totalOccurrences} مرات)
+آخر تذكرة: ${repeatInfo.lastTicket?.ticketId}
+`;
+  }
+
+  if (canSolve) {
+    context += `
+يمكنك حل هذه المشكلة باستخدام المعلومات التالية:
+${knowledge}
+
+بعد الإجابة:
+1. اعطه رقم التذكرة للمتابعة: ${ticketInfo.ticketId}
+2. اسأله إذا المشكلة انحلت
+3. اخبره يقدر يرد "ما انحلت" إذا يحتاج مساعدة إضافية
+`;
+  } else {
+    context += `
+لا يمكنك حل هذه المشكلة مباشرة.
+رقم التذكرة: ${ticketInfo.ticketId}
+
+يجب أن:
+1. تطمئن العميل
+2. تعطيه رقم التذكرة
+3. تخبره أن فريق الدعم سيتواصل معه قريباً
+`;
+  }
+
+  const prompt = `أنت عبدالله، مساعد دعم ذكي في متجر البا لإلكترونيات سعودي.
+
+${historyText ? `المحادثة:\n${historyText}\n` : ""}
+
+رسالة العميل: "${userQuery}"
+نوع الطلب: ${supportType}
+
+${context}
+
+قواعد:
+- اللهجة السعودية الودودة
+- رد مختصر (3-4 جمل)
+- دائماً اذكر رقم التذكرة: ${ticketInfo.ticketId}
+- لا تخترع معلومات
+
+ردك:`;
+
+  try {
+    const res = await salesModel.invoke(prompt);
+    return (res?.content || "").trim();
+  } catch (error) {
+    return `أبشر، سجلت طلبك برقم ${ticketInfo.ticketId}. فريق الدعم سيتواصل معك قريباً.`;
+  }
+}
+
+// ============================================================
+// MAIN AGENT
+// ============================================================
+
+export async function callAgent(mongoClient, userQuery, threadId, clearHistory = false, customerInfo = {}) {
+  console.log("\n========== 🤖 AGENT START ==========");
+  console.log("📝 Query:", userQuery);
+
+  const db = mongoClient.db(process.env.DB_NAME || "Alba-ECommerce");
+  const productsCol = db.collection("products");
+  const conversationsCol = db.collection("conversations");
+
+  const salesModel = new ChatGroq({
+    model: "llama-3.3-70b-versatile",
+    temperature: 0.7,
+    apiKey: process.env.GROQ_API_KEY,
+  });
+
+  // Load conversation
+  let conversation = { messages: [], lastProducts: [] };
+  try {
+    if (clearHistory) {
+      await conversationsCol.deleteOne({ threadId });
+    } else {
+      const existing = await conversationsCol.findOne({ threadId });
+      if (existing) {
+        conversation = { messages: existing.messages || [], lastProducts: existing.lastProducts || [] };
+      }
+    }
+  } catch (e) { /* ignore */ }
+
+  // Detect intent
+  const intent = await classifyIntent(userQuery);
+  console.log("🎯 Intent:", intent);
+
+  let reply = "";
+  let products = [];
+  let ticketInfo = null;
+  let supportType = null;
+
+  // ============================================================
+  // HANDLE SUPPORT REQUEST
+  // ============================================================
+
+  if (intent === "support_request") {
+    supportType = detectSupportType(userQuery);
+    console.log("🎫 Support Type:", supportType);
+
+    // Check if repeat issue
+    const repeatInfo = await checkRepeatIssue(
+      customerInfo.userId,
+      supportType,
+      userQuery
+    );
+
+    if (repeatInfo.isRepeat) {
+      console.log("⚠️ Repeat Issue! Previous tickets:", repeatInfo.relatedTickets);
+    }
+
+    // Check if AI can solve
+    const solveCheck = canAISolve(userQuery, supportType);
+    console.log("🤖 Can AI Solve:", solveCheck.canSolve, "| Confidence:", solveCheck.confidence);
+
+    // ALWAYS CREATE TICKET (for tracking)
+    try {
+      // Generate AI response first
+      const tempTicketId = `TKT-${Date.now().toString(36).toUpperCase()}`;
+      
+      const aiResponse = await generateSupportResponse(salesModel, {
+        userQuery,
+        conversationHistory: conversation.messages,
+        supportType,
+        canSolve: solveCheck.canSolve,
+        ticketInfo: { ticketId: tempTicketId },
+        repeatInfo
+      });
+
+      // Create ticket with all info
+      ticketInfo = await createTicket({
+        userQuery,
+        supportType,
+        customerInfo,
+        threadId,
+        conversationHistory: conversation.messages,
+        aiResponse,
+        aiResolved: solveCheck.canSolve,
+        aiConfidenceLevel: solveCheck.confidence,
+        escalationReason: solveCheck.reason
+      });
+
+      // Update response with real ticket ID
+      reply = aiResponse.replace(tempTicketId, ticketInfo.ticketId);
+
+      console.log("✅ Ticket:", ticketInfo.ticketId, "| AI Resolved:", ticketInfo.aiResolved);
+
+    } catch (error) {
+      console.error("❌ Error:", error);
+      reply = "عذراً، في مشكلة تقنية. تواصل معنا على 0500123456";
+    }
+
+  // ============================================================
+  // HANDLE PRODUCT SEARCH
+  // ============================================================
+
+  } else if (intent === "product_search" || intent === "recommendation") {
+    // Your existing product search logic
+    const vector = await embed(userQuery);
+    
+    const results = await productsCol.aggregate([
+      {
+        $vectorSearch: {
+          index: "vector_index",
+          path: "embedding",
+          queryVector: Binary.fromFloat32Array(new Float32Array(vector)),
+          numCandidates: 80,
+          limit: 5,
+          filter: { $and: [{ status: "active" }, { stock: { $gt: 0 } }] }
+        }
+      },
+      { $project: { _id: 1, en: 1, ar: 1, price: 1, slug: 1, stock: 1, images: 1 } }
+    ]).toArray();
+
+    products = results;
+
+    reply = await generateAIResponse(salesModel, {
+      userQuery,
+      conversationHistory: conversation.messages,
+      products,
+      intent
+    });
+
+  // ============================================================
+  // HANDLE GENERAL CHAT
+  // ============================================================
+
+  } else {
+    reply = await generateAIResponse(salesModel, {
+      userQuery,
+      conversationHistory: conversation.messages,
+      products: [],
+      intent: "general_chat"
+    });
+  }
+
+  // Save conversation
+  try {
+    const updatedMessages = [
+      ...conversation.messages,
+      { role: "user", content: userQuery, timestamp: new Date() },
+      { role: "assistant", content: reply, timestamp: new Date() }
+    ].slice(-20);
+
+    await conversationsCol.updateOne(
+      { threadId },
+      {
+        $set: {
+          threadId,
+          messages: updatedMessages,
+          lastProducts: products.length > 0 ? products : conversation.lastProducts,
+          lastActivity: new Date(),
+          lastTicketId: ticketInfo?.ticketId || null
+        }
+      },
+      { upsert: true }
+    );
+  } catch (e) { /* ignore */ }
+
+  console.log("📤 Reply:", reply.substring(0, 80) + "...");
+  console.log("========== 🤖 AGENT END ==========\n");
+
+  return {
+    reply,
+    products: products.map(populateProductCard),
+    sessionId: threadId,
+    ticket: ticketInfo,
+    metadata: {
+      intent,
+      supportType,
+      aiResolved: ticketInfo?.aiResolved || false,
+      isRepeatIssue: ticketInfo?.isRepeatIssue || false
+    }
+  };
+}
+
+// ============================================================
+// HELPER FUNCTIONS (keep your existing ones)
 // ============================================================
 
 async function embed(text) {
@@ -22,99 +374,44 @@ async function embed(text) {
   return Array.isArray(res[0]) ? res[0] : res;
 }
 
-async function extractSearchIntent(query) {
+async function classifyIntent(query) {
   try {
-    const prompt = `Extract search filters from this query.
-Return JSON only: { "category": "string or null", "brand": "string or null" }
-Query: "${query}"`;
+    const supportKeywords = [
+      /مشكلة/, /شكوى/, /طلب/, /رقم/, /توصيل/, /شحن/,
+      /ضمان/, /استرجاع/, /استبدال/, /دفع/, /فلوس/,
+      /متأخر/, /عطلان/, /ما يشتغل/, /خربان/, /مدى/,
+      /طلبي/, /حقي/, /عندي مشكلة/
+    ];
+    
+    const q = query.toLowerCase();
+    if (supportKeywords.some(pattern => pattern.test(q))) {
+      return "support_request";
+    }
+
+    const prompt = `Classify this Saudi Arabic message into ONE category:
+- product_search (looking for specific product)
+- recommendation (needs advice, gift ideas)
+- support_request (ANY issue with order, delivery, payment, warranty)
+- general_chat (greeting, thanks, unclear)
+
+Message: "${query}"
+
+Reply with JSON only: { "intent": "category_name" }`;
 
     const res = await hf.chatCompletion({
       model: "meta-llama/Meta-Llama-3-8B-Instruct",
       messages: [{ role: "user", content: prompt }],
-      max_tokens: 60,
+      max_tokens: 30,
     });
 
     const text = res.choices?.[0]?.message?.content || "";
     const match = text.match(/\{[\s\S]*\}/);
-    return match ? JSON.parse(match[0]) : {};
+    const parsed = match ? JSON.parse(match[0]) : null;
+    return parsed?.intent || "general_chat";
   } catch {
-    return {};
+    return "general_chat";
   }
 }
-
-function populateProductCard(p) {
-  return {
-    _id: p._id?.toString() || p._id,
-    en: { title: p.en?.title || null },
-    ar: { title: p.ar?.title || null },
-    price: p.price ?? null,
-    currency: p.currency || "SAR",
-    brand: p.brand?.en?.name || p.brand || null,
-    category: p.category?.en?.slug || p.category || null,
-    stock: p.stock ?? null,
-    images: Array.isArray(p.images) ? p.images : [],
-    features: p.en?.features || p.ar?.features || [],
-    warranty: p.en?.warranty || p.ar?.warranty || null,
-    link: p.slug ? `/product/${p.slug}` : null,
-    ui: { type: "product_card", addToCart: true, viewDetails: true },
-  };
-}
-
-// ============================================================
-// FOLLOW-UP DETECTION (Saudi Dialect)
-// ============================================================
-
-function detectFollowUp(query) {
-  const q = query.toLowerCase();
-  
-  const referencePatterns = [
-    /\bذول\b/, /\bهذا\b/, /\bهذي\b/, /\bذا\b/, /\bذي\b/,
-    /\bذولا\b/, /\bهذولا\b/, /\bهذيلا\b/,
-    /المنتجات ذي/, /الأشياء ذي/, /الأغراض ذي/,
-    /اللي قلت/, /اللي عرضت/, /اللي فات/,
-    /منها/, /فيها/, /عنها/,
-    /الأول/, /الثاني/, /اللي فوق/,
-  ];
-  
-  const negativePatterns = [
-    /مو زين/, /مو حلو/, /مو كويس/, /ما يصلح/,
-    /غالي/, /غاليه/, /مرة غالي/,
-    /ما عجبني/, /ما بغاه/, /ما أبيه/, /ما ودي/,
-    /سمعت.* مو/, /سمعت.* سيء/,
-    /تقييم.* سيء/, /ردود.* سلبية/,
-  ];
-  
-  const questionPatterns = [
-    /وش الفرق/, /ايش الفرق/, /إيش الفرق/,
-    /أيهم أحسن/, /مين أحسن/, /وش الأفضل/,
-    /تنصح/, /تنصحني/, /وش رايك/,
-    /رأيك/, /شرايك/, /وش تشوف/,
-  ];
-  
-  const alternativePatterns = [
-    /شي ثاني/, /غير كذا/, /بديل/,
-    /غير ذا/, /شي غير/, /غيره/,
-    /أرخص/, /أغلى/, /أفضل/, /أحسن/,
-    /ماركة ثانية/, /براند ثاني/,
-  ];
-  
-  const isReference = referencePatterns.some(p => p.test(q));
-  const isNegative = negativePatterns.some(p => p.test(q));
-  const isQuestion = questionPatterns.some(p => p.test(q));
-  const wantsAlternative = alternativePatterns.some(p => p.test(q));
-  
-  return {
-    isFollowUp: isReference || isNegative || isQuestion,
-    isNegative,
-    isQuestion,
-    wantsAlternative,
-    needsNewSearch: wantsAlternative || isNegative,
-  };
-}
-
-// ============================================================
-// SUPPORT TYPE DETECTION
-// ============================================================
 
 function detectSupportType(query) {
   const q = query.toLowerCase();
@@ -158,52 +455,23 @@ function detectSupportType(query) {
   return 'general_support';
 }
 
-// ============================================================
-// INTENT CLASSIFICATION
-// ============================================================
-
-async function classifyIntent(query) {
-  try {
-    const supportKeywords = [
-      /مشكلة/, /شكوى/, /طلب/, /رقم/, /توصيل/, /شحن/,
-      /ضمان/, /استرجاع/, /استبدال/, /دفع/, /فلوس/,
-      /متأخر/, /عطلان/, /ما يشتغل/, /خربان/, /مدى/,
-      /طلبي/, /حقي/, /عندي مشكلة/
-    ];
-    
-    const q = query.toLowerCase();
-    if (supportKeywords.some(pattern => pattern.test(q))) {
-      return "support_request";
-    }
-
-    const prompt = `Classify this Saudi Arabic message into ONE category:
-- product_search (looking for specific product)
-- recommendation (needs advice, gift ideas)
-- support_request (ANY issue with order, delivery, payment, warranty)
-- general_chat (greeting, thanks, unclear)
-
-Message: "${query}"
-
-Reply with JSON only: { "intent": "category_name" }`;
-
-    const res = await hf.chatCompletion({
-      model: "meta-llama/Meta-Llama-3-8B-Instruct",
-      messages: [{ role: "user", content: prompt }],
-      max_tokens: 30,
-    });
-
-    const text = res.choices?.[0]?.message?.content || "";
-    const match = text.match(/\{[\s\S]*\}/);
-    const parsed = match ? JSON.parse(match[0]) : null;
-    return parsed?.intent || "general_chat";
-  } catch {
-    return "general_chat";
-  }
+function populateProductCard(p) {
+  return {
+    _id: p._id?.toString() || p._id,
+    en: { title: p.en?.title || null },
+    ar: { title: p.ar?.title || null },
+    price: p.price ?? null,
+    currency: p.currency || "SAR",
+    brand: p.brand?.en?.name || p.brand || null,
+    category: p.category?.en?.slug || p.category || null,
+    stock: p.stock ?? null,
+    images: Array.isArray(p.images) ? p.images : [],
+    features: p.en?.features || p.ar?.features || [],
+    warranty: p.en?.warranty || p.ar?.warranty || null,
+    link: p.slug ? `/product/${p.slug}` : null,
+    ui: { type: "product_card", addToCart: true, viewDetails: true },
+  };
 }
-
-// ============================================================
-// UNIFIED AI RESPONSE GENERATOR
-// ============================================================
 
 async function generateAIResponse(salesModel, context) {
   const {
@@ -345,204 +613,4 @@ ${intentInstructions}
       return "عذراً، في مشكلة تقنية. ممكن تعيد المحاولة؟";
     }
   }
-}
-
-// ============================================================
-// MAIN AGENT
-// ============================================================
-
-export async function callAgent(mongoClient, userQuery, threadId, clearHistory = false) {
-  console.log("\n========== 🤖 AGENT START ==========");
-  console.log("📝 Query:", userQuery);
-  console.log("🔗 ThreadId:", threadId);
-
-  const dbName = process.env.DB_NAME || "Alba-ECommerce";
-  const db = mongoClient.db(dbName);
-  const productsCol = db.collection("products");
-  const conversationsCol = db.collection("conversations");
-
-  const salesModel = new ChatGroq({
-    model: "llama-3.3-70b-versatile",
-    temperature: 0.7,
-    apiKey: process.env.GROQ_API_KEY,
-  });
-
-  // ----------------------------------------------------------
-  // 1. LOAD OR CREATE CONVERSATION
-  // ----------------------------------------------------------
-
-  let conversation = { messages: [], lastProducts: [] };
-  let isFirstMessage = false;
-
-  try {
-    if (clearHistory) {
-      await conversationsCol.deleteOne({ threadId });
-      console.log("🗑️ Cleared history");
-      isFirstMessage = true;
-    } else {
-      const existing = await conversationsCol.findOne({ threadId });
-      if (existing) {
-        conversation = {
-          messages: existing.messages || [],
-          lastProducts: existing.lastProducts || [],
-        };
-        console.log("📚 Loaded history:", conversation.messages.length, "messages");
-      } else {
-        isFirstMessage = true;
-      }
-    }
-  } catch (e) {
-    console.log("⚠️ No existing conversation, starting fresh");
-    isFirstMessage = true;
-  }
-
-  // ----------------------------------------------------------
-  // 2. ANALYZE MESSAGE
-  // ----------------------------------------------------------
-
-  const followUpInfo = detectFollowUp(userQuery);
-  console.log("🔍 Follow-up detection:", followUpInfo);
-
-  let intent = "general_chat";
-  if (!followUpInfo.isFollowUp || followUpInfo.needsNewSearch) {
-    intent = await classifyIntent(userQuery);
-  } else {
-    intent = "follow_up";
-  }
-  console.log("🎯 Intent:", intent);
-
-  // ----------------------------------------------------------
-  // 3. PROCESS BASED ON INTENT
-  // ----------------------------------------------------------
-
-  let products = [];
-  let supportType = null;
-  let reply = "";
-
-  try {
-    // Handle different intents
-    if (intent === "follow_up" && !followUpInfo.needsNewSearch) {
-      // Use previous products for follow-up
-      products = conversation.lastProducts;
-    } else if (intent === "product_search" || intent === "recommendation" || 
-               (intent === "follow_up" && followUpInfo.needsNewSearch)) {
-      // Search for products
-      console.log("📌 Searching products...");
-
-      const [vector, searchIntent] = await Promise.all([
-        embed(userQuery),
-        extractSearchIntent(userQuery),
-      ]);
-
-      const filter = { $and: [{ status: "active" }, { stock: { $gt: 0 } }] };
-      if (searchIntent.brand) {
-        filter.$and.push({ "brand.en.slug": searchIntent.brand.toLowerCase() });
-      }
-      if (searchIntent.category) {
-        filter.$and.push({ "category.en.slug": searchIntent.category.toLowerCase() });
-      }
-
-      const results = await productsCol.aggregate([
-        {
-          $vectorSearch: {
-            index: "vector_index",
-            path: "embedding",
-            queryVector: Binary.fromFloat32Array(new Float32Array(vector)),
-            numCandidates: 80,
-            limit: 5,
-            filter,
-          },
-        },
-        { 
-          $project: { 
-            _id: 1, en: 1, ar: 1, price: 1, slug: 1, 
-            stock: 1, category: 1, brand: 1, images: 1, currency: 1 
-          } 
-        },
-      ]).toArray();
-
-      products = results;
-      console.log("🔎 Found products:", products.length);
-    } else if (intent === "support_request") {
-      supportType = detectSupportType(userQuery);
-      console.log("🎯 Support type:", supportType);
-    }
-
-    // Generate AI response for all cases
-    reply = await generateAIResponse(salesModel, {
-      userQuery,
-      conversationHistory: conversation.messages,
-      products,
-      intent,
-      supportType,
-      followUpInfo,
-      isFirstMessage
-    });
-
-  } catch (error) {
-    console.error("❌ Error in processing:", error.message);
-    
-    // Even error messages are AI-generated
-    reply = await generateAIResponse(salesModel, {
-      userQuery: "حصل خطأ",
-      conversationHistory: [],
-      products: [],
-      intent: "general_chat",
-      isFirstMessage: false
-    });
-  }
-
-  // ----------------------------------------------------------
-  // 4. SAVE CONVERSATION
-  // ----------------------------------------------------------
-
-  const productCards = products.map(populateProductCard);
-
-  try {
-    const updatedMessages = [
-      ...conversation.messages,
-      { role: "user", content: userQuery, timestamp: new Date() },
-      { role: "assistant", content: reply, timestamp: new Date() },
-    ].slice(-20); // Keep last 20 messages
-
-    await conversationsCol.updateOne(
-      { threadId },
-      {
-        $set: {
-          threadId,
-          messages: updatedMessages,
-          lastProducts: productCards.length > 0 ? productCards : conversation.lastProducts,
-          lastActivity: new Date(),
-          metadata: {
-            lastIntent: intent,
-            lastSupportType: supportType,
-            totalInteractions: (conversation.messages.length / 2) + 1
-          }
-        },
-      },
-      { upsert: true }
-    );
-    console.log("💾 Saved conversation");
-  } catch (e) {
-    console.error("⚠️ Could not save:", e.message);
-  }
-
-  // ----------------------------------------------------------
-  // 5. RETURN RESPONSE
-  // ----------------------------------------------------------
-
-  console.log("📤 Reply:", reply.substring(0, 80) + "...");
-  console.log("========== 🤖 AGENT END ==========\n");
-
-  return {
-    reply,
-    products: productCards,
-    sessionId: threadId,
-    metadata: {
-      intent,
-      supportType,
-      productsFound: products.length,
-      isFollowUp: followUpInfo.isFollowUp
-    }
-  };
 }
