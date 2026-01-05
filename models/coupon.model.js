@@ -9,6 +9,12 @@ const couponSchema = new mongoose.Schema(
     discount: { type: Number, required: true, min: 0, max: 100 },
     expiredAt: { type: Date, required: true },
     isActive: { type: Boolean, default: true },
+    usedBy: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
   },
   {
     timestamps: true,

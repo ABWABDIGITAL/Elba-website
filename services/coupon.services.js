@@ -180,7 +180,7 @@ export const deleteCouponService = async ({ slug, softDelete = true }) => {
     throw ServerError("Failed to delete coupon", err);
   }
 };
-export const applyCouponService = async ({ code, subtotal }) => {
+export const applyCouponService = async ({ code, subtotal, userId }) => {
   if (subtotal === undefined || subtotal === null) {
     throw BadRequest("Subtotal is required");
   }
@@ -188,7 +188,11 @@ export const applyCouponService = async ({ code, subtotal }) => {
   const coupon = await Coupon.findOne({ code });
   if (!coupon) throw NotFound("Invalid coupon code");
 
-  // Check expiry
+  if (coupon.usedBy.includes(userId)) {
+    throw BadRequest("You have already used this coupon");
+  }
+
+  // ⏳ Expired
   if (coupon.expiredAt && coupon.expiredAt <= new Date()) {
     coupon.isActive = false;
     await coupon.save();
@@ -199,7 +203,6 @@ export const applyCouponService = async ({ code, subtotal }) => {
     throw BadRequest("Coupon is inactive");
   }
 
-  // حساب الخصم
   const discountAmount = (subtotal * coupon.discount) / 100;
   const totalAfterDiscount = subtotal - discountAmount;
 
@@ -222,16 +225,20 @@ export const applyCouponToCartService = async (userId, couponCode) => {
     const subtotal = cart.totalCartPrice;
 
     const { coupon, discountAmount, totalAfterDiscount } =
-      await applyCouponService({ code: couponCode, subtotal });
+      await applyCouponService({
+        code: couponCode,
+        subtotal,
+        userId,
+      });
 
     cart.appliedCoupon = coupon._id;
     cart.totalPriceAfterDiscount = Number(totalAfterDiscount.toFixed(2));
 
+    // ✅ Mark coupon as used by this user
+    coupon.usedBy.push(userId);
+    await coupon.save();
+
     await cart.save();
-    await cart.populate({
-      path: "cartItems.product",
-      select: "en.name ar.name en.slug ar.slug sku en.images ar.images stock status",
-    });
 
     return {
       OK: true,
