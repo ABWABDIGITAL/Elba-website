@@ -42,11 +42,12 @@
 
 // export default router;
 import express from "express";
-import { chatController } from "../controllers/chat.controller.js";
+import { chatController , getConversationBySession, getAllConversations} from "../controllers/chat.controller.js";
 
 const router = express.Router();
 
 // POST http://localhost:3000/api/chat
 router.post("/chat", chatController);
-
+router.get("/conversations", getAllConversations);
+router.get("/conversations/:threadId", getConversationBySession);
 export default router;

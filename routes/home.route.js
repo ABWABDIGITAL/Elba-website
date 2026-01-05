@@ -7,14 +7,15 @@ import {
   updateHome,
   uploadHomeBanners,
 } from "../controllers/home.controller.js";
-import { protect, allowTo } from "../middlewares/authMiddleware.js";
+import { protect } from "../middlewares/authMiddleware.js";
+import { requirePermission } from "../middlewares/permission.middleware.js";
 const router = express.Router();
 
 const upload = imageUpload("home");
 
-router.post("/", protect, allowTo("admin","superAdmin"),createHome);
+router.post("/", protect, requirePermission("home", "create"),createHome);
 router.get("/", getHome);
-router.put("/", protect, upload.fields([
+router.put("/", protect, requirePermission("home", "update"),upload.fields([
     { name: "hero", maxCount: 20 },
     { name: "gif", maxCount: 20 },
     { name: "promovideo", maxCount: 20 },
@@ -24,7 +25,7 @@ router.put("/", protect, upload.fields([
 
 // Only include fields that actually exist in your schema & controller
 router.post(
-  "/banners",protect, allowTo("admin","superAdmin"),
+  "/banners",protect, requirePermission("home", "update"),
   upload.fields([
     { name: "hero", maxCount: 10 },
     { name: "gif", maxCount: 10 },

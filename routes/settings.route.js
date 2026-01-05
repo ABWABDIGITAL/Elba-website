@@ -7,7 +7,8 @@ import {
   deleteSettingsController
 } from "../controllers/settings.controller.js";
 
-import { protect, allowTo } from "../middlewares/authMiddleware.js";
+import { protect } from "../middlewares/authMiddleware.js";
+import { requirePermission } from "../middlewares/permission.middleware.js";
 import { validateSettings, validateSettingsId } from "../validators/settings.validators.js";
 
 const router = express.Router();
@@ -20,7 +21,7 @@ router.get("/:id", validateSettingsId, getSettingsByIdController);
 router.post(
   "/",
   protect,
-  allowTo("admin", "superAdmin"),
+  requirePermission("settings", "create"),
   validateSettings,
   createSettingsController
 );
@@ -28,7 +29,7 @@ router.post(
 router.put(
   "/:id",
   protect,
-  allowTo("admin", "superAdmin"),
+  requirePermission("settings", "update"),
   validateSettingsId,
   validateSettings,
   updateSettingsController
@@ -37,7 +38,7 @@ router.put(
 router.delete(
   "/:id",
   protect,
-  allowTo("admin", "superAdmin"),
+  requirePermission("settings", "delete"),
   validateSettingsId,
   deleteSettingsController
 );

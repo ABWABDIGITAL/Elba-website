@@ -11,7 +11,7 @@ import {
   getUserStatistics,
 } from "../controllers/user.controller.js";
 
-import { protect, allowTo } from "../middlewares/authMiddleware.js";
+import { protect } from "../middlewares/authMiddleware.js";
 import { requirePermission } from "../middlewares/permission.middleware.js";
 import { validateAdminUpdateUser } from "../validators/user.validators.js";
 import upload from "../middlewares/uploadMiddleware.js";

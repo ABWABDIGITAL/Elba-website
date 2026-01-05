@@ -1,5 +1,5 @@
 import express from "express";
-import { allowTo, protect } from "../middlewares/authMiddleware.js";
+import { protect } from "../middlewares/authMiddleware.js";
 import {
   validateCreateBrand,
   validateUpdateBrand,
@@ -14,7 +14,7 @@ import {
   deleteBrandController,
 } from "../controllers/brand.controller.js";
 import upload, { IMG_MIME, IMG_EXT } from "../middlewares/uploadMiddleware.js";
-
+import { requirePermission } from "../middlewares/permission.middleware.js";
 
 const router = express.Router();
 
@@ -25,7 +25,7 @@ router.get("/:id", validateGetBrand, getBrandController);
 router.post(
   "/",
   protect,
-  allowTo("admin" , "superAdmin"),
+  requirePermission("brands", "create"),
     upload({
     folder: "brands",
     allowedMime: IMG_MIME,
@@ -38,7 +38,7 @@ router.post(
 router.put(
   "/:id",
   protect,
-  allowTo("admin" , "superAdmin"),
+  requirePermission("brands", "update"),
     upload({
     folder: "brands",
     allowedMime: IMG_MIME,
@@ -51,7 +51,7 @@ router.put(
 router.delete(
   "/:id",
   protect,
-  allowTo("admin" , "superAdmin"),
+  requirePermission("brands", "delete"),
   validateDeleteBrand,
   deleteBrandController
 );

@@ -8,7 +8,7 @@ import {
   getAllSubscribersController,
   deleteSubscriberController,
 } from "../controllers/newsletter.controller.js";
-import { protect, allowTo } from "../middlewares/authMiddleware.js";
+import { protect } from "../middlewares/authMiddleware.js";
 import {
   validateSubscribe,
   validateUnsubscribe,
@@ -18,6 +18,7 @@ import {
 } from "../validators/newsletter.validators.js";
 
 const router = express.Router();
+import { requirePermission } from "../middlewares/permission.middleware.js";
 
 /* --------------------------------------------------
    PUBLIC ROUTES
@@ -40,12 +41,12 @@ router.get("/products/top-discounts", getTopDiscountedProductsController);
 --------------------------------------------------- */
 
 // Send newsletter to all subscribers
-router.post("/send", protect, allowTo("admin", "superAdmin"), sendNewsletterController);
+router.post("/send", protect, requirePermission("newsletters", "create"), sendNewsletterController);
 
 // Get all subscribers
-router.get("/subscribers", protect, allowTo("admin", "superAdmin"), validateGetSubscribers, getAllSubscribersController);
+router.get("/subscribers", protect, requirePermission("newsletters", "read"), validateGetSubscribers, getAllSubscribersController);
 
 // Delete subscriber
-router.delete("/subscribers/:id", protect, allowTo("admin", "superAdmin"), validateDeleteSubscriber, deleteSubscriberController);
+router.delete("/subscribers/:id", protect, requirePermission("newsletters", "delete"), validateDeleteSubscriber, deleteSubscriberController);
 
 export default router;

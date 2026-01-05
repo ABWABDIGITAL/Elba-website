@@ -17,7 +17,7 @@ import {
 
 const router = express.Router();
 
-// All cart routes require authentication
+// All cart routes require authentication 
 router.use(protect);
 
 // Cart operations

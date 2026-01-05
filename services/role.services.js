@@ -14,14 +14,14 @@ export const createRoleService = async (roleData) => {
   try {
     const existing = await Role.findOne({ name: roleData.name });
     if (existing) throw BadRequest("Role with this name already exists");
-
     const role = await Role.create(roleData);
 
     await redis.del(ROLES_LIST_CACHE_KEY);
-
+    await redis.del(`${ROLES_LIST_CACHE_KEY}:active`);
+    await redis.del(`${ROLES_LIST_CACHE_KEY}:inactive`);
     return role;
   } catch (err) {
-    throw ServerError("Failed to create role", err);
+    throw ServerError("Failed to create role", err.message);
   }
 };
 

@@ -39,7 +39,7 @@ export const requirePermission = (resource, action) => {
         });
       }
 
-      if (!userRole.isActive) {
+      if (userRole.status !== "active") {
         return res.status(StatusCodes.FORBIDDEN).json({
           status: "error",
           message: "Role is inactive",
@@ -96,7 +96,7 @@ export const requireAnyPermission = (permissions) => {
         userRole = req.user.role;
       }
 
-      if (!userRole || !userRole.isActive) {
+      if (!userRole || userRole.status !== "active") {
         return res.status(StatusCodes.FORBIDDEN).json({
           status: "error",
           message: "Invalid or inactive role",
@@ -109,9 +109,9 @@ export const requireAnyPermission = (permissions) => {
       );
 
       if (!hasPermission) {
-        return res.status(StatusCodes.FORBIDDEN).json({
+      return res.status(StatusCodes.FORBIDDEN).json({
           status: "error",
-          message: "Insufficient permissions",
+          message: `Access denied. Required any of: ${permissions.map(p => `${p.resource}:${p.action}`).join(", ")}`,
         });
       }
 
@@ -155,7 +155,7 @@ export const requireAllPermissions = (permissions) => {
         userRole = req.user.role;
       }
 
-      if (!userRole || !userRole.isActive) {
+      if (!userRole || userRole.status !== "active") {
         return res.status(StatusCodes.FORBIDDEN).json({
           status: "error",
           message: "Invalid or inactive role",
@@ -170,7 +170,7 @@ export const requireAllPermissions = (permissions) => {
       if (!hasAllPermissions) {
         return res.status(StatusCodes.FORBIDDEN).json({
           status: "error",
-          message: "Insufficient permissions",
+          message: `Access denied. Required all of: ${permissions.map(p => `${p.resource}:${p.action}`).join(", ")}`,
         });
       }
 

@@ -32,7 +32,6 @@ import { protect , allowTo} from "../middlewares/authMiddleware.js";
 import { requirePermission } from "../middlewares/permission.middleware.js";
 import upload, { productMediaUpload } from "../middlewares/uploadMiddleware.js"; // <-- productMediaUpload هنا
 import parseNestedJson from "../middlewares/ParseNestedDot.js";
-
 import {
   validateCreateProduct,
   validateUpdateProduct,
@@ -46,6 +45,8 @@ router.use(express.json());
 // CREATE PRODUCT
 router.post(
   "/",
+  protect,
+  requirePermission("products", "create"),
   productMediaUpload.fields([
     { name: "images", maxCount: 10 },
     { name: "catalog", maxCount: 1 },
@@ -59,6 +60,8 @@ router.post(
 ---------------------------------------------- */
 router.patch(
   "/:slug",
+  protect,
+  requirePermission("products", "update"),
   productMediaUpload.fields([
     { name: "images", maxCount: 10 },
     { name: "catalog", maxCount: 1 },
@@ -147,6 +150,6 @@ router.post(
 
 router.get("/tag/:tag", getProductsByTag);
 
-router.delete("/:slug", protect, deleteProductController);
+router.delete("/:slug", protect, requirePermission("products", "delete"), deleteProductController);
 
 export default router;

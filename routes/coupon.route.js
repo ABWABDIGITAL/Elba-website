@@ -18,16 +18,17 @@ import {
 } from "../validators/coupon.validators.js";
 
 const router = express.Router();
-import { protect, allowTo } from "../middlewares/authMiddleware.js";
+import { protect } from "../middlewares/authMiddleware.js";
+import { requirePermission } from "../middlewares/permission.middleware.js";
 // Base path: /api/v1/coupons
 
 router
   .route("/")
-  .post(protect, allowTo("admin","superAdmin"), createCouponValidator, createCouponController)
+  .post(protect, requirePermission("coupons", "create"), createCouponValidator, createCouponController)
   .get(protect,listCouponsValidator, getCouponsController);
 
 router
-  router.post("/apply-coupon", protect, async (req, res) => {
+  .post("/apply-coupon", protect, async (req, res) => {
   try {
     const userId = req.user._id;
     const { couponCode } = req.body;
@@ -48,7 +49,7 @@ router
 router
   .route("/:slug")
   .get(protect,getCouponValidator, getCouponController)
-  .patch(protect, allowTo("admin","superAdmin"),updateCouponValidator, updateCouponController)
-  .delete(protect, allowTo("admin","superAdmin"),deleteCouponValidator, deleteCouponController);
+  .patch(protect, requirePermission("coupons", "update"),updateCouponValidator, updateCouponController)
+  .delete(protect, requirePermission("coupons", "delete"),deleteCouponValidator, deleteCouponController);
 
 export default router;

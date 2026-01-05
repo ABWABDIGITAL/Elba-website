@@ -17,7 +17,10 @@ import { StatusCodes } from "http-status-codes";
 ========================================================== */
 export const registerController = async (req, res, next) => {
   try {
-    const result = await registerService(req.body);
+    const result = await registerService({
+      ...req.body,
+      req // Pass the request object for tracking
+    });
 
     return res.status(StatusCodes.CREATED).json({
       status: "success",

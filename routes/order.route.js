@@ -28,7 +28,7 @@ router.use(protect);
 --------------------------------------------------- */
 
 // Create order from cart
-router.post("/", createOrderController);
+router.post("/",requirePermission("orders", "create"), createOrderController);
 
 // Get user's orders
 router.get("/my-orders", getUserOrdersController);
@@ -37,38 +37,38 @@ router.get("/my-orders", getUserOrdersController);
 router.get("/:orderId", getOrderByIdController);
 
 // Cancel order
-router.put("/:orderId/cancel", cancelOrderController);
+router.put("/:orderId/cancel",requirePermission("orders", "update"), cancelOrderController);
 
 /* --------------------------------------------------
    ADMIN ROUTES
 --------------------------------------------------- */
 
 // Get all orders (admin only)
-router.get("/admin/all", allowTo("admin", "superAdmin"), getAllOrdersController);
+router.get("/admin/all", requirePermission("orders", "read"), getAllOrdersController);
 
 // Get order statistics (admin only)
-router.get("/admin/stats", allowTo("admin", "superAdmin"), getOrderStatsController);
+router.get("/admin/stats", requirePermission("orders", "read"), getOrderStatsController);
 
 // Update order status (admin only)
 router.put(
   "/admin/:orderId/status",
-  allowTo("admin", "superAdmin"),
+  requirePermission("orders", "update"),
   updateOrderStatusController
 );
 
 // Update tracking info (admin only)
 router.put(
   "/admin/:orderId/tracking",
-  allowTo("admin", "superAdmin"),
+  requirePermission("orders", "update"),
   updateTrackingInfoController
 );
 
 // Update payment status (admin only or webhook)
 router.put(
   "/admin/:orderId/payment",
-  allowTo("admin", "superAdmin"),
+  requirePermission("orders", "update"),
   updatePaymentStatusController
-);
+);  
 
 // Bulk update order status (admin only)
 router.post(

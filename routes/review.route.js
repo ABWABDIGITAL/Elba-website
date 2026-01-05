@@ -16,7 +16,8 @@ import {
   validateGetReviews,
 } from "../validators/review.validators.js";
 
-import { protect, allowTo } from "../middlewares/authMiddleware.js";
+import { protect } from "../middlewares/authMiddleware.js";
+import { requirePermission } from "../middlewares/permission.middleware.js";  
 
 const router = express.Router();
 
@@ -25,19 +26,19 @@ router
   .get(validateGetReviews, getReviewsController)
   .post(
     protect,
-    allowTo("user", "admin","superAdmin"), // adjust roles as needed
+    requirePermission("reviews", "create"),
     validateCreateReview,
     createReviewController
   );
  router
  .route("/toggle/:id")
- .put(protect , allowTo("admin","superAdmin"), toggleReviewActiveController)
+ .put(protect , requirePermission("reviews", "update"), toggleReviewActiveController)
 router
   .route("/:slug")
   .get(validateGetReview, getReviewController)
   .put(
     protect,
-    allowTo("user", "admin"),
+    requirePermission("reviews", "update"),
     validateUpdateReview,
     updateReviewController
   )
@@ -46,7 +47,7 @@ router
   .route("/:id")
   .delete(
     protect,
-    allowTo("user", "admin","superAdmin"),
+    requirePermission("reviews", "delete"),
     validateDeleteReview,
     deleteReviewController
   );

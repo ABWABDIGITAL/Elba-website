@@ -1,7 +1,8 @@
 // routes/dashboard.routes.js
 
 import express from "express";
-import { protect, allowTo } from "../middlewares/authMiddleware.js";
+import { protect } from "../middlewares/authMiddleware.js";
+import { requirePermission } from "../middlewares/permission.middleware.js";
 import {
   getCEODashboardController,
   getMarketingDashboardController,
@@ -16,7 +17,7 @@ const router = express.Router();
 router.get(
   "/ceo",
   protect,
-  allowTo("superAdmin", "admin"),
+  requirePermission("dashboard", "read"),
   getCEODashboardController
 );
 
@@ -24,7 +25,7 @@ router.get(
 router.get(
   "/marketing",
   protect,
-  allowTo("superAdmin", "admin", "manager"),
+  requirePermission("dashboard", "read"),
   getMarketingDashboardController
 );
 
@@ -32,7 +33,7 @@ router.get(
 router.get(
   "/operations",
   protect,
-  allowTo("superAdmin", "admin", "manager"),
+  requirePermission("dashboard", "read"),
   getOperationsDashboardController
 );
 
@@ -40,7 +41,7 @@ router.get(
 router.get(
   "/realtime",
   protect,
-  allowTo("superAdmin", "admin"),
+  requirePermission("dashboard", "read"),
   getRealtimeMetricsController
 );
 
@@ -48,7 +49,7 @@ router.get(
 router.get(
   "/alerts",
   protect,
-  allowTo("superAdmin", "admin", "manager"),
+  requirePermission("dashboard", "read"),
   getDashboardAlertsController
 );
 

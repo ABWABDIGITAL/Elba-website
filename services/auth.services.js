@@ -32,16 +32,22 @@ export const registerService = async ({
   password,
   phone,
   address,
-  validatedRoleId, // Passed from validator middleware!
+  role, // Passed from validator middleware!
+  req, // Request object for tracking
 }) => {
   // Validator already checked everything, just get role if not passed
-  let roleId = validatedRoleId;
+  let roleId = role;
   
   if (!roleId) {
     const defaultRole = await Role.findOne({ name: "user" }).select('_id').lean();
     roleId = defaultRole?._id;
     if (!roleId) throw BadRequest("User role not found");
   }
+  const roleDoc = await Role.findOne({ name: role });
+  if (!roleDoc) {
+    throw BadRequest("Invalid role");
+  }
+
 
   // Create user directly - no duplicate checks!
   const newUser = await User.create({
@@ -52,7 +58,7 @@ export const registerService = async ({
     email: email.toLowerCase().trim(),
     password,
     phone: phone.trim(),
-    role: roleId,
+    role: roleDoc._id,
     address: address?.trim(),
   });
 
@@ -60,7 +66,12 @@ export const registerService = async ({
 
   // Fire-and-forget
   sendRegistrationWhatsApp(newUser).catch(console.error);
-  await trackUserRegistration(req, newUser);
+  
+  // Only track if req is provided
+  if (req) {
+    await trackUserRegistration(req, newUser).catch(console.error);
+  }
+  
   return {
     OK: true,
     message: "User registered successfully",

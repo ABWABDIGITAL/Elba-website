@@ -14,9 +14,9 @@ import {
   validateGetCategory,
 } from "../validators/categories.validators.js";
 
-// import { protect, allowTo } from "../middlewares/authMiddleware.js";
 import upload, { IMG_MIME, IMG_EXT } from "../middlewares/uploadMiddleware.js";
-import { protect , allowTo} from "../middlewares/authMiddleware.js";
+import { protect } from "../middlewares/authMiddleware.js";
+import { requirePermission } from "../middlewares/permission.middleware.js";
 
 
 
@@ -25,7 +25,7 @@ const router = express.Router();
 router.post(
   "/",
   protect,
-  allowTo("admin","superAdmin"),
+  requirePermission("categories", "create"),
   upload({
     folder: "categories",
     allowedMime: IMG_MIME,
@@ -43,7 +43,7 @@ router.get("/:id", validateGetCategory, getCategoryController);
 router.put(
   "/:id",
   protect,
-  allowTo("admin","superAdmin"),
+  requirePermission("categories", "update"),
   upload({
     folder: "categories",
     allowedMime: IMG_MIME,
@@ -57,7 +57,7 @@ router.put(
 router.delete(
   "/:id",
   protect,
-  allowTo("admin","superAdmin"),
+  requirePermission("categories", "delete"),
   validateDeleteCategory,
   deleteCategoryController
 );

@@ -1,5 +1,6 @@
 import { body } from "express-validator";
 import validatorMiddleware from "../middlewares/validatorMiddleware.js";
+import User from "../models/user.model.js";
 
 export const validateCreateCommunicationInfo = [
 
@@ -20,8 +21,14 @@ export const validateCreateCommunicationInfo = [
     .isEmail().withMessage("Invalid email format"),
 
   body("phone")
-    .notEmpty().withMessage("Phone number is required")
-    .isLength({ min: 8, max: 20 }),
-
+    .notEmpty()
+    .matches(/^((\+9665\d{8})|(05\d{8}))$/)
+    .withMessage("Invalid Saudi phone number")
+    .bail()
+    .custom(async (phone) => {
+      const exists = await User.findOne({ phone });
+      if (exists) throw new Error("Phone already registered");
+      return true;
+    }),
   validatorMiddleware,
 ];
