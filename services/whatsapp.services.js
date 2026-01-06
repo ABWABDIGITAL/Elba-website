@@ -4,7 +4,7 @@ import Notification from "../models/notification.model.js";
 const HYPERSEND_API_URL = process.env.HYPERSEND_API_URL;
 const HYPERSEND_INSTANCE_ID = process.env.HYPERSEND_INSTANCE_ID;
 const HYPERSEND_API_KEY = process.env.HYPERSEND_API_KEY;
-const WHATSAPP_PHONE_NUMBER_ID= process.env.WHATSAPP_PHONE_NUMBER_ID;
+const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
 /* --------------------------------------------------
    SEND WHATSAPP MESSAGE
 --------------------------------------------------- */
@@ -47,7 +47,7 @@ export const sendWhatsAppMessage = async (phoneNumber, message, templateName = n
     }
 
     const response = await axios.post(
-      `${WHATSAPP_API_URL}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+      `${HYPERSEND_API_URL}/${HYPERSEND_INSTANCE_ID}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
       messageData,
       {
         headers: {

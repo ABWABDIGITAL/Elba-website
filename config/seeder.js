@@ -92,13 +92,6 @@ const seedCategories = async () => {
       sizeType: "Small",
     },
     {
-      en: { name: "Irons", slug: "irons" },
-      ar: { name: "مكاوي", slug: "irons" },
-      image: "https://images.unsplash.com/photo-1582735689115-3bfac2eb6318?w=400&h=300&fit=crop",
-      isActive: true,
-      sizeType: "Small",
-    },
-    {
       en: { name: "Cooktops", slug: "cooktops" },
       ar: { name: "مواقد الطبخ", slug: "cooktops" },
       image: "https://images.unsplash.com/photo-1556911220-bff31c812dba?w=400&h=300&fit=crop",
@@ -1665,116 +1658,7 @@ const seedProducts = async () => {
       currencyCode: "SAR",
     },
 
-    // SMALL APPLIANCES - Irons (3 products)
-    {
-      ar: {
-        title: "مكواة فيليبس بخار 2400 واط",
-        subTitle: "Azur مع تقنية SteamGlide",
-        description: [{ title: "نظرة عامة", content: "مكواة فيليبس بتقنية SteamGlide" }],
-        specifications: [
-          { key: "القوة", value: "2400", unit: "واط", group: "الطاقة" },
-          { key: "ضغط البخار", value: "45", unit: "جم/دقيقة", group: "البخار" },
-        ],
-        features: ["SteamGlide", "Calc Clean", "Auto Shutoff"],
-        warranty: "ضمان سنتين",
-      },
-      en: {
-        title: "Philips 2400W Steam Iron",
-        subTitle: "Azur with SteamGlide",
-        description: [{ title: "Overview", content: "Philips iron with SteamGlide technology" }],
-        specifications: [
-          { key: "Power", value: "2400", unit: "W", group: "Power" },
-          { key: "Steam Rate", value: "45", unit: "g/min", group: "Steam" },
-        ],
-        features: ["SteamGlide", "Calc Clean", "Auto Shutoff"],
-        warranty: "2-year warranty",
-      },
-      images: [{ url: "https://images.unsplash.com/photo-1582735689115-3bfac2eb6318?w=800&h=800&fit=crop" }],
-      sku: "PHIL-GC4567",
-      modelNumber: "GC4567",
-      category: ironsCategory._id,
-      brand: philipsBrand._id,
-      price: 280,
-      discountPrice: 35,
-      stock: 85,
-      status: "active",
-      sizeType: "small",
-      tags: ["best_seller"],
-      currencyCode: "SAR",
-    },
-    {
-      ar: {
-        title: "مكواة بوش 2800 واط",
-        subTitle: "Sensixx مع CeraniumGlissée",
-        description: [{ title: "نظرة عامة", content: "مكواة بوش قوية ومتينة" }],
-        specifications: [
-          { key: "القوة", value: "2800", unit: "واط", group: "الطاقة" },
-          { key: "ضغط البخار", value: "50", unit: "جم/دقيقة", group: "البخار" },
-        ],
-        features: ["CeraniumGlissée", "Precision Tip", "Anti-Drip"],
-        warranty: "ضمان سنتين",
-      },
-      en: {
-        title: "Bosch 2800W Steam Iron",
-        subTitle: "Sensixx with CeraniumGlissée",
-        description: [{ title: "Overview", content: "Bosch powerful and durable iron" }],
-        specifications: [
-          { key: "Power", value: "2800", unit: "W", group: "Power" },
-          { key: "Steam Rate", value: "50", unit: "g/min", group: "Steam" },
-        ],
-        features: ["CeraniumGlissée", "Precision Tip", "Anti-Drip"],
-        warranty: "2-year warranty",
-      },
-      images: [{ url: "https://images.unsplash.com/photo-1582735689115-3bfac2eb6318?w=800&h=800&fit=crop&sat=-30" }],
-      sku: "BOSCH-TDA503001",
-      modelNumber: "TDA503001",
-      category: ironsCategory._id,
-      brand: boschBrand._id,
-      price: 380,
-      discountPrice: 45,
-      stock: 75,
-      status: "active",
-      sizeType: "small",
-      tags: ["featured"],
-      currencyCode: "SAR",
-    },
-    {
-      ar: {
-        title: "مكواة براون 2000 واط",
-        subTitle: "TexStyle مع Eloxal Soleplate",
-        description: [{ title: "نظرة عامة", content: "مكواة براون بقاعدة Eloxal" }],
-        specifications: [
-          { key: "القوة", value: "2000", unit: "واط", group: "الطاقة" },
-          { key: "ضغط البخار", value: "40", unit: "جم/دقيقة", group: "البخار" },
-        ],
-        features: ["Eloxal Soleplate", "Spray Function", "Self-Cleaning"],
-        warranty: "ضمان سنتين",
-      },
-      en: {
-        title: "Braun 2000W Steam Iron",
-        subTitle: "TexStyle with Eloxal Soleplate",
-        description: [{ title: "Overview", content: "Braun iron with Eloxal soleplate" }],
-        specifications: [
-          { key: "Power", value: "2000", unit: "W", group: "Power" },
-          { key: "Steam Rate", value: "40", unit: "g/min", group: "Steam" },
-        ],
-        features: ["Eloxal Soleplate", "Spray Function", "Self-Cleaning"],
-        warranty: "2-year warranty",
-      },
-      images: [{ url: "https://images.unsplash.com/photo-1582735689115-3bfac2eb6318?w=800&h=800&fit=crop&hue=20" }],
-      sku: "BRAUN-TS375",
-      modelNumber: "TS375",
-      category: ironsCategory._id,
-      brand: braunBrand._id,
-      price: 220,
-      discountPrice: 25,
-      stock: 90,
-      status: "active",
-      sizeType: "small",
-      tags: ["recommended"],
-      currencyCode: "SAR",
-    },
-
+  
     // SMALL APPLIANCES - Vacuum Cleaners (3 products)
     {
       ar: {
