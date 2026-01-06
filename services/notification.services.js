@@ -1,5 +1,5 @@
 import Notification from "../models/notification.model.js";
-import {RedisHelper} from "../config/redis.js";
+import { RedisHelper } from "../config/redis.js";
 
 const NOTIFICATIONS_CACHE_PREFIX = "notifications:user:";
 const CACHE_TTL = 300; // 5 minutes
@@ -50,7 +50,7 @@ export const getUserNotificationsService = async (userId, query = {}) => {
 
     // Try cache
     const cacheKey = `${NOTIFICATIONS_CACHE_PREFIX}${userId}:${JSON.stringify(filter)}:${page}:${limit}:${language}`;
-    const cached = await redis.get(cacheKey);
+    const cached = await RedisHelper.get(cacheKey);
     if (cached) {
       return { fromCache: true, data: cached };
     }
@@ -80,7 +80,7 @@ export const getUserNotificationsService = async (userId, query = {}) => {
     };
 
     // Cache result
-    await redis.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
+    await RedisHelper.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
 
     return { fromCache: false, data: result };
   } catch (error) {
@@ -94,14 +94,14 @@ export const getUserNotificationsService = async (userId, query = {}) => {
 export const getUnreadCountService = async (userId) => {
   try {
     const cacheKey = `${NOTIFICATIONS_CACHE_PREFIX}${userId}:unread`;
-    const cached = await redis.get(cacheKey);
+    const cached = await RedisHelper.get(cacheKey);
     if (cached) {
       return { fromCache: true, count: parseInt(cached) };
     }
 
     const count = await Notification.getUnreadCount(userId);
 
-    await redis.set(cacheKey, count.toString(), { ex: CACHE_TTL });
+    await RedisHelper.set(cacheKey, count.toString(), { ex: CACHE_TTL });
 
     return { fromCache: false, count };
   } catch (error) {
@@ -126,11 +126,11 @@ export const markAsReadService = async (notificationId, userId, language = "ar")
     await notification.markAsRead();
 
     // Clear cache
-    await redis.del(`${NOTIFICATIONS_CACHE_PREFIX}${userId}:unread`);
+    await RedisHelper.del(`${NOTIFICATIONS_CACHE_PREFIX}${userId}:unread`);
     const pattern = `${NOTIFICATIONS_CACHE_PREFIX}${userId}:*`;
-    const keys = await redis.keys(pattern);
+    const keys = await RedisHelper.keys(pattern);
     if (keys.length > 0) {
-      await redis.del(...keys);
+      await RedisHelper.del(...keys);
     }
 
     return buildNotificationDTO(notification.toObject(), language);
@@ -147,11 +147,11 @@ export const markAllAsReadService = async (userId) => {
     await Notification.markAllAsRead(userId);
 
     // Clear cache
-    await redis.del(`${NOTIFICATIONS_CACHE_PREFIX}${userId}:unread`);
+    await RedisHelper.del(`${NOTIFICATIONS_CACHE_PREFIX}${userId}:unread`);
     const pattern = `${NOTIFICATIONS_CACHE_PREFIX}${userId}:*`;
-    const keys = await redis.keys(pattern);
+    const keys = await RedisHelper.keys(pattern);
     if (keys.length > 0) {
-      await redis.del(...keys);
+      await RedisHelper.del(...keys);
     }
 
     return { success: true };
@@ -176,9 +176,9 @@ export const deleteNotificationService = async (notificationId, userId, language
 
     // Clear cache
     const pattern = `${NOTIFICATIONS_CACHE_PREFIX}${userId}:*`;
-    const keys = await redis.keys(pattern);
+    const keys = await RedisHelper.keys(pattern);
     if (keys.length > 0) {
-      await redis.del(...keys);
+      await RedisHelper.del(...keys);
     }
 
     return buildNotificationDTO(notification.toObject(), language);
@@ -196,7 +196,7 @@ export const deleteAllNotificationsService = async (userId) => {
 
     // Clear cache
     const pattern = `${NOTIFICATIONS_CACHE_PREFIX}${userId}:*`;
-    const keys = await redis.keys(pattern);
+    const keys = await RedisHelper.keys(pattern);
     if (keys.length > 0) {
       await redis.del(...keys);
     }
@@ -216,9 +216,9 @@ export const createNotificationService = async (notificationData) => {
 
     // Clear user's cache
     const pattern = `${NOTIFICATIONS_CACHE_PREFIX}${notificationData.user}:*`;
-    const keys = await redis.keys(pattern);
+    const keys = await RedisHelper.keys(pattern);
     if (keys.length > 0) {
-      await redis.del(...keys);
+      await RedisHelper.del(...keys);
     }
 
     return notification;
@@ -238,9 +238,9 @@ export const bulkCreateNotificationsService = async (notifications) => {
     const uniqueUserIds = [...new Set(notifications.map(n => n.user.toString()))];
     for (const userId of uniqueUserIds) {
       const pattern = `${NOTIFICATIONS_CACHE_PREFIX}${userId}:*`;
-      const keys = await redis.keys(pattern);
+      const keys = await RedisHelper.keys(pattern);
       if (keys.length > 0) {
-        await redis.del(...keys);
+        await RedisHelper.del(...keys);
       }
     }
 
@@ -256,12 +256,12 @@ export const bulkCreateNotificationsService = async (notifications) => {
 export const getNotificationStatsService = async () => {
   try {
     const cacheKey = "admin:notification:stats";
-    const cached = await redis.get(cacheKey);
+    const cached = await RedisHelper.get(cacheKey);
     if (cached) {
       return { fromCache: true, data: cached };
     }
 
-    const stats = await Notification.aggregate([
+    const stats = await Notification.aggregate([  
       {
         $facet: {
           byType: [
@@ -336,7 +336,7 @@ export const getNotificationStatsService = async () => {
       },
     };
 
-    await redis.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
+    await RedisHelper.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
 
     return { fromCache: false, data: result };
   } catch (error) {

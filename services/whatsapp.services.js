@@ -1,12 +1,10 @@
 import axios from "axios";
 import Notification from "../models/notification.model.js";
 
-// WhatsApp Business API Configuration
-// You'll need to set these in your .env file
-const WHATSAPP_API_URL = process.env.WHATSAPP_API_URL || "https://graph.facebook.com/v18.0";
-const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
-const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
-
+const HYPERSEND_API_URL = process.env.HYPERSEND_API_URL;
+const HYPERSEND_INSTANCE_ID = process.env.HYPERSEND_INSTANCE_ID;
+const HYPERSEND_API_KEY = process.env.HYPERSEND_API_KEY;
+const WHATSAPP_PHONE_NUMBER_ID= process.env.WHATSAPP_PHONE_NUMBER_ID;
 /* --------------------------------------------------
    SEND WHATSAPP MESSAGE
 --------------------------------------------------- */
@@ -53,7 +51,7 @@ export const sendWhatsAppMessage = async (phoneNumber, message, templateName = n
       messageData,
       {
         headers: {
-          Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+          Authorization: `Bearer ${HYPERSEND_API_KEY}`,
           "Content-Type": "application/json",
         },
       }

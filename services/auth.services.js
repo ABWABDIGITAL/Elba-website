@@ -32,21 +32,20 @@ export const registerService = async ({
   password,
   phone,
   address,
-  role, // Passed from validator middleware!
   req, // Request object for tracking
 }) => {
-  // Validator already checked everything, just get role if not passed
-  let roleId = role;
+  // // Validator already checked everything, just get role if not passed
+  // let roleId = role;
   
-  if (!roleId) {
-    const defaultRole = await Role.findOne({ name: "user" }).select('_id').lean();
-    roleId = defaultRole?._id;
-    if (!roleId) throw BadRequest("User role not found");
-  }
-  const roleDoc = await Role.findOne({ name: role });
-  if (!roleDoc) {
-    throw BadRequest("Invalid role");
-  }
+  // if (!roleId) {
+  //   const defaultRole = await Role.findOne({ name: "user" }).select('_id').lean();
+  //   roleId = defaultRole?._id;
+  //   if (!roleId) throw BadRequest("User role not found");
+  // }
+  // const roleDoc = await Role.findOne({ name: role });
+  // if (!roleDoc) {
+  //   throw BadRequest("Invalid role");
+  // }
 
 
   // Create user directly - no duplicate checks!
@@ -58,7 +57,6 @@ export const registerService = async ({
     email: email.toLowerCase().trim(),
     password,
     phone: phone.trim(),
-    role: roleDoc._id,
     address: address?.trim(),
   });
 

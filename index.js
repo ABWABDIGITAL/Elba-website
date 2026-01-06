@@ -33,7 +33,7 @@ import analyticsRouter  from "./routes/analytics.routes.js";
 import dashboardRoutes from "./routes/dashboard.routes.js";
 import supportRoutes from "./routes/support.route.js";
 import ticketRoutes from "./routes/ticket.route.js";
-
+import whatsappRoutes from "./routes/whatsapp.route.js";
 import seedRoles , { seedAdmin } from "./config/seedRoles.js";
 import runSeeder from "./config/seeder.js";
 
@@ -121,6 +121,7 @@ app.use("/api/v1/dashboard", dashboardRoutes);
 app.use("/api/v1/analytics", analyticsRouter);
 app.use("/api/v1/support", supportRoutes);
 app.use("/api/v1/tickets", ticketRoutes);
+app.use("/api/v1/whatsapp", whatsappRoutes);
 
 
 app.use("/uploads" , express.static(path.join(process.cwd(), "uploads")));
