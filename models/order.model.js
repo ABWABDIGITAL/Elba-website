@@ -248,7 +248,6 @@ orderSchema.index({ orderStatus: 1, createdAt: -1 });
 ----------------------------------- */
 orderSchema.pre("validate", async function (next) {
   try {
-    // نولّد رقم الطلب قبل الـ validation
     if (this.isNew && !this.orderNumber) {
       const date = new Date();
       const year = date.getFullYear();

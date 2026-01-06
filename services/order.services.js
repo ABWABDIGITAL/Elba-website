@@ -92,20 +92,19 @@ export const createOrderService = async (
         orderNumber: order.orderNumber,
         paymentRequired: true,
       };
-    }
-
-    await Cart.updateOne(
-      { _id: cart._id },
-      {
-        $set: {
-          cartItems: [],
-          totalCartPrice: 0,
-          totalPriceAfterDiscount: 0,
-          appliedCoupon: undefined,
-        },
-      },
-      { session }
-    );
+    } 
+    //    await Cart.updateOne(
+    //   { _id: cart._id },
+    //   {
+    //     $set: {
+    //       cartItems: [],
+    //       totalCartPrice: 0,
+    //       totalPriceAfterDiscount: 0,
+    //       appliedCoupon: undefined,
+    //     },
+    //   },
+    //   { session }
+    // );
 
     await session.commitTransaction();
 
@@ -429,6 +428,19 @@ export const updatePaymentStatusService = async (orderId, paymentData) => {
       if (order.orderStatus === "pending") {
         order.orderStatus = "confirmed";
       }
+        await Cart.updateOne(
+        { user: order.user, isActive: true },
+        {
+          $set: {
+            cartItems: [],
+            totalCartPrice: 0,
+            totalPriceAfterDiscount: 0,
+            appliedCoupon: undefined,
+            isActive: false,
+          },
+        },
+        { session }
+      );
     }
 
     await order.save();
