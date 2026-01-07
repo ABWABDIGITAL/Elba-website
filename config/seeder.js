@@ -151,73 +151,61 @@ const seedBrands = async () => {
     {
       en: { name: "Samsung", slug: "samsung" },
       ar: { name: "سامسونج", slug: "samsung" },
-      logo: "https://logo.clearbit.com/samsung.com",
       isActive: true,
     },
     {
       en: { name: "LG", slug: "lg" },
       ar: { name: "إل جي", slug: "lg" },
-      logo: "https://logo.clearbit.com/lg.com",
       isActive: true,
     },
     {
       en: { name: "Bosch", slug: "bosch" },
       ar: { name: "بوش", slug: "bosch" },
-      logo: "https://logo.clearbit.com/bosch.com",
       isActive: true,
     },
     {
       en: { name: "Whirlpool", slug: "whirlpool" },
       ar: { name: "ويرلبول", slug: "whirlpool" },
-      logo: "https://logo.clearbit.com/whirlpool.com",
       isActive: true,
     },
     {
       en: { name: "Siemens", slug: "siemens" },
       ar: { name: "سيمنس", slug: "siemens" },
-      logo: "https://logo.clearbit.com/siemens.com",
       isActive: true,
     },
     {
       en: { name: "Electrolux", slug: "electrolux" },
       ar: { name: "إلكترولوكس", slug: "electrolux" },
-      logo: "https://logo.clearbit.com/electrolux.com",
       isActive: true,
     },
     {
       en: { name: "Panasonic", slug: "panasonic" },
       ar: { name: "باناسونيك", slug: "panasonic" },
-      logo: "https://logo.clearbit.com/panasonic.com",
       isActive: true,
     },
     {
       en: { name: "Haier", slug: "haier" },
       ar: { name: "هاير", slug: "haier" },
-      logo: "https://logo.clearbit.com/haier.com",
       isActive: true,
     },
     {
       en: { name: "Philips", slug: "philips" },
       ar: { name: "فيليبس", slug: "philips" },
-      logo: "https://logo.clearbit.com/philips.com",
       isActive: true,
     },
     {
       en: { name: "Braun", slug: "braun" },
       ar: { name: "براون", slug: "braun" },
-      logo: "https://logo.clearbit.com/braun.com",
       isActive: true,
     },
     {
       en: { name: "Kenwood", slug: "kenwood" },
       ar: { name: "كينوود", slug: "kenwood" },
-      logo: "https://logo.clearbit.com/kenwood.com",
       isActive: true,
     },
     {
       en: { name: "Tefal", slug: "tefal" },
       ar: { name: "تيفال", slug: "tefal" },
-      logo: "https://logo.clearbit.com/tefal.com",
       isActive: true,
     },
   ];
