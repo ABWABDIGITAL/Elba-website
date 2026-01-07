@@ -1,82 +1,78 @@
 import axios from "axios";
 import Notification from "../models/notification.model.js";
 
-const HYPERSEND_API_URL = process.env.HYPERSEND_API_URL;
+const HYPERSEND_API_URL = process.env.HYPERSEND_API_URL || "https://app.hypersender.com/api/whatsapp/v2";
 const HYPERSEND_INSTANCE_ID = process.env.HYPERSEND_INSTANCE_ID;
 const HYPERSEND_API_KEY = process.env.HYPERSEND_API_KEY;
-const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
 /* --------------------------------------------------
-   SEND WHATSAPP MESSAGE
+   SEND WHATSAPP MESSAGE (HyperSend v2)
 --------------------------------------------------- */
-export const sendWhatsAppMessage = async (phoneNumber, message, templateName = null, templateParams = null) => {
+export const sendWhatsAppMessage = async (phoneNumber, message) => {
   try {
-    if (!WHATSAPP_PHONE_NUMBER_ID || !WHATSAPP_ACCESS_TOKEN) {
-      console.warn("WhatsApp credentials not configured");
-      return { success: false, error: "WhatsApp not configured" };
+    if (!HYPERSEND_API_URL || !HYPERSEND_INSTANCE_ID || !HYPERSEND_API_KEY) {
+      console.warn("HyperSend credentials not configured");
+      return { success: false, error: "HyperSend not configured" };
     }
 
-    // Format phone number (remove + and spaces)
+    // Build WhatsApp JID: e.g. 201012345678 -> "201012345678@c.us"
     const formattedPhone = phoneNumber.replace(/[^0-9]/g, "");
+    const chatId = `${formattedPhone}@c.us`;
 
-    let messageData;
+    const payload = {
+      chatId,
+      text: message,
+      link_preview: false,
+      link_preview_high_quality: false,
+      // reply_to: "optional-message-id"  // only if you want to reply to a specific message
+    };
 
-    if (templateName && templateParams) {
-      // Use WhatsApp Template Message
-      messageData = {
-        messaging_product: "whatsapp",
-        to: formattedPhone,
-        type: "template",
-        template: {
-          name: templateName,
-          language: {
-            code: templateParams.language || "ar",
-          },
-          components: templateParams.components || [],
-        },
-      };
-    } else {
-      // Use simple text message
-      messageData = {
-        messaging_product: "whatsapp",
-        to: formattedPhone,
-        type: "text",
-        text: {
-          body: message,
-        },
-      };
-    }
+    // Use the "safe" endpoint to avoid blocking, as docs recommend
+    const url = `${HYPERSEND_API_URL}/${HYPERSEND_INSTANCE_ID}/send-text-safe`;
+    console.log("HyperSend URL:", url);
 
-    const response = await axios.post(
-      `${HYPERSEND_API_URL}/${HYPERSEND_INSTANCE_ID}/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
-      messageData,
-      {
-        headers: {
-          Authorization: `Bearer ${HYPERSEND_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-      }
-    );
+    const response = await axios.post(url, payload, {
+      headers: {
+        Authorization: `Bearer ${HYPERSEND_API_KEY}`,  // "Api Key (Bearer Token)"
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+    });
+
+    // Response example:
+    // {
+    //   "key": {
+    //     "remoteJid": "111111111@s.whatsapp.net",
+    //     "fromMe": true,
+    //     "id": "3EB0CD3810439716606547"
+    //   },
+    //   "message": {...},
+    //   "messageTimestamp": 1741359489,
+    //   "status": "PENDING"
+    // }
 
     return {
       success: true,
-      messageId: response.data.messages[0].id,
+      messageId: response.data?.key?.id || null,
       data: response.data,
     };
   } catch (error) {
-    console.error("WhatsApp send error:", error.response?.data || error.message);
+    console.error(
+      "HyperSend WhatsApp send error:",
+      error.response?.data || error.message
+    );
     return {
       success: false,
-      error: error.response?.data?.error?.message || error.message,
+      error:
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        error.message,
     };
   }
 };
-
-/* --------------------------------------------------
-   SEND NEW REGISTRATION NOTIFICATION
---------------------------------------------------- */
 export const sendRegistrationWhatsApp = async (user) => {
   try {
-    const message = `مرحباً ${user.name}! 🎉\n\nشكراً لتسجيلك في متجرنا للأجهزة المنزلية.\n\nيمكنك الآن تصفح أحدث العروض والمنتجات.\n\nفريق خدمة العملاء`;
+    const message = `مرحباً ${user.firstName}! \n\nشكراً لتسجيلك في متجرنا للأجهزة المنزلية.\n\nيمكنك الآن تصفح أحدث العروض والمنتجات.\n\nفريق خدمة العملاء`;
 
     const result = await sendWhatsAppMessage(user.phone, message);
 
@@ -86,11 +82,11 @@ export const sendRegistrationWhatsApp = async (user) => {
       type: "new_register",
       ar: {
         title: "مرحباً بك في متجرنا!",
-        message: `مرحباً ${user.name}! شكراً لتسجيلك معنا.`,
+        message: `مرحباً ${user.firstName}! شكراً لتسجيلك معنا.`,
       },
       en: {
         title: "Welcome to Our Store!",
-        message: `Welcome ${user.name}! Thank you for registering.`,
+        message: `Welcome ${user.firstName}! Thank you for registering.`,
       },
       whatsapp: {
         sent: result.success,
@@ -132,7 +128,8 @@ export const sendOrderUpdateWhatsApp = async (order, user, status) => {
         en: `Your order #${order.orderNumber} has been cancelled ❌\n\nRefund will be processed in 3-5 business days.`,
       },
     };
-
+    console.log("statusMessages", statusMessages);
+    console.log("order", order.orderNumber);
     const message = statusMessages[status]?.ar || `تحديث طلبك #${order.orderNumber}`;
 
     const result = await sendWhatsAppMessage(user.phone, message);
@@ -175,37 +172,72 @@ export const sendOrderUpdateWhatsApp = async (order, user, status) => {
   }
 };
 
-/* --------------------------------------------------
-   SEND DISCOUNT/PROMOTION NOTIFICATION
---------------------------------------------------- */
 export const sendDiscountWhatsApp = async (users, discount) => {
   try {
+      console.log("=== DISCOUNT NOTIFICATION CALLED AT ===", new Date().toISOString());
+  console.log("Request body:", users);
+  console.log("Request headers x-request-id or cf-request-id:", discount);
     const results = [];
 
+    // Safely build discount value text
+    const percentage =
+      typeof discount.discount === "number"
+        ? discount.discount
+        : null;
+    const amount =
+      typeof discount.discountAmount === "number"
+        ? discount.discountAmount
+        : null;
+
+    let discountValueText;
+    if (percentage !== null) {
+      discountValueText = `خصم ${percentage}%`;
+    } else if (amount !== null) {
+      discountValueText = `خصم ${amount} ريال`;
+    } else {
+      discountValueText = "عرض خاص بخصم مميز"; // fallback if no value
+    }
+
+    // Safely format end date
+    let endDateText = "لفترة محدودة";
+    if (discount.expiredAt) {
+      const endDate = new Date(discount.expiredAt);
+      if (!isNaN(endDate)) {
+        endDateText = endDate.toLocaleDateString("ar-SA");
+      }
+    }
+
     for (const user of users) {
-      const message = `🔥 عرض خاص لك!\n\n${discount.title?.ar || discount.code}\n\nخصم ${discount.discountPercentage || discount.discountAmount}${discount.discountPercentage ? '%' : ' ريال'}\n\nكود الخصم: ${discount.code}\n\nصالح حتى: ${new Date(discount.endDate).toLocaleDateString('ar-SA')}\n\nلا تفوت الفرصة! 🎁`;
+      const message = ` عرض خاص لك من متجر ألبا! عميلنا العزيز \n\n${
+        discount.title?.ar || discount.code
+      }\n\n${discountValueText}\n\nكود الخصم: ${
+        discount.code
+      }\n\nصالح حتى: ${endDateText}\n\nلا تفوت الفرصة! `;
 
       const result = await sendWhatsAppMessage(user.phone, message);
 
-      // Create notification record
       const notification = await Notification.create({
-        user: user._id,
+        user: user._id || null,
         type: "discount_alert",
         ar: {
           title: "عرض خاص لك!",
-          message: message,
+          message,
         },
         en: {
           title: "Special Discount for You!",
-          message: `Get ${discount.discountPercentage || discount.discountAmount}${discount.discountPercentage ? '%' : ' SAR'} off with code: ${discount.code}`,
+          message: percentage
+            ? `Get ${percentage}% off with code: ${discount.code}`
+            : amount
+            ? `Get ${amount} SAR off with code: ${discount.code}`
+            : `Exclusive offer with code: ${discount.code}`,
         },
         relatedModel: "Coupon",
         relatedId: discount._id,
         metadata: {
           code: discount.code,
-          discountPercentage: discount.discountPercentage,
-          discountAmount: discount.discountAmount,
-          endDate: discount.endDate,
+          discountPercentage: discount.discountPercentage ?? null,
+          discountAmount: discount.discountAmount ?? null,
+          endDate: discount.expiredAt ?? null,
         },
         whatsapp: {
           sent: result.success,
@@ -215,19 +247,19 @@ export const sendDiscountWhatsApp = async (users, discount) => {
           error: result.error || null,
         },
         priority: "medium",
-        expiresAt: discount.endDate,
+        expiresAt: discount.endDate || null,
       });
 
       results.push({ user: user._id, notification, result });
 
-      // Add delay to avoid rate limiting (1 second between messages)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Avoid rate limiting
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     }
 
     return {
       success: true,
-      totalSent: results.filter(r => r.result.success).length,
-      totalFailed: results.filter(r => !r.result.success).length,
+      totalSent: results.filter((r) => r.result.success).length,
+      totalFailed: results.filter((r) => !r.result.success).length,
       results,
     };
   } catch (error) {
@@ -235,7 +267,6 @@ export const sendDiscountWhatsApp = async (users, discount) => {
     return { success: false, error: error.message };
   }
 };
-
 /* --------------------------------------------------
    SEND FLASH SALE NOTIFICATION
 --------------------------------------------------- */

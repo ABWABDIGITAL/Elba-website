@@ -7,7 +7,9 @@ import {
   whatsappWebhookController,
 } from "../controllers/whatsapp.controller.js";
 
-import { protect, allowTo } from "../middlewares/authMiddleware.js";
+import { protect } from "../middlewares/authMiddleware.js";
+import { requirePermission } from "../middlewares/permission.middleware.js";
+
 
 const router = express.Router();
 
@@ -15,11 +17,11 @@ const router = express.Router();
 router.post("/register", protect, sendRegistrationController);
 
 // Order
-router.post("/order/update", allowTo("admin"), sendOrderUpdateController);
+router.post("/order/update", sendOrderUpdateController);
 
 // Marketing
-router.post("/discount", allowTo("admin"), sendDiscountController);
-router.post("/flash-sale", allowTo("admin"), sendFlashSaleController);
+router.post("/discount", sendDiscountController);
+router.post("/flash-sale", sendFlashSaleController);
 
 // Webhook
 router.post("/webhook", whatsappWebhookController);

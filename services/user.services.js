@@ -161,6 +161,15 @@ export const adminUpdateUserService = async (id, data, adminRole, file = null) =
   };
 };
 
+export const createUserWithSpecificRole = async (data) => {
+  const user = await User.create(data);
+  return {
+    OK: true,
+    message: "User created successfully",
+    data: buildAdminUserDTO(user),
+  };
+};
+
 /* ============================================================
    DEACTIVATE USER  (REPLACED isActive → status)
 ============================================================ */

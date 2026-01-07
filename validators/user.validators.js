@@ -1,6 +1,8 @@
 import { body, param } from "express-validator";
 import Role from "../models/role.model.js";
 import { validationResult } from "express-validator";
+import validatorMiddleware from "../middlewares/validatorMiddleware.js";
+
 // Shared validation handler
 const validateRequest = (req, res, next) => {
   
@@ -22,6 +24,59 @@ const SAUDI_CITIES = [
   "Riyadh", "Jeddah", "Dammam", "Khobar", "Medina",
   "Makkah", "Qassim", "Tabuk", "Abha", "Jazan",
   "Hail", "Najran"
+];
+export const validateCreateUser = [
+  body("firstName")
+    .notEmpty().withMessage("Name is required")
+    .isLength({ min: 3, max: 50 }),
+  body("lastName")
+    .notEmpty().withMessage("Name is required")
+    .isLength({ min: 3, max: 50 }),
+
+  body("email")
+    .notEmpty().isEmail()
+    .withMessage("Valid email required")
+    .bail()
+    .custom(async (email) => {
+      const exists = await User.findOne({ email: email.toLowerCase() });
+      if (exists) throw new Error("Email already registered");
+      return true;
+    }),
+
+  body("password")
+    .notEmpty().isLength({ min: 6 }),
+
+  body("confirmPassword")
+    .notEmpty()
+    .custom((value, { req }) => {
+      if (value !== req.body.password)
+        throw new Error("Passwords do not match");
+      return true;
+    }),
+
+  body("phone")
+    .notEmpty()
+    .matches(/^((\+9665\d{8})|(05\d{8}))$/)
+    .withMessage("Invalid Saudi phone number")
+    .bail()
+    .custom(async (phone) => {
+      const exists = await User.findOne({ phone });
+      if (exists) throw new Error("Phone already registered");
+      return true;
+    }),
+
+  body("role")
+    .optional()
+    .isString()
+    .withMessage("Role must be a string")
+    .custom(async (roleName) => {
+      const role = await Role.findOne({ name: roleName });
+      if (!role) throw new Error("Invalid role name");
+      // if (!role.isActive) throw new Error("Role is not active assssaaa");
+      return true;
+    }),
+
+  validatorMiddleware,
 ];
 
 // ----------------------------------------------------------

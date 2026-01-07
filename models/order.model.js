@@ -103,7 +103,6 @@ const orderSchema = new mongoose.Schema(
         message: "Order must have at least one item",
       },
     },
-
     shippingAddress: {
       type: shippingAddressSchema,
       required: true,

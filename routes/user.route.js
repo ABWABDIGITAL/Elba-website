@@ -9,11 +9,12 @@ import {
   adminUnlockUser,
   adminBulkAction,
   getUserStatistics,
+  createUserWithSpecificRoleController,
 } from "../controllers/user.controller.js";
 
 import { protect } from "../middlewares/authMiddleware.js";
 import { requirePermission } from "../middlewares/permission.middleware.js";
-import { validateAdminUpdateUser } from "../validators/user.validators.js";
+import { validateAdminUpdateUser, validateCreateUser } from "../validators/user.validators.js";
 import upload from "../middlewares/uploadMiddleware.js";
 import parseNestedJson from "../middlewares/ParseNestedDot.js";
 
@@ -67,5 +68,5 @@ router.post(
   parseNestedJson,
   adminBulkAction
 );
-
+router.post("/create", validateCreateUser, createUserWithSpecificRoleController);
 export default router;

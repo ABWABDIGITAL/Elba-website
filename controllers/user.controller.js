@@ -8,8 +8,9 @@ import {
   adminUnlockUserService,
   adminBulkActionService,
   getUserStatisticsService,
+  createUserWithSpecificRole,
 } from "../services/user.services.js";
-
+import Role from "../models/role.model.js";
 import { StatusCodes } from "http-status-codes";
 
 export const adminGetAllUsers = async (req, res, next) => {
@@ -20,7 +21,22 @@ export const adminGetAllUsers = async (req, res, next) => {
     next(err);
   }
 };
+export const createUserWithSpecificRoleController = async (req, res, next) => {
+  try {
+    if (req.body.role && typeof req.body.role === "string") {
+    const role = await Role.findOne({ name: req.body.role });
+    if (!role) {
+      throw new Error("Invalid role");
+    }
+    req.body.role = role._id;
+  }
 
+    const result = await createUserWithSpecificRole(req.body);
+    res.status(StatusCodes.OK).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
 export const adminGetUserById = async (req, res, next) => {
   try {
     const result = await adminGetUserByIdService(req.params.id);

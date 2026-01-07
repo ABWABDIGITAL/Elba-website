@@ -240,7 +240,7 @@ export const getAllOrdersService = async (query) => {
     const [orders, total] = await Promise.all([
       Order.find(filter)
         .populate("user", "firstName lastName email phone")
-        .populate("orderItems.product", "en.name ar.name sku")
+        .populate("orderItems.product", "en.title ar.title sku")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
