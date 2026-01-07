@@ -10,6 +10,7 @@ import {
   sendFlashSaleNotification,
   getNotificationStats,
   whatsappWebhook,
+  createNotification,
 } from "../controllers/notification.controller.js";
 import { protect } from "../middlewares/authMiddleware.js";
 import { requirePermission } from "../middlewares/permission.middleware.js";
@@ -42,7 +43,7 @@ router.delete("/:notificationId", deleteNotification);
 
 // Delete all notifications
 router.delete("/", deleteAllNotifications);
-
+router.post("/", createNotification);
 // Admin routes
 router.post(
   "/send-discount",

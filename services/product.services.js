@@ -265,7 +265,7 @@ export const deleteProductService = async (slug) => {
 export const getAllProductsService = async (query) => {
   try {
     const page = Number(query.page) || 1;
-    const limit = Number(query.limit) || 20;
+    const limit = Number(query.limit) ;
     const skip = (page - 1) * limit;
 
     const filter = {};
@@ -301,8 +301,8 @@ export const getAllProductsService = async (query) => {
 };
 export const getAllProductsForAdminService = async (query) => {
   try {
-    const page = Number(query.page) || 1;
-    const limit = Number(query.limit) || 20;
+    const page = Number(query.page) ;
+    const limit = Number(query.limit);
     const skip = (page - 1) * limit;
 
     const filter = {};

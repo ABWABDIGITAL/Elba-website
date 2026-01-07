@@ -6,6 +6,7 @@ import {
   deleteNotificationService,
   deleteAllNotificationsService,
   getNotificationStatsService,
+  createNotificationService
 } from "../services/notification.services.js";
 import {
   sendDiscountWhatsApp,
@@ -120,6 +121,28 @@ export const deleteAllNotifications = async (req, res, next) => {
     next(err);
   }
 };
+export const createNotification = async (req, res, next) => {
+  try {
+    const { userId, type, en, ar, data } = req.body;
+
+    const notification = await createNotificationService({
+      user: userId,
+      type,
+      en,
+      ar,
+      data,
+    });
+
+    res.status(StatusCodes.CREATED).json({
+      OK: true,
+      message: "Notification created successfully",
+      data: notification,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 
 /*----------------------------------------------------
    SEND DISCOUNT NOTIFICATION (ADMIN)
