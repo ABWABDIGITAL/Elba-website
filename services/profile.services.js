@@ -1,5 +1,10 @@
 import User from "../models/user.model.js";
 import { BadRequest, NotFound } from "../utlis/apiError.js";
+export const getProfileService = async (userId) => {
+  const user = await User.findById(userId);
+  if (!user) throw NotFound("User not found");
+  return user;
+}
 export const updateProfileService = async (userId, data) => {
   const user = await User.findById(userId);
   if (!user) throw NotFound("User not found");

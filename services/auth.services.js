@@ -228,7 +228,6 @@ export const forgetPassword = async (email) => {
     await sendCodeEmail({
       email: user.email,
       firstName: user.firstName,
-      lastName: user.lastName,
       resetLink
     });
 
