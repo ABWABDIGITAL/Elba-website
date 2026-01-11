@@ -87,39 +87,19 @@ export const validateCreateProduct = [
   handleValidation,
 ];
 
-/* ----------------------------------------------------
-   UPDATE PRODUCT VALIDATION
------------------------------------------------------ */
 export const validateUpdateProduct = [
   param("slug").isString().withMessage("Invalid slug"),
 
-  body("price")
-    .optional()
-    .isFloat({ min: 0 })
-    .withMessage("price must be positive"),
+  body().custom((_, { req }) => {
+    if (
+      (req.body && Object.keys(req.body).length > 0) ||
+      (req.files && Object.keys(req.files).length > 0)
+    ) {
+      return true;
+    }
 
-    body("discountPrice")
-      .optional()
-      .isFloat({ min: 0 })
-      .withMessage("discountPrice must be >= 0")
-      .custom((value, { req }) => {
-        const price = req.body.price;
-
-        // Validate *only if* price was actually provided and is a clean number
-        if (price !== undefined && price !== "" && !isNaN(price)) {
-          if (Number(value) > Number(price)) {
-            throw new Error("discountPrice cannot exceed price");
-          }
-        }
-
-    return true;
+    throw new Error("At least one field or file must be provided for update");
   }),
-
-
-  body("status")
-    .optional()
-    .isIn(["active", "inactive", "out_of_stock", "coming_soon"])
-    .withMessage("Invalid status"),
 
   handleValidation,
 ];

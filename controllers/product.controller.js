@@ -22,166 +22,159 @@ import {
 import { StatusCodes } from "http-status-codes";
 import { ServerError } from "../utlis/apiError.js";
 import Product from "../models/product.model.js";
-/* -----------------------------------------------------
-   INTERNAL HELPERS
------------------------------------------------------ */
+/* ============================================================
+   PRODUCT PAYLOAD NORMALIZATION (CREATE / UPDATE)
+============================================================ */
+
+// ---------- Helpers ----------
+const isMeaningful = (value) => {
+  if (value === undefined || value === null) return false;
+  if (typeof value === "string" && value.trim() === "") return false;
+  if (Array.isArray(value)) return value.length > 0;
+  return true; // e.g. allow 0
+};
 
 const safeJSON = (value) => {
-  if (!value) return null;
+  if (value === undefined || value === null) return undefined;
   if (Array.isArray(value)) return value;
   if (typeof value === "object") return value;
 
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (trimmed === "") return undefined;
+    try {
+      return JSON.parse(trimmed);
+    } catch {
+      return undefined;
+    }
   }
+
+  return undefined;
 };
 
-// description: [{ title, content }]
+// ---------- Multilingual Field Normalizers ----------
 const normalizeDescriptionForLang = (raw) => {
   const arr = safeJSON(raw);
-  if (!Array.isArray(arr)) return [];
-
-  return arr.map((item) => ({
+  if (!Array.isArray(arr)) return undefined;
+  const mapped = arr.map((item) => ({
     title: item?.title || "",
     content: item?.content || "",
   }));
+  return mapped.length ? mapped : undefined;
 };
 
-// specifications: [{ key, value, unit, group }]
 const normalizeSpecificationsForLang = (raw) => {
   const arr = safeJSON(raw);
-  if (!Array.isArray(arr)) return [];
-
-  return arr.map((item) => ({
+  if (!Array.isArray(arr)) return undefined;
+  const mapped = arr.map((item) => ({
     key: item?.key || "",
     value: item?.value || "",
     unit: item?.unit || "",
     group: item?.group || "",
   }));
+  return mapped.length ? mapped : undefined;
 };
 
-// details: [{ key, value }]
 const normalizeDetailsForLang = (raw) => {
   const arr = safeJSON(raw);
-  if (!Array.isArray(arr)) return [];
-
-  return arr.map((item) => ({
+  if (!Array.isArray(arr)) return undefined;
+  const mapped = arr.map((item) => ({
     key: item?.key || "",
     value: item?.value || "",
   }));
+  return mapped.length ? mapped : undefined;
 };
 
-// features: [string]
 const normalizeFeaturesForLang = (raw) => {
   const arr = safeJSON(raw);
-  if (!Array.isArray(arr)) return [];
-  return arr.map((item) => String(item));
+  if (!Array.isArray(arr)) return undefined;
+  const mapped = arr.map((item) => String(item));
+  return mapped.length ? mapped : undefined;
 };
 
-
-
-
-// images: GLOBAL ONLY
+// ---------- File / Image Normalizers ----------
 const normalizeImagesGlobal = (req) => {
-  if (!req.files?.images || !Array.isArray(req.files.images)) return [];
+  if (!req.files?.images || !Array.isArray(req.files.images)) return undefined;
+
   return req.files.images.map((file) => ({
     url: `/uploads/products/images/${file.filename}`,
   }));
 };
 
-/* -----------------------------------------------------
-   PAYLOAD NORMALIZATION FOR CREATE / UPDATE
------------------------------------------------------ */
 
-const normalizeCreatePayload = (req) => {
+// ---------- Safe Assigner ----------
+const assignIfValid = (target, key, rawValue, normalizer) => {
+  if (!isMeaningful(rawValue)) return;
+  const normalized = normalizer(rawValue);
+  if (normalized !== undefined) {
+    target[key] = normalized;
+  }
+};
+const normalizeCatalogFile = (req) => {
+  const file = req?.files?.catalog?.[0];
+  if (!file) return undefined; // was previously: return {}
+  
+  return {
+    pdfUrl: `/uploads/products/catalog/${file.filename}`,
+  };
+};
+
+/* ============================================================
+   🆕 normalizeCreatePayload
+============================================================ */
+export const normalizeCreatePayload = (req) => {
   const payload = {};
 
   // ---------- EN ----------
   payload.en = {
-    title: req.body?.en?.title || "",
+    title: req.body?.en?.title?.trim() || "",
     subTitle: req.body?.en?.subTitle || "",
     warranty: req.body?.en?.warranty || "",
+    description: normalizeDescriptionForLang(req.body?.en?.description) || [],
+    specifications: normalizeSpecificationsForLang(req.body?.en?.specifications) || [],
+    details: normalizeDetailsForLang(req.body?.en?.details) || [],
+    features: normalizeFeaturesForLang(req.body?.en?.features) || [],
   };
-
-  if (req.body?.en?.description) {
-    payload.en.description = normalizeDescriptionForLang(req.body.en.description);
-  }
-
-  if (req.body?.en?.specifications) {
-    payload.en.specifications = normalizeSpecificationsForLang(
-      req.body.en.specifications
-    );
-  }
-
-  if (req.body?.en?.details) {
-    payload.en.details = normalizeDetailsForLang(req.body.en.details);
-  }
-
-  if (req.body?.en?.features) {
-    payload.en.features = normalizeFeaturesForLang(req.body.en.features);
-  }
 
   // ---------- AR ----------
   payload.ar = {
-    title: req.body?.ar?.title || "",
+    title: req.body?.ar?.title?.trim() || "",
     subTitle: req.body?.ar?.subTitle || "",
     warranty: req.body?.ar?.warranty || "",
+    description: normalizeDescriptionForLang(req.body?.ar?.description) || [],
+    specifications: normalizeSpecificationsForLang(req.body?.ar?.specifications) || [],
+    details: normalizeDetailsForLang(req.body?.ar?.details) || [],
+    features: normalizeFeaturesForLang(req.body?.ar?.features) || [],
   };
 
-  if (req.body?.ar?.description) {
-    payload.ar.description = normalizeDescriptionForLang(req.body.ar.description);
+  // ---------- Catalog ----------
+  const catalog = normalizeCatalogFile(req);
+  if (catalog) {
+    payload.en.catalog = catalog;
+    payload.ar.catalog = catalog;
   }
 
-  if (req.body?.ar?.specifications) {
-    payload.ar.specifications = normalizeSpecificationsForLang(
-      req.body.ar.specifications
-    );
-  }
-
-  if (req.body?.ar?.details) {
-    payload.ar.details = normalizeDetailsForLang(req.body.ar.details);
-  }
-
-  if (req.body?.ar?.features) {
-    payload.ar.features = normalizeFeaturesForLang(req.body.ar.features);
-  }
-
-  // ---------- catalog (same file للغتين) ----------
-const catalog = normalizeCatalogFile(req);
-if (catalog) {
-  payload.en = payload.en || {};
-  payload.ar = payload.ar || {};
-  payload.en.catalog = catalog;
-  payload.ar.catalog = catalog;
-}
-
-
-  // ---------- Global images ----------
+  // ---------- Images ----------
   const images = normalizeImagesGlobal(req);
-  if (images.length) {
+  if (images) {
     payload.images = images;
   }
 
-  // ---------- Language-independent ----------
-  if (req.body.sku) payload.sku = String(req.body.sku).toUpperCase().trim();
+  // ---------- Flat Fields ----------
+  if (req.body.sku) payload.sku = req.body.sku.toUpperCase().trim();
   if (req.body.modelNumber) payload.modelNumber = req.body.modelNumber;
 
-    if (req.body.price !== undefined && req.body.price !== "" && !isNaN(req.body.price)) {
-      payload.price = Number(req.body.price);
-    }
+  if (req.body.price !== undefined && req.body.price !== "")
+    payload.price = Number(req.body.price);
 
-
-  // discountPrice = discount VALUE (قيمة الخصم)
-  if (req.body.discountPrice !== undefined && req.body.discountPrice !== "" && !isNaN(req.body.discountPrice)) {
+  if (req.body.discountPrice !== undefined && req.body.discountPrice !== "")
     payload.discountPrice = Number(req.body.discountPrice);
-  }
 
-
-  if (req.body.discountPercentage !== undefined) {
+  if (
+    req.body.discountPercentage !== undefined &&
+    req.body.discountPercentage !== ""
+  )
     payload.discountPercentage = Number(req.body.discountPercentage);
-  }
 
   if (req.body.currencyCode) payload.currencyCode = req.body.currencyCode;
   if (req.body.stock !== undefined) payload.stock = Number(req.body.stock);
@@ -191,129 +184,74 @@ if (catalog) {
 
   return payload;
 };
-const normalizeCatalogFile = (req) => {
-  const file = req?.files?.catalog?.[0];
-  if (!file) return null;
-
-  return {
-    pdfUrl: `/uploads/products/catalog/${file.filename}`
-  };
-};
-
-
-const normalizeUpdatePayload = (req) => {
+/* ============================================================
+   ✏️ normalizeUpdatePayload (PATCH SAFE)
+============================================================ */
+export const normalizeUpdatePayload = (req) => {
   const payload = {};
 
-// ---------- EN ----------
-if (req.body.en && Object.keys(req.body.en).length > 0) {
-  const en = {};
+  // ---------- EN ----------
+  if (req.body.en && typeof req.body.en === "object") {
+    const en = {};
 
-  if (req.body.en.title !== undefined) en.title = req.body.en.title;
-  if (req.body.en.subTitle !== undefined) en.subTitle = req.body.en.subTitle;
-  if (req.body.en.warranty !== undefined) en.warranty = req.body.en.warranty;
+    if (isMeaningful(req.body.en.title)) en.title = req.body.en.title;
+    if (isMeaningful(req.body.en.subTitle)) en.subTitle = req.body.en.subTitle;
+    if (isMeaningful(req.body.en.warranty)) en.warranty = req.body.en.warranty;
 
-  if (req.body.en.description !== undefined) {
-    en.description = normalizeDescriptionForLang(req.body.en.description);
+    assignIfValid(en, "description", req.body.en.description, normalizeDescriptionForLang);
+    assignIfValid(en, "specifications", req.body.en.specifications, normalizeSpecificationsForLang);
+    assignIfValid(en, "details", req.body.en.details, normalizeDetailsForLang);
+    assignIfValid(en, "features", req.body.en.features, normalizeFeaturesForLang);
+
+    if (Object.keys(en).length > 0) payload.en = en;
   }
-
-  if (req.body.en.specifications !== undefined) {
-    en.specifications = normalizeSpecificationsForLang(
-      req.body.en.specifications
-    );
-  }
-
-  if (req.body.en.details !== undefined) {
-    en.details = normalizeDetailsForLang(req.body.en.details);
-  }
-
-  if (req.body.en.features !== undefined) {
-    en.features = normalizeFeaturesForLang(req.body.en.features);
-  }
-
-  if (Object.keys(en).length > 0) {
-    payload.en = en;
-  }
-}
 
   // ---------- AR ----------
- if (req.body.ar && Object.keys(req.body.ar).length > 0) {
-  const ar = {};
+  if (req.body.ar && typeof req.body.ar === "object") {
+    const ar = {};
 
-  if (req.body.ar.title !== undefined) ar.title = req.body.ar.title;
-  if (req.body.ar.subTitle !== undefined) ar.subTitle = req.body.ar.subTitle;
-  if (req.body.ar.warranty !== undefined) ar.warranty = req.body.ar.warranty;
+    if (isMeaningful(req.body.ar.title)) ar.title = req.body.ar.title;
+    if (isMeaningful(req.body.ar.subTitle)) ar.subTitle = req.body.ar.subTitle;
+    if (isMeaningful(req.body.ar.warranty)) ar.warranty = req.body.ar.warranty;
 
-  if (req.body.ar.description !== undefined) {
-    ar.description = normalizeDescriptionForLang(req.body.ar.description);
+    assignIfValid(ar, "description", req.body.ar.description, normalizeDescriptionForLang);
+    assignIfValid(ar, "specifications", req.body.ar.specifications, normalizeSpecificationsForLang);
+    assignIfValid(ar, "details", req.body.ar.details, normalizeDetailsForLang);
+    assignIfValid(ar, "features", req.body.ar.features, normalizeFeaturesForLang);
+
+    if (Object.keys(ar).length > 0) payload.ar = ar;
   }
 
-  if (req.body.ar.specifications !== undefined) {
-    ar.specifications = normalizeSpecificationsForLang(
-      req.body.ar.specifications
-    );
-  }
-
-  if (req.body.ar.details !== undefined) {
-    ar.details = normalizeDetailsForLang(req.body.ar.details);
-  }
-
-  if (req.body.ar.features !== undefined) {
-    ar.features = normalizeFeaturesForLang(req.body.ar.features);
-  }
-
-  if (Object.keys(ar).length > 0) {
-    payload.ar = ar;
-  }
+  // ---------- Catalog ----------
+const catalog = normalizeCatalogFile(req);
+if (catalog !== undefined) {
+  payload.en = payload.en || {};
+  payload.ar = payload.ar || {};
+  payload.en.catalog = catalog;
+  payload.ar.catalog = catalog;
 }
 
-
-  const catalog = normalizeCatalogFile(req);
-  if (catalog) {
-    payload.en = payload.en || {};
-    payload.ar = payload.ar || {};
-    payload.en.catalog = catalog;
-    payload.ar.catalog = catalog;
-  }
-  // ---------- Global images update ----------
+  // ---------- Images ----------
   const images = normalizeImagesGlobal(req);
-  if (images.length) {
-    payload.images = images; // overwrite بالكامل
+  if (Array.isArray(images) && images.length > 0) {
+    payload.images = images;
   }
 
-  // ---------- Language-independent ----------
-  if (req.body.sku !== undefined)
-    payload.sku = String(req.body.sku).toUpperCase().trim();
-  if (req.body.modelNumber !== undefined)
-    payload.modelNumber = req.body.modelNumber;
-
-  if (req.body.price !== undefined) {
-    payload.price = Number(req.body.price);
-  }
-
-  if (req.body.discountPrice !== undefined) {
-    payload.discountPrice = Number(req.body.discountPrice);
-  }
-
-  if (req.body.discountPercentage !== undefined) {
-    payload.discountPercentage = Number(req.body.discountPercentage);
-  }
-
-  if (req.body.currencyCode !== undefined)
-    payload.currencyCode = req.body.currencyCode;
-  if (req.body.stock !== undefined) payload.stock = Number(req.body.stock);
-  if (req.body.status !== undefined) payload.status = req.body.status;
-  if (req.body.category !== undefined) payload.category = req.body.category;
-  if (req.body.brand !== undefined) payload.brand = req.body.brand;
-console.log("FILES:", req.files);
+  // ---------- Flat Fields ----------
+  if (isMeaningful(req.body.sku)) payload.sku = req.body.sku.toUpperCase().trim();
+  if (isMeaningful(req.body.modelNumber)) payload.modelNumber = req.body.modelNumber;
+  if (isMeaningful(req.body.price)) payload.price = Number(req.body.price);
+  if (isMeaningful(req.body.discountPrice)) payload.discountPrice = Number(req.body.discountPrice);
+  if (isMeaningful(req.body.discountPercentage)) payload.discountPercentage = Number(req.body.discountPercentage);
+  if (isMeaningful(req.body.currencyCode)) payload.currencyCode = req.body.currencyCode;
+  if (isMeaningful(req.body.stock)) payload.stock = Number(req.body.stock);
+  if (isMeaningful(req.body.status)) payload.status = req.body.status;
+  if (isMeaningful(req.body.category)) payload.category = req.body.category;
+  if (isMeaningful(req.body.brand)) payload.brand = req.body.brand;
 
   return payload;
 };
-
-/* -----------------------------------------------------
-   CONTROLLERS
------------------------------------------------------ */
-
-// CREATE
+// // CREATE
 export const createProductController = async (req, res, next) => {
   try {
     const normalized = normalizeCreatePayload(req);

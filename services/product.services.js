@@ -219,15 +219,42 @@ export const createProductService = async (data) => {
   }
 };
 
+const deepMerge = (target, source) => {
+  const isObject = (obj) => obj && typeof obj === 'object' && !Array.isArray(obj);
+  
+  if (!isObject(target) || !isObject(source)) {
+    return source;
+  }
+
+  Object.keys(source).forEach(key => {
+    const targetValue = target[key];
+    const sourceValue = source[key];
+
+    if (isObject(targetValue) && isObject(sourceValue)) {
+      target[key] = deepMerge({ ...targetValue }, sourceValue);
+    } else if (sourceValue !== undefined) {
+      target[key] = sourceValue;
+    }
+  });
+
+  return target;
+};
+
 export const updateProductService = async (slug, data) => {
   try {
     const product = await Product.findOne({ slug });
     if (!product) throw NotFound("Product not found");
 
-    // SAFE UPDATE
-    for (const key in data) {
-      if (data[key] !== undefined) {
-        product.set(key, data[key]);
+    // Create a copy of the existing document
+    const updatedProduct = product.toObject();
+    
+    // Deep merge the updates with the existing document
+    deepMerge(updatedProduct, data);
+    
+    // Apply the merged data back to the product
+    for (const key in updatedProduct) {
+      if (key !== '_id' && key !== '__v') { // Skip special fields
+        product.set(key, updatedProduct[key]);
       }
     }
 
