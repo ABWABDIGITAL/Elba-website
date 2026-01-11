@@ -220,31 +220,42 @@ export const createProductService = async (data) => {
 };
 
 export const updateProductService = async (slug, data) => {
-  const product = await Product.findOne({ slug });
-  if (!product) throw NotFound("Product not found");
+  try {
+    const product = await Product.findOne({ slug });
+    if (!product) throw NotFound("Product not found");
 
-  Object.assign(product, data);
+    // SAFE UPDATE
+    for (const key in data) {
+      if (data[key] !== undefined) {
+        product.set(key, data[key]);
+      }
+    }
 
-  applySlugIfMissing(product);
+    applySlugIfMissing(product);
 
-  if (
-    data.price != null ||
-    data.discountPrice != null ||
-    data.discountPercentage != null
-  ) {
-    applyPricingLogic(product);
+    if (
+      data.price != null ||
+      data.discountPrice != null ||
+      data.discountPercentage != null
+    ) {
+      applyPricingLogic(product);
+    }
+
+    validateProductDomain(product);
+
+    const updated = await product.save();
+
+    return {
+      OK: true,
+      message: "Product updated successfully",
+      data: buildProductDTO(product),
+    };
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw ServerError("Failed to update product", err.message);
   }
-
-  validateProductDomain(product);
-
-  await product.save(); 
-
-  return {
-    OK: true,
-    message: "Product updated successfully",
-    data: buildProductDTO(product),
-  };
 };
+
 
 export const deleteProductService = async (slug) => {
   try {

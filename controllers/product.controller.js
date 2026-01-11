@@ -204,68 +204,67 @@ const normalizeCatalogFile = (req) => {
 const normalizeUpdatePayload = (req) => {
   const payload = {};
 
-  // ---------- EN ----------
-  if (req.body.en) {
-    payload.en = {};
+// ---------- EN ----------
+if (req.body.en && Object.keys(req.body.en).length > 0) {
+  const en = {};
 
-    if (req.body.en.title !== undefined) payload.en.title = req.body.en.title;
-    if (req.body.en.subTitle !== undefined)
-      payload.en.subTitle = req.body.en.subTitle;
-    if (req.body.en.warranty !== undefined)
-      payload.en.warranty = req.body.en.warranty;
+  if (req.body.en.title !== undefined) en.title = req.body.en.title;
+  if (req.body.en.subTitle !== undefined) en.subTitle = req.body.en.subTitle;
+  if (req.body.en.warranty !== undefined) en.warranty = req.body.en.warranty;
 
-    if (req.body.en.description !== undefined) {
-      payload.en.description = normalizeDescriptionForLang(
-        req.body.en.description
-      );
-    }
-
-    if (req.body.en.specifications !== undefined) {
-      payload.en.specifications = normalizeSpecificationsForLang(
-        req.body.en.specifications
-      );
-    }
-
-    if (req.body.en.details !== undefined) {
-      payload.en.details = normalizeDetailsForLang(req.body.en.details);
-    }
-
-    if (req.body.en.features !== undefined) {
-      payload.en.features = normalizeFeaturesForLang(req.body.en.features);
-    }
+  if (req.body.en.description !== undefined) {
+    en.description = normalizeDescriptionForLang(req.body.en.description);
   }
+
+  if (req.body.en.specifications !== undefined) {
+    en.specifications = normalizeSpecificationsForLang(
+      req.body.en.specifications
+    );
+  }
+
+  if (req.body.en.details !== undefined) {
+    en.details = normalizeDetailsForLang(req.body.en.details);
+  }
+
+  if (req.body.en.features !== undefined) {
+    en.features = normalizeFeaturesForLang(req.body.en.features);
+  }
+
+  if (Object.keys(en).length > 0) {
+    payload.en = en;
+  }
+}
 
   // ---------- AR ----------
-  if (req.body.ar) {
-    payload.ar = {};
+ if (req.body.ar && Object.keys(req.body.ar).length > 0) {
+  const ar = {};
 
-    if (req.body.ar.title !== undefined) payload.ar.title = req.body.ar.title;
-    if (req.body.ar.subTitle !== undefined)
-      payload.ar.subTitle = req.body.ar.subTitle;
-    if (req.body.ar.warranty !== undefined)
-      payload.ar.warranty = req.body.ar.warranty;
+  if (req.body.ar.title !== undefined) ar.title = req.body.ar.title;
+  if (req.body.ar.subTitle !== undefined) ar.subTitle = req.body.ar.subTitle;
+  if (req.body.ar.warranty !== undefined) ar.warranty = req.body.ar.warranty;
 
-    if (req.body.ar.description !== undefined) {
-      payload.ar.description = normalizeDescriptionForLang(
-        req.body.ar.description
-      );
-    }
-
-    if (req.body.ar.specifications !== undefined) {
-      payload.ar.specifications = normalizeSpecificationsForLang(
-        req.body.ar.specifications
-      );
-    }
-
-    if (req.body.ar.details !== undefined) {
-      payload.ar.details = normalizeDetailsForLang(req.body.ar.details);
-    }
-
-    if (req.body.ar.features !== undefined) {
-      payload.ar.features = normalizeFeaturesForLang(req.body.ar.features);
-    }
-   
+  if (req.body.ar.description !== undefined) {
+    ar.description = normalizeDescriptionForLang(req.body.ar.description);
   }
+
+  if (req.body.ar.specifications !== undefined) {
+    ar.specifications = normalizeSpecificationsForLang(
+      req.body.ar.specifications
+    );
+  }
+
+  if (req.body.ar.details !== undefined) {
+    ar.details = normalizeDetailsForLang(req.body.ar.details);
+  }
+
+  if (req.body.ar.features !== undefined) {
+    ar.features = normalizeFeaturesForLang(req.body.ar.features);
+  }
+
+  if (Object.keys(ar).length > 0) {
+    payload.ar = ar;
+  }
+}
 
 
   const catalog = normalizeCatalogFile(req);

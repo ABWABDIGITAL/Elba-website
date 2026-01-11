@@ -36,8 +36,12 @@ const productSchema = new mongoose.Schema(
   {
     /* ------------------------ MULTILANG -------------------------- */
     ar: {
-      title: { type: String, required: true },
-      subTitle: { type: String, required: true },
+      title: { type: String,  required: function () {
+    return this.isNew;
+  } },
+      subTitle: { type: String,  required: function () {
+    return this.isNew;
+  } },
       description: [{ title: String, content: String }],
       specifications: [{ key: String, value: String, unit: String, group: String }],
       features: [String],
@@ -48,8 +52,12 @@ const productSchema = new mongoose.Schema(
     },
 
     en: {
-      title: { type: String, required: true },
-      subTitle: { type: String, required: true },
+      title: { type: String,  required: function () {
+    return this.isNew;
+  } },
+      subTitle: { type: String,  required: function () {
+    return this.isNew;
+  } },
       description: [{ title: String, content: String }],
       specifications: [{ key: String, value: String, unit: String, group: String }],
       features: [String],
