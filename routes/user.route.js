@@ -17,7 +17,6 @@ import { requirePermission } from "../middlewares/permission.middleware.js";
 import { validateAdminUpdateUser, validateCreateUser } from "../validators/user.validators.js";
 import upload from "../middlewares/uploadMiddleware.js";
 import parseNestedJson from "../middlewares/ParseNestedDot.js";
-
 const router = express.Router();
 
 // All routes require authentication
@@ -68,5 +67,5 @@ router.post(
   parseNestedJson,
   adminBulkAction
 );
-router.post("/create", validateCreateUser, createUserWithSpecificRoleController);
+router.post("/create",requirePermission("users", "create"), validateCreateUser, createUserWithSpecificRoleController);
 export default router;

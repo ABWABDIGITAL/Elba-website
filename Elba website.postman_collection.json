@@ -1,0 +1,7228 @@
+{
+	"info": {
+		"_postman_id": "b69918a1-0a94-4274-adc7-13d0204496a4",
+		"name": "Elba website",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "47688548",
+		"_collection_link": "https://mohamedelmesery2004-4740171.postman.co/workspace/Mohamed-Mostafa's-Workspace~6ca0c541-92cd-42f5-8750-407abfb70d17/collection/47688548-b69918a1-0a94-4274-adc7-13d0204496a4?action=share&source=collection_link&creator=47688548"
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Sign Up",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"firstName\": \"mohamed\",\r\n  \"lastName\": \"mostafa\",\r\n  \"gender\": \"male\",  // or \"female\", \"other\"\r\n  \"BirthDate\": \"1990-01-01\",  // YYYY-MM-DD format\r\n  \"email\": \"mohamedelmesery200@gmail.com\",\r\n  \"password\": \"yourSecurePassword123\",\r\n  \"confirmPassword\": \"yourSecurePassword123\",\r\n  \"phone\": \"+966512501592\",\r\n  \"address\": \"Jeddah\",\r\n  \"role\":\"user\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/auth/register",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"register"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"const jsonData = pm.response.json();\r",
+									"pm.environment.set(\"authToken\", jsonData.data.token);"
+								],
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n   \"password\": \"SuperAdmin@123\",\r\n    \"phone\": \"+966500000001\"\r\n} ",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/auth/login",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "logout",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\":\"abdelrahmana112@gmail.com\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/auth/logout",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"logout"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "forget-password",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n   \"email\": \"mohamedelmesery2004@gmail.com\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/auth/forget-password",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"forget-password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "verify-reset-password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\": \"yusufqasala@gmail.com\",\r\n    \"code\": \"853397\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/auth/verify-reset-password",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"verify-reset-password"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "reset-password",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"newPassword\": \"NewPassword123\",\r\n  \"confirmPassword\":\"NewPassword123\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/auth/reset-password/:token",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"auth",
+								"reset-password",
+								":token"
+							],
+							"variable": [
+								{
+									"key": "token",
+									"value": "fc9e8e1ae63b37783220017ec787be35786ef11c3a24c087c2a8fa04c2d73d4e"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "category",
+			"item": [
+				{
+					"name": "Get all categories",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MWUwZDRiNDc2NzUxNzdlNmRlNDVlYyIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc2MzU3NzE3OSwiZXhwIjoxNzYzNjYzNTc5fQ.xbjyL5ZU8A6GkABg8C75LzJAl6G4aaCAW0YeYcNvE5w",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": []
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/categories",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"categories"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get one Category",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MWUwZDRiNDc2NzUxNzdlNmRlNDVlYyIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc2MzU3NzE3OSwiZXhwIjoxNzYzNjYzNTc5fQ.xbjyL5ZU8A6GkABg8C75LzJAl6G4aaCAW0YeYcNvE5w",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"name\": \"Electronics1\",\r\n  \"image\": \"electronics.png\"\r\n}"
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/categories/:id",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"categories",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": "692d62609c4f6a9304d03539"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "brands",
+			"item": [
+				{
+					"name": "Get all brands",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5MWUwZDRiNDc2NzUxNzdlNmRlNDVlYyIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc2MzU3NzE3OSwiZXhwIjoxNzYzNjYzNTc5fQ.xbjyL5ZU8A6GkABg8C75LzJAl6G4aaCAW0YeYcNvE5w",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"name\": \"Electronics1\",\r\n  \"image\": \"electronics.png\"\r\n}"
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/brands",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"brands"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get a brand",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/api/v1/brands/692d62619c4f6a9304d03552",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"brands",
+								"692d62619c4f6a9304d03552"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "products",
+			"item": [
+				{
+					"name": "for User",
+					"item": [
+						{
+							"name": "get all products",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": []
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/products?page=1&limit=5",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"products"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "brand",
+											"value": null,
+											"disabled": true
+										},
+										{
+											"key": "category",
+											"value": null,
+											"disabled": true
+										},
+										{
+											"key": "price[lte]",
+											"value": null,
+											"disabled": true
+										},
+										{
+											"key": "limit",
+											"value": "5"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "product filter",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"email\":\"mohamed4@gmail.com\",\r\n    \"password\":\"123456\"\r\n}"
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/products/search?price[gte]=500&price[lte]=1500",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"products",
+										"search"
+									],
+									"query": [
+										{
+											"key": "price[gte]",
+											"value": "500"
+										},
+										{
+											"key": "price[lte]",
+											"value": "1500"
+										},
+										{
+											"key": "keyword",
+											"value": "Samsung Smart TV",
+											"disabled": true
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get products for specific category",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/products/category/:slug",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"products",
+										"category",
+										":slug"
+									],
+									"variable": [
+										{
+											"key": "slug",
+											"value": "washing-machines"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get by SKU",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"price\": 1000,\r\n  \"discountPrice\": 200\r\n}\r\n"
+								},
+								"url": {
+									"raw": "localhost:3000/api/v1/products/:slug",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"products",
+										":slug"
+									],
+									"variable": [
+										{
+											"key": "slug",
+											"value": "BOSCH-BGL35MOV14"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "BEST SELLING BY CATEGORY",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/products/category/69259f008bf744a0a1f14e5c/best-selling",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"products",
+										"category",
+										"69259f008bf744a0a1f14e5c",
+										"best-selling"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "BEST OFFERS (highest discount)",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/products/best-offers?page=1&limit=2000",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"products",
+										"best-offers"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "2000"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get compare",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/products/compare?skus=TOSHIBA-MD1018,GENERAL-ELECTRIC-MD1019",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"products",
+										"compare"
+									],
+									"query": [
+										{
+											"key": "skus",
+											"value": "TOSHIBA-MD1018,GENERAL-ELECTRIC-MD1019"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get product catalog",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "city",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "region",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "street",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "unitNumber",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "postalCode",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "note",
+											"value": "",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/products//catalog/:keyword",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"products",
+										"",
+										"catalog",
+										":keyword"
+									],
+									"variable": [
+										{
+											"key": "keyword",
+											"value": "LG 26 Cu.Ft"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get product by brand",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "favorites",
+					"item": [
+						{
+							"name": "New Request",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/favorites/:sku/toggle",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"favorites",
+										":sku",
+										"toggle"
+									],
+									"variable": [
+										{
+											"key": "sku",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "New Request",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "reviews",
+			"item": [
+				{
+					"name": "create review",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"name\":\"Mohamed mostafs\",\r\n  \"email\":\"mohamed@gmail.com\",\r\n  \"product\": \"692d62649c4f6a9304d036f5\",\r\n  \"rating\": 4.5,\r\n  \"title\": \"Excellent product\",\r\n  \"comment\": \"Really good quality and fast delivery!\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/reviews",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"reviews"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "carts",
+			"item": [
+				{
+					"name": "Add to Cart",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"slug\": \"bosch-sms6zci48e\",\r\n  \"quantity\": 1\r\n\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/cart",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"cart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get card",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"productId\": \"692d62659c4f6a9304d03725\",\r\n  \"quantity\": 3\r\n}\r\n"
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/cart",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"cart"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update cart",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"productId\": \"692d62659c4f6a9304d03725\",\r\n  \"quantity\": 2\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/cart/item",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"cart",
+								"item"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete item",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"slug\": \"panasonic-md1016\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/cart/item",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"cart",
+								"item"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete all cart",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"productId\": \"692d62659c4f6a9304d03725\",\r\n  \"quantity\": 3\r\n}\r\n"
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/cart/clear",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"cart",
+								"clear"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Remove applied coupon",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"productId\": \"692d62659c4f6a9304d03725\",\r\n  \"quantity\": 3\r\n}\r\n"
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/cart/coupon",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"cart",
+								"coupon"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Apply Coupon to Cart",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"code\": \"SALE-BQ7ZH\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/cart/coupon",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"cart",
+								"coupon"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "check out",
+			"item": [
+				{
+					"name": "address",
+					"item": [
+						{
+							"name": "add address",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "city",
+											"value": "Makkah",
+											"type": "text"
+										},
+										{
+											"key": "region",
+											"value": "Al-Malqa",
+											"type": "text"
+										},
+										{
+											"key": "street",
+											"value": "King Salman Rd",
+											"type": "text"
+										},
+										{
+											"key": "unitNumber",
+											"value": "12",
+											"type": "text"
+										},
+										{
+											"key": "postalCode",
+											"value": "11564",
+											"type": "text"
+										},
+										{
+											"key": "note",
+											"value": "Leave at door",
+											"type": "text"
+										},
+										{
+											"key": "isDefault",
+											"value": "true",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/addresses",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"addresses"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "update address",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "city",
+											"value": "Riyadh",
+											"type": "text"
+										},
+										{
+											"key": "region",
+											"value": "Al-Malqa",
+											"type": "text"
+										},
+										{
+											"key": "street",
+											"value": "King Salman Rd",
+											"type": "text"
+										},
+										{
+											"key": "unitNumber",
+											"value": "12",
+											"type": "text"
+										},
+										{
+											"key": "postalCode",
+											"value": "11564",
+											"type": "text"
+										},
+										{
+											"key": "note",
+											"value": "Leave at door",
+											"type": "text"
+										},
+										{
+											"key": "isDefault",
+											"value": "true",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/addresses/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"addresses",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get address",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "city",
+											"value": "Riyadh",
+											"type": "text"
+										},
+										{
+											"key": "region",
+											"value": "Al-Malqa",
+											"type": "text"
+										},
+										{
+											"key": "street",
+											"value": "King Salman Rd",
+											"type": "text"
+										},
+										{
+											"key": "unitNumber",
+											"value": "12",
+											"type": "text"
+										},
+										{
+											"key": "postalCode",
+											"value": "11564",
+											"type": "text"
+										},
+										{
+											"key": "note",
+											"value": "Leave at door",
+											"type": "text"
+										},
+										{
+											"key": "isDefault",
+											"value": "true",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/addresses",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"addresses"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "delete address",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "city",
+											"value": "Riyadh",
+											"type": "text"
+										},
+										{
+											"key": "region",
+											"value": "Al-Malqa",
+											"type": "text"
+										},
+										{
+											"key": "street",
+											"value": "King Salman Rd",
+											"type": "text"
+										},
+										{
+											"key": "unitNumber",
+											"value": "12",
+											"type": "text"
+										},
+										{
+											"key": "postalCode",
+											"value": "11564",
+											"type": "text"
+										},
+										{
+											"key": "note",
+											"value": "Leave at door",
+											"type": "text"
+										},
+										{
+											"key": "isDefault",
+											"value": "true",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/addresses/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"addresses",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": ""
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "communication info",
+					"item": [
+						{
+							"name": "create communication info",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"firstName\": \"Mohamed\",\r\n  \"secondName\": \"Mostafa\",\r\n  \"companyName\": \"ELBA\",\r\n  \"region\": \"Riyadh\",\r\n  \"email\": \"mohamed@test.com\",\r\n  \"phone\": \"0551234567\"\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/communication-info",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"communication-info"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get my info",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"firstName\": \"Mohamed\",\r\n  \"secondName\": \"Mostafa\",\r\n  \"companyName\": \"ELBA\",\r\n  \"region\": \"Riyadh\",\r\n  \"email\": \"mohamed@test.com\",\r\n  \"phone\": \"0551234567\"\r\n}\r\n"
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/communication-info/my",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"communication-info",
+										"my"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "payment",
+					"item": [
+						{
+							"name": "Init Session",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"orderId\": \"695bd921272abd1ccd8a5bf7\"\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/payment/init-session",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"payment",
+										"init-session"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "New Request",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "static page",
+			"item": [
+				{
+					"name": "create support",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"companyName\": \"Samsung\",\r\n  \"email\": \"test@gmail.com\",\r\n  \"phone\": \"0551234567\",\r\n  \"supportType\": \"maintenance_request\",\r\n  \"fixDate\": \"2024-12-10T10:30:00Z\",\r\n  \"description\": \"The air conditioner is making loud noise and not cooling.\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/support",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"support"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "contact us",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"companyName\": \"Elba Appliances\",\r\n  \"email\": \"user@example.com\",\r\n  \"phone\": \"0551234567\",\r\n  \"message\": \"I want to know more about your washing machines.\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/contactUs",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"contactUs"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "newsletter",
+			"item": [
+				{
+					"name": "Subscribe to Newsletter",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"email\": \"user@example.com\",\r\n  \"name\": \"John Doe\",\r\n  \"preferences\": [\"promotions\", \"updates\"]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/newsletter/subscribe",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"newsletter",
+								"subscribe"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Preferences",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"email\": \"user@example.com\",\r\n  \"preferences\": [\"promotions\", \"news\", \"updates\"],\r\n  \"isSubscribed\": true\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/newsletter/preferences",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"newsletter",
+								"preferences"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Unsubscribe",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"email\": \"user@example.com\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/newsletter/unsubscribe",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"newsletter",
+								"unsubscribe"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get all subscribers",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/api/v1/newsletter/subscribers",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"newsletter",
+								"subscribers"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Subscriber",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/api/v1/newsletter/subscribers/:id",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"newsletter",
+								"subscribers",
+								":id"
+							],
+							"variable": [
+								{
+									"key": "id",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "profile",
+			"item": [
+				{
+					"name": "favourites",
+					"item": [
+						{
+							"name": "Toggle Favorite Status",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "city",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "region",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "street",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "unitNumber",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "postalCode",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "note",
+											"value": "",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/favorites/:sku/toggle",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"favorites",
+										":sku",
+										"toggle"
+									],
+									"variable": [
+										{
+											"key": "sku",
+											"value": "SIEM-HB674GBS1"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get User's Favorite Products",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "city",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "region",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "street",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "unitNumber",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "postalCode",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "note",
+											"value": "",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/favorites",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"favorites"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "orders",
+					"item": [
+						{
+							"name": "get orders",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/orders/my-orders",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"orders",
+										"my-orders"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "specific order",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/orders/:orderId",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"orders",
+										":orderId"
+									],
+									"variable": [
+										{
+											"key": "orderId",
+											"value": "693846089c1883641df81a96"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "address",
+					"item": [
+						{
+							"name": "craete address",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "city",
+											"value": "Jeddah",
+											"type": "text"
+										},
+										{
+											"key": "region",
+											"value": "Al-Ruwais",
+											"type": "text"
+										},
+										{
+											"key": "district",
+											"value": "Olaya",
+											"type": "text"
+										},
+										{
+											"key": "street",
+											"value": "Prince Mohammed Street",
+											"type": "text"
+										},
+										{
+											"key": "buildingNumber",
+											"value": "13",
+											"type": "text"
+										},
+										{
+											"key": "unitNumber",
+											"value": "12B",
+											"type": "text"
+										},
+										{
+											"key": "postalCode",
+											"value": "12345",
+											"type": "text"
+										},
+										{
+											"key": "note",
+											"value": "Leave at door",
+											"type": "text"
+										},
+										{
+											"key": "isDefault",
+											"value": "true",
+											"type": "text"
+										},
+										{
+											"key": "phoneNumber",
+											"value": "0120017787445",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/addresses",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"addresses"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "update the address",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "city",
+											"value": "Jazan",
+											"type": "text"
+										},
+										{
+											"key": "region",
+											"value": "Al-Malqa",
+											"type": "text"
+										},
+										{
+											"key": "street",
+											"value": "King Salman Rd",
+											"type": "text"
+										},
+										{
+											"key": "unitNumber",
+											"value": "15",
+											"type": "text"
+										},
+										{
+											"key": "postalCode",
+											"value": "12345",
+											"type": "text"
+										},
+										{
+											"key": "note",
+											"value": "Leave at door",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/addresses/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"addresses",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "693557f0b689fc74446aa724"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get all address",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "city",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "region",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "street",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "unitNumber",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "postalCode",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "note",
+											"value": "",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/addresses",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"addresses"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "delete the address",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "city",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "region",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "street",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "unitNumber",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "postalCode",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "note",
+											"value": "",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/addresses/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"addresses",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "693557f0b689fc74446aa724"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "set default address",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PATCH",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "city",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "region",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "street",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "unitNumber",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "postalCode",
+											"value": "",
+											"type": "text"
+										},
+										{
+											"key": "note",
+											"value": "",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/addresses/:id/default",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"addresses",
+										":id",
+										"default"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "693557d7b689fc74446aa720"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "update profile",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"firstName\": \"Mohamed\",\r\n  \"lastName\": \"Guda\",\r\n  \"email\": \"newEmail1@example.com\",\r\n  \"phone\": \"966500050000\",\r\n  \"profileName\": \"male\",\r\n  \"BirthDate\": \"2000-05-21\",\r\n  \"address\": \"Riyadh\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/profile/update-profile",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"profile",
+								"update-profile"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get profile",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "chat bot",
+			"item": [
+				{
+					"name": "Test health route (GET)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:3000/api/v1/chat",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"chat"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Test start chaT",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"query\": \"عايز ثلاجة سامسونج\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/search/search",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"search",
+								"search"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "chatBot",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"message\":\"بدي ماركه سامسونج الافضل\"  ,\r\n  \"sessionId\": \"test_user_123\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/chat/chat",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"chat",
+								"chat"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get all conversion",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"message\":\"بدي ماركه سامسونج الافضل\"  ,\r\n  \"sessionId\": \"test_user_123\"\r\n}\r\n"
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/chat/conversations",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"chat",
+								"conversations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get conversion by seesion ID",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"message\":\"بدي ماركه سامسونج الافضل\"  ,\r\n  \"sessionId\": \"test_user_123\"\r\n}\r\n"
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/chat/conversations/:threadId",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"chat",
+								"conversations",
+								":threadId"
+							],
+							"variable": [
+								{
+									"key": "threadId",
+									"value": "test_user_123"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "admin API",
+			"item": [
+				{
+					"name": "category API",
+					"item": [
+						{
+							"name": "create category",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "sizeType",
+											"value": "Small",
+											"type": "text"
+										},
+										{
+											"key": "en[name]",
+											"value": "TV",
+											"type": "text"
+										},
+										{
+											"key": "ar[name]",
+											"value": "تلفيزونات",
+											"type": "text"
+										},
+										{
+											"key": "image",
+											"type": "file",
+											"src": "postman-cloud:///1f0c87b7-db82-4c80-8de8-4b4d7f0fba69"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/categories",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"categories"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update category",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "en[name]",
+											"value": "updated Category",
+											"type": "text"
+										},
+										{
+											"key": "image",
+											"type": "file",
+											"src": "postman-cloud:///1f0ba37f-23a4-4cc0-93e1-8177d3666143"
+										},
+										{
+											"key": "ar[name]",
+											"value": "اي حاجه",
+											"type": "text"
+										},
+										{
+											"key": "status",
+											"value": "inactive",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/categories/69426a2ba5b654ce0dc1f47d",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"categories",
+										"69426a2ba5b654ce0dc1f47d"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Category",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"name\": \"Home Electronics\",\r\n  \"image\": \"home-electronics.png\"\r\n}"
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/categories/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"categories",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "69426a2ba5b654ce0dc1f47d"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "brand API",
+					"item": [
+						{
+							"name": "Delete brands",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/brands/69395e2351edbe180b2f0858",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"brands",
+										"69395e2351edbe180b2f0858"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update brands",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "en[name]",
+											"value": "updated name",
+											"type": "text"
+										},
+										{
+											"key": "ar[name]",
+											"value": "اي حاجه",
+											"type": "text"
+										},
+										{
+											"key": "logo",
+											"type": "file",
+											"src": "postman-cloud:///1f0c87b7-db82-4c80-8de8-4b4d7f0fba69"
+										},
+										{
+											"key": "status",
+											"value": "inactive",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/brands/6931c79cc63cb2d8ca8159a1",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"brands",
+										"6931c79cc63cb2d8ca8159a1"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "create brand",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "en[name]",
+											"value": "Elba",
+											"type": "text"
+										},
+										{
+											"key": "ar[name]",
+											"value": "الابا",
+											"type": "text"
+										},
+										{
+											"key": "logo",
+											"type": "file",
+											"src": "postman-cloud:///1f0b9832-3400-4d60-8e10-18b568ad4bbd"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/brands",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"brands"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "product API",
+					"item": [
+						{
+							"name": "create product",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "en[title]",
+											"value": "iPhone 15 Pro Max",
+											"type": "text"
+										},
+										{
+											"key": "en[subTitle]",
+											"value": "256GB - Blue Titanium",
+											"type": "text"
+										},
+										{
+											"key": "en[description][0][title]",
+											"value": "Even Cooling",
+											"type": "text"
+										},
+										{
+											"key": "en[description][0][content]",
+											"value": "Multi-air flow cooling system",
+											"type": "text"
+										},
+										{
+											"key": "en[details][0][key]",
+											"value": "Color",
+											"type": "text"
+										},
+										{
+											"key": "en[details][0][value]",
+											"value": "Silver",
+											"type": "text"
+										},
+										{
+											"key": "en[specifications][0][key]",
+											"value": "Capacity",
+											"type": "text"
+										},
+										{
+											"key": "en[specifications][0][value]",
+											"value": "2555",
+											"type": "text"
+										},
+										{
+											"key": "en[specifications][0][unit]",
+											"value": "liter",
+											"type": "text"
+										},
+										{
+											"key": "en[specifications][0][group]",
+											"value": "General",
+											"type": "text"
+										},
+										{
+											"key": "en[features][0]",
+											"value": "Frost Free",
+											"type": "text"
+										},
+										{
+											"key": "en[features][1]",
+											"value": "Multi Air Flow",
+											"type": "text"
+										},
+										{
+											"key": "en.details[0].key",
+											"value": "Color",
+											"type": "text"
+										},
+										{
+											"key": "en.details[0].value",
+											"value": "Silver",
+											"type": "text"
+										},
+										{
+											"key": "en[warranty]",
+											"value": "2 Years full warranty",
+											"type": "text"
+										},
+										{
+											"key": "ar[title]",
+											"value": "آيفون 15 برو ماكس",
+											"type": "text"
+										},
+										{
+											"key": "ar[subTitle]",
+											"value": "256 جيجا - أزرق تيتانيوم",
+											"type": "text"
+										},
+										{
+											"key": "ar[description][0][title]",
+											"value": "توزيع هواء",
+											"type": "text"
+										},
+										{
+											"key": "ar[description][0][content]",
+											"value": "نظام توزيع الهواء المتعدد",
+											"type": "text"
+										},
+										{
+											"key": "ar[specifications][0][key]",
+											"value": "السعة",
+											"type": "text"
+										},
+										{
+											"key": "ar[specifications][0][value]",
+											"value": "٥٠٠ لتر",
+											"type": "text"
+										},
+										{
+											"key": "ar[specifications][0][unit]",
+											"value": "لتر",
+											"type": "text"
+										},
+										{
+											"key": "ar[specifications][0][group]",
+											"value": "عام",
+											"type": "text"
+										},
+										{
+											"key": "ar[features][0]",
+											"value": "خالي من الصقيع",
+											"type": "text"
+										},
+										{
+											"key": "ar[features][1]",
+											"value": "توزيع هواء متعدد",
+											"type": "text"
+										},
+										{
+											"key": "ar[details][0][key]",
+											"value": "اللون",
+											"type": "text"
+										},
+										{
+											"key": "ar[details][0][value]",
+											"value": "فضي",
+											"type": "text"
+										},
+										{
+											"key": "ar[warranty]",
+											"value": "ضمان سنتين شامل",
+											"type": "text"
+										},
+										{
+											"key": "sku",
+											"value": "IP15PM-BLUE2025",
+											"type": "text"
+										},
+										{
+											"key": "modelNumber",
+											"value": "RF-500",
+											"type": "text"
+										},
+										{
+											"key": "price",
+											"value": "5500",
+											"type": "text"
+										},
+										{
+											"key": "discountPrice",
+											"value": "500",
+											"type": "text"
+										},
+										{
+											"key": "stock",
+											"value": "30",
+											"type": "text"
+										},
+										{
+											"key": "category",
+											"value": "692cbc957473061c0bf86d8f",
+											"type": "text"
+										},
+										{
+											"key": "brand",
+											"value": "691f0e0a650f4c793ded9a99",
+											"type": "text"
+										},
+										{
+											"key": "images",
+											"type": "file",
+											"src": "postman-cloud:///1f0b979b-24df-4440-8227-5cc910896ab5"
+										},
+										{
+											"key": "images",
+											"type": "file",
+											"src": "postman-cloud:///1f0b979b-24df-4440-8227-5cc910896ab5"
+										},
+										{
+											"key": "tags",
+											"value": "best_seller",
+											"type": "text"
+										},
+										{
+											"key": "catalog",
+											"type": "file",
+											"src": "postman-cloud:///1f0cebf3-3ce5-4140-9a89-0517f04aa81c"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/products",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"products"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "update product",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PATCH",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "en[title]",
+											"value": "iPhone 17 Pro Max",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "en[subTitle]",
+											"value": "256GB - Blue Titanium",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "en[description][0][title]",
+											"value": "Even Cooling",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "en[description][0][content]",
+											"value": "Multi-air flow cooling system",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "en[details][0][key]",
+											"value": "Color",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "en[details][0][value]",
+											"value": "Silver",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "en[specifications][0][key]",
+											"value": "Capacity",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "en[specifications][0][value]",
+											"value": "2555",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "en[specifications][0][unit]",
+											"value": "liter",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "en[specifications][0][group]",
+											"value": "General",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "en[features][0]",
+											"value": "Frost Free",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "en[features][1]",
+											"value": "Multi Air Flow",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "en.details[0].key",
+											"value": "Color",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "en.details[0].value",
+											"value": "Silver",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "en[warranty]",
+											"value": "1 Years full warranty",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "ar[title]",
+											"value": "آيفون 15 برو ماكس",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "ar[subTitle]",
+											"value": "256 جيجا - أزرق تيتانيوم",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "ar[description][0][title]",
+											"value": "توزيع هواء",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "ar[description][0][content]",
+											"value": "نظام توزيع الهواء المتعدد",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "ar[specifications][0][key]",
+											"value": "السعة",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "ar[specifications][0][value]",
+											"value": "٥٠٠ لتر",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "ar[specifications][0][unit]",
+											"value": "لتر",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "ar[specifications][0][group]",
+											"value": "عام",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "ar[features][0]",
+											"value": "خالي من الصقيع",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "ar[features][1]",
+											"value": "توزيع هواء متعدد",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "ar[details][0][key]",
+											"value": "اللون",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "ar[details][0][value]",
+											"value": "فضي",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "ar[warranty]",
+											"value": "ضمان سنتين شامل",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "sku",
+											"value": "IP15PM-BLUE10",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "price",
+											"value": "5500",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "discountPrice",
+											"value": "500",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "stock",
+											"value": "30",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "category",
+											"value": "692cbc957473061c0bf86d8f",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "brand",
+											"value": "691f0e0a650f4c793ded9a99",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "images",
+											"type": "file",
+											"src": "postman-cloud:///1f0d4fc4-a472-48f0-9a9f-b32ef83b6594",
+											"disabled": true
+										},
+										{
+											"key": "images",
+											"type": "file",
+											"src": "postman-cloud:///1f0b979b-24df-4440-8227-5cc910896ab5",
+											"disabled": true
+										},
+										{
+											"key": "tags",
+											"value": "best_seller",
+											"type": "text",
+											"disabled": true
+										},
+										{
+											"key": "catalog",
+											"type": "file",
+											"src": "postman-cloud:///1f0cebf3-3ce5-4140-9a89-0517f04aa81c",
+											"disabled": true
+										},
+										{
+											"key": "status",
+											"value": "inactive",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/products/:slug",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"products",
+										":slug"
+									],
+									"variable": [
+										{
+											"key": "slug",
+											"value": "ip15pm-blue20"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "delete product",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/products/:slug",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"products",
+										":slug"
+									],
+									"variable": [
+										{
+											"key": "slug",
+											"value": "ip15pm-blue20"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "New Request",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/products/admin",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"products",
+										"admin"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "user API",
+					"item": [
+						{
+							"name": "get all users",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/users",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"users"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1",
+											"disabled": true
+										},
+										{
+											"key": "limit",
+											"value": "5",
+											"disabled": true
+										},
+										{
+											"key": "sort",
+											"value": "-createdAt",
+											"disabled": true
+										},
+										{
+											"key": "fields",
+											"value": "name,email",
+											"disabled": true
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get user by id",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/users/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"users",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "6922cc113883b0eee81714fc"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "delete user by id",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/users/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"users",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "6926fe9b297ae4119fa47a07"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "update user",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"name\": \"Updated User\",\r\n  \"address\": \"Jeddah\",\r\n  \"phone\": \"0555551234\",\r\n  \"email\": \"newemail@test.com\",\r\n  \"status\": \"active\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/users/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"users",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "6922cc113883b0eee81714fc"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "create user with role",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"firstName\": \"mohamed\",\r\n  \"lastName\": \"mostafa\",\r\n  \"gender\": \"male\", \r\n  \"BirthDate\": \"1990-01-01\",\r\n  \"email\": \"mohamedel4544544145mes4er2450044@gmail.com\",\r\n  \"password\": \"yourSecurePassword123\",\r\n  \"confirmPassword\": \"yourSecurePassword123\",\r\n  \"phone\": \"+966532055780\",\r\n  \"address\": \"Jeddah\",\r\n  \"role\":\"manager\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/users/create",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"users",
+										"create"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1",
+											"disabled": true
+										},
+										{
+											"key": "limit",
+											"value": "5",
+											"disabled": true
+										},
+										{
+											"key": "sort",
+											"value": "-createdAt",
+											"disabled": true
+										},
+										{
+											"key": "fields",
+											"value": "name,email",
+											"disabled": true
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "reviews API",
+					"item": [
+						{
+							"name": "get all reviews",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/reviews",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"reviews"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get review by slug",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"product\": \"6923218d6f15ee3e22270a1f\",\r\n  \"rating\": 4.5,\r\n  \"title\": \"Excellent product\",\r\n  \"comment\": \"Really good quality and fast delivery!\"\r\n}\r\n"
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/reviews/:slug",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"reviews",
+										":slug"
+									],
+									"variable": [
+										{
+											"key": "slug",
+											"value": "electrolux-md1015"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "toggele the review by admin",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/reviews/toggle/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"reviews",
+										"toggle",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "693549a603af89a2338b767e"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "delete the reviews",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/reviews/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"reviews",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "693a951c0399b102b4b2c0fa"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "HomePage API",
+					"item": [
+						{
+							"name": "upload banners",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "hero",
+											"type": "file",
+											"src": [
+												"postman-cloud:///1f0b979b-24df-4440-8227-5cc910896ab5",
+												"postman-cloud:///1f0ce3f6-6143-4ff0-a72a-332210b54b08",
+												"postman-cloud:///1f0ba37f-23a4-4cc0-93e1-8177d3666143"
+											]
+										},
+										{
+											"key": "promovideo",
+											"type": "file",
+											"src": "postman-cloud:///1f0d039b-9e63-4330-80d8-1c75c44b9ce2"
+										},
+										{
+											"key": "popupVideo",
+											"type": "file",
+											"src": "postman-cloud:///1f0d039b-9e63-4330-80d8-1c75c44b9ce2"
+										},
+										{
+											"key": "gif",
+											"type": "file",
+											"src": "postman-cloud:///1f0d039b-9e63-4330-80d8-1c75c44b9ce2"
+										},
+										{
+											"key": "offerBanner",
+											"type": "file",
+											"src": "postman-cloud:///1f0b979b-24df-4440-8227-5cc910896ab5"
+										},
+										{
+											"key": "discount[0]",
+											"value": "20",
+											"type": "text"
+										},
+										{
+											"key": "discountTitle[0]",
+											"value": "summer",
+											"type": "text"
+										},
+										{
+											"key": "offerBanner",
+											"type": "file",
+											"src": "postman-cloud:///1f0b979b-24df-4440-8227-5cc910896ab5"
+										},
+										{
+											"key": "discount[1]",
+											"value": "20",
+											"type": "text"
+										},
+										{
+											"key": "discountTitle[1]",
+											"value": "summer",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/home/banners",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"home",
+										"banners"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "update home",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"categories\": {\r\n    \"enabled\": true,\r\n    \"limit\": 50\r\n  }\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/home",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"home"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "create home page config",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"hero\": [],\r\n  \"gif\": [],\r\n  \"promovideo\": [],\r\n  \"popupVideo\": [],\r\n  \"offerBanner\": [],\r\n  \"categories\": {\r\n    \"enabled\": true,\r\n    \"limit\": 1000,\r\n    \"categoryIds\": []\r\n  },\r\n  \"bestOffers\": {\r\n    \"enabled\": true,\r\n    \"limit\": 50,\r\n    \"productIds\": []\r\n  },\r\n  \"Products\": {\r\n    \"enabled\": true,\r\n    \"limit\": 100,\r\n    \"productIds\": []\r\n  },\r\n  \"branches\": {\r\n    \"enabled\": true,\r\n    \"limit\": 10,\r\n    \"branchIds\": []\r\n  },\r\n  \"seo\": {\r\n    \"metaTitle\": \"Home Page – Best Appliances Online\",\r\n    \"metaDescription\": \"Discover top home appliances at the best prices.\",\r\n    \"canonicalUrl\": \"https://elba.sa/\",\r\n    \"keywords\": [\"appliances\", \"home\", \"elba\"],\r\n    \"openGraph\": {\r\n      \"title\": \"Elba Store\",\r\n      \"description\": \"Premium Home Appliances\",\r\n      \"image\": \"https://elba.sa/og-home.jpg\",\r\n      \"type\": \"website\"\r\n    },\r\n    \"twitter\": {\r\n      \"title\": \"Elba Store\",\r\n      \"description\": \"Premium Appliances\",\r\n      \"card\": \"summary_large_image\"\r\n    },\r\n    \"robots\": {\r\n      \"noindex\": false,\r\n      \"nofollow\": false\r\n    }\r\n  }\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/home",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"home"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "create email poster",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": []
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/emailPosters",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"emailPosters"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get the home",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/home",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"home"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "branches API",
+					"item": [
+						{
+							"name": "create branch",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "regionCode",
+											"value": "riyadh",
+											"type": "text"
+										},
+										{
+											"key": "ar[name]",
+											"value": " فرع الاختبار",
+											"type": "text"
+										},
+										{
+											"key": "ar[region]",
+											"value": "الرياض",
+											"type": "text"
+										},
+										{
+											"key": "ar[city]",
+											"value": "الرياض",
+											"type": "text"
+										},
+										{
+											"key": "ar[address]",
+											"value": "الرياض",
+											"type": "text"
+										},
+										{
+											"key": "ar[services]",
+											"value": "خدمة الصيانة, خدمة العملاء",
+											"type": "text"
+										},
+										{
+											"key": "ar[description]",
+											"value": "فرع تجريبي لاختبار إنشاء الفروع",
+											"type": "text"
+										},
+										{
+											"key": "en[name]",
+											"value": "Branch",
+											"type": "text"
+										},
+										{
+											"key": "en[region]",
+											"value": "Riyadh",
+											"type": "text"
+										},
+										{
+											"key": "en[city]",
+											"value": "Riyadh",
+											"type": "text"
+										},
+										{
+											"key": "en[address]",
+											"value": "King Fahd Road",
+											"type": "text"
+										},
+										{
+											"key": "en[services]",
+											"value": "Maintenance Service,Customer Service",
+											"type": "text"
+										},
+										{
+											"key": "en[description]",
+											"value": "Test branch for creating and validating branches",
+											"type": "text"
+										},
+										{
+											"key": "phones",
+											"value": "[\n            \"0555555555\"\n        ]",
+											"type": "text"
+										},
+										{
+											"key": "email",
+											"value": "test.branch@example.com",
+											"type": "text"
+										},
+										{
+											"key": "whatsapp",
+											"value": "0555555555",
+											"type": "text"
+										},
+										{
+											"key": "location",
+											"value": "{\n            \"type\": \"Point\",\n            \"coordinates\": [\n                46.6753,\n                24.7136\n            ]\n        }",
+											"type": "text"
+										},
+										{
+											"key": "latitude",
+											"value": "24.7136",
+											"type": "text"
+										},
+										{
+											"key": "longitude",
+											"value": "46.6753",
+											"type": "text"
+										},
+										{
+											"key": "workingHours",
+											"value": " {\n            \"sat\": {\n                \"open\": \"09:00\",\n                \"close\": \"22:00\",\n                \"isClosed\": false\n            },\n            \"sun\": {\n                \"open\": \"09:00\",\n                \"close\": \"22:00\",\n                \"isClosed\": false\n            },\n            \"mon\": {\n                \"open\": \"09:00\",\n                \"close\": \"22:00\",\n                \"isClosed\": false\n            },\n            \"tue\": {\n                \"open\": \"09:00\",\n                \"close\": \"22:00\",\n                \"isClosed\": false\n            },\n            \"wed\": {\n                \"open\": \"09:00\",\n                \"close\": \"22:00\",\n                \"isClosed\": false\n            },\n            \"thu\": {\n                \"open\": \"09:00\",\n                \"close\": \"17:00\",\n                \"isClosed\": false\n            },\n            \"fri\": {\n                \"isClosed\": true\n            }\n        }",
+											"type": "text"
+										},
+										{
+											"key": "images",
+											"type": "file",
+											"src": "postman-cloud:///1f0d4fc4-a627-4920-973a-d91525866466"
+										},
+										{
+											"key": "isFeatured",
+											"value": "false",
+											"type": "text"
+										},
+										{
+											"key": "isActive",
+											"value": "true",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/branches",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"branches"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "update branches",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "regionCode",
+											"value": "riyadh",
+											"type": "text"
+										},
+										{
+											"key": "ar.name",
+											"value": "test",
+											"type": "text"
+										},
+										{
+											"key": "ar[region]",
+											"value": "الرياض",
+											"type": "text"
+										},
+										{
+											"key": "ar[city]",
+											"value": "الرياض",
+											"type": "text"
+										},
+										{
+											"key": "ar[address]",
+											"value": "الرياض",
+											"type": "text"
+										},
+										{
+											"key": "ar[services]",
+											"value": "خدمة الصيانة, خدمة العملاء",
+											"type": "text"
+										},
+										{
+											"key": "ar[description]",
+											"value": "فرع تجريبي لاختبار إنشاء الفروع",
+											"type": "text"
+										},
+										{
+											"key": "en[name]",
+											"value": "test",
+											"type": "text"
+										},
+										{
+											"key": "en[region]",
+											"value": "Riyadh",
+											"type": "text"
+										},
+										{
+											"key": "en[city]",
+											"value": "Riyadh",
+											"type": "text"
+										},
+										{
+											"key": "en[address]",
+											"value": "King Fahd Road",
+											"type": "text"
+										},
+										{
+											"key": "en[services]",
+											"value": "Maintenance Service,Customer Service",
+											"type": "text"
+										},
+										{
+											"key": "en[description]",
+											"value": "Test branch for creating and validating branches",
+											"type": "text"
+										},
+										{
+											"key": "phones",
+											"value": "[\n            \"0555555555\"\n        ]",
+											"type": "text"
+										},
+										{
+											"key": "email",
+											"value": "test.branch@example.com",
+											"type": "text"
+										},
+										{
+											"key": "whatsapp",
+											"value": "0555555555",
+											"type": "text"
+										},
+										{
+											"key": "location",
+											"value": "{\n            \"type\": \"Point\",\n            \"coordinates\": [\n                46.6753,\n                24.7136\n            ]\n        }",
+											"type": "text"
+										},
+										{
+											"key": "latitude",
+											"value": "24.7136",
+											"type": "text"
+										},
+										{
+											"key": "longitude",
+											"value": "46.6753",
+											"type": "text"
+										},
+										{
+											"key": "workingHours",
+											"value": " {\n            \"sat\": {\n                \"open\": \"09:00\",\n                \"close\": \"22:00\",\n                \"isClosed\": false\n            },\n            \"sun\": {\n                \"open\": \"09:00\",\n                \"close\": \"22:00\",\n                \"isClosed\": false\n            },\n            \"mon\": {\n                \"open\": \"09:00\",\n                \"close\": \"22:00\",\n                \"isClosed\": false\n            },\n            \"tue\": {\n                \"open\": \"09:00\",\n                \"close\": \"22:00\",\n                \"isClosed\": false\n            },\n            \"wed\": {\n                \"open\": \"09:00\",\n                \"close\": \"22:00\",\n                \"isClosed\": false\n            },\n            \"thu\": {\n                \"open\": \"09:00\",\n                \"close\": \"17:00\",\n                \"isClosed\": false\n            },\n            \"fri\": {\n                \"isClosed\": true\n            }\n        }",
+											"type": "text"
+										},
+										{
+											"key": "images",
+											"type": "file",
+											"src": "postman-cloud:///1f0d4f48-2032-4bc0-af19-049ce49198fb"
+										},
+										{
+											"key": "isFeatured",
+											"value": "false",
+											"type": "text"
+										},
+										{
+											"key": "isActive",
+											"value": "false",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/branches/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"branches",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "6947b2e7203e4db58f632a7a"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get branches",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/branches",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"branches"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get branch by id",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"name_ar\": \"فرع التجربة\",\r\n  \"name_en\": \"Test Branch\",\r\n  \"region\": \"Riyadh\",\r\n  \"city\": \"Riyadh\",\r\n  \"address\": \"شارع الملك فهد\",\r\n  \"phones\": [\"0555555555\"],\r\n  \"location\": {\r\n    \"type\": \"Point\",\r\n    \"coordinates\": [46.6753, 24.7136]\r\n  },\r\n  \"workingHours\": {\r\n    \"sat\": { \"open\": \"09:00\", \"close\": \"22:00\" },\r\n    \"sun\": { \"open\": \"09:00\", \"close\": \"22:00\" },\r\n    \"mon\": { \"open\": \"09:00\", \"close\": \"22:00\" },\r\n    \"tue\": { \"open\": \"09:00\", \"close\": \"22:00\" },\r\n    \"wed\": { \"open\": \"09:00\", \"close\": \"22:00\" },\r\n    \"thu\": { \"open\": \"09:00\", \"close\": \"17:00\" },\r\n    \"fri\": { \"open\": \"00:00\", \"close\": \"00:00\", \"isClosed\": true }\r\n  },\r\n  \"services\": [\"Customer Service\"]\r\n}\r\n"
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/branches/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"branches",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "692b67c971170b60dedc544e"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "delete branches",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"name_ar\": \"فرع التجربة\",\r\n  \"name_en\": \"Test Branch\",\r\n  \"region\": \"Riyadh\",\r\n  \"city\": \"Riyadh\",\r\n  \"address\": \"شارع الملك فهد\",\r\n  \"phones\": [\"0555555555\"],\r\n  \"location\": {\r\n    \"type\": \"Point\",\r\n    \"coordinates\": [46.6753, 24.7136]\r\n  },\r\n  \"workingHours\": {\r\n    \"sat\": { \"open\": \"09:00\", \"close\": \"22:00\" },\r\n    \"sun\": { \"open\": \"09:00\", \"close\": \"22:00\" },\r\n    \"mon\": { \"open\": \"09:00\", \"close\": \"22:00\" },\r\n    \"tue\": { \"open\": \"09:00\", \"close\": \"22:00\" },\r\n    \"wed\": { \"open\": \"09:00\", \"close\": \"22:00\" },\r\n    \"thu\": { \"open\": \"09:00\", \"close\": \"17:00\" },\r\n    \"fri\": { \"open\": \"00:00\", \"close\": \"00:00\", \"isClosed\": true }\r\n  },\r\n  \"services\": [\"Customer Service\"]\r\n}\r\n"
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/branches/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"branches",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "692b66da71170b60dedc5437"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "coupons API",
+					"item": [
+						{
+							"name": "create copuns",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"name\": \"elba Sale\",\r\n  \"discount\": 20,\r\n  \"expiredAt\": \"2025-12-30T00:00:00.000Z\",\r\n  \"autoGenerateCode\": true\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/coupons",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"coupons"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get copouns",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/coupons?page=1&limit=10&includeInactive=false",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"coupons"
+									],
+									"query": [
+										{
+											"key": "page",
+											"value": "1"
+										},
+										{
+											"key": "limit",
+											"value": "10"
+										},
+										{
+											"key": "includeInactive",
+											"value": "false"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get copoun by slug",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/coupons/:slug",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"coupons",
+										":slug"
+									],
+									"variable": [
+										{
+											"key": "slug",
+											"value": "winter-sale"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "update copoun",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PATCH",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"discount\": 40\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/coupons/:slug",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"coupons",
+										":slug"
+									],
+									"variable": [
+										{
+											"key": "slug",
+											"value": "winter-sale"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "delete copun",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"discount\": 40\r\n}\r\n"
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/coupons/:slug",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"coupons",
+										":slug"
+									],
+									"variable": [
+										{
+											"key": "slug",
+											"value": "winter-sale"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "apply copunn",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"couponCode\": \"SALE-BQ7ZH\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/coupons/apply-coupon",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"coupons",
+										"apply-coupon"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "orders API",
+					"item": [
+						{
+							"name": "get all orders",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "en[title]",
+											"value": "iPhone 17 Pro Max",
+											"type": "text"
+										},
+										{
+											"key": "en[subTitle]",
+											"value": "256GB - Blue Titanium",
+											"type": "text"
+										},
+										{
+											"key": "en[description][0][title]",
+											"value": "Even Cooling",
+											"type": "text"
+										},
+										{
+											"key": "en[description][0][content]",
+											"value": "Multi-air flow cooling system",
+											"type": "text"
+										},
+										{
+											"key": "en[details][0][key]",
+											"value": "Color",
+											"type": "text"
+										},
+										{
+											"key": "en[details][0][value]",
+											"value": "Silver",
+											"type": "text"
+										},
+										{
+											"key": "en[specifications][0][key]",
+											"value": "Capacity",
+											"type": "text"
+										},
+										{
+											"key": "en[specifications][0][value]",
+											"value": "2555",
+											"type": "text"
+										},
+										{
+											"key": "en[specifications][0][unit]",
+											"value": "liter",
+											"type": "text"
+										},
+										{
+											"key": "en[specifications][0][group]",
+											"value": "General",
+											"type": "text"
+										},
+										{
+											"key": "en[features][0]",
+											"value": "Frost Free",
+											"type": "text"
+										},
+										{
+											"key": "en[features][1]",
+											"value": "Multi Air Flow",
+											"type": "text"
+										},
+										{
+											"key": "en.details[0].key",
+											"value": "Color",
+											"type": "text"
+										},
+										{
+											"key": "en.details[0].value",
+											"value": "Silver",
+											"type": "text"
+										},
+										{
+											"key": "en[warranty]",
+											"value": "1 Years full warranty",
+											"type": "text"
+										},
+										{
+											"key": "ar[title]",
+											"value": "آيفون 15 برو ماكس",
+											"type": "text"
+										},
+										{
+											"key": "ar[subTitle]",
+											"value": "256 جيجا - أزرق تيتانيوم",
+											"type": "text"
+										},
+										{
+											"key": "ar[description][0][title]",
+											"value": "توزيع هواء",
+											"type": "text"
+										},
+										{
+											"key": "ar[description][0][content]",
+											"value": "نظام توزيع الهواء المتعدد",
+											"type": "text"
+										},
+										{
+											"key": "ar[specifications][0][key]",
+											"value": "السعة",
+											"type": "text"
+										},
+										{
+											"key": "ar[specifications][0][value]",
+											"value": "٥٠٠ لتر",
+											"type": "text"
+										},
+										{
+											"key": "ar[specifications][0][unit]",
+											"value": "لتر",
+											"type": "text"
+										},
+										{
+											"key": "ar[specifications][0][group]",
+											"value": "عام",
+											"type": "text"
+										},
+										{
+											"key": "ar[features][0]",
+											"value": "خالي من الصقيع",
+											"type": "text"
+										},
+										{
+											"key": "ar[features][1]",
+											"value": "توزيع هواء متعدد",
+											"type": "text"
+										},
+										{
+											"key": "ar[details][0][key]",
+											"value": "اللون",
+											"type": "text"
+										},
+										{
+											"key": "ar[details][0][value]",
+											"value": "فضي",
+											"type": "text"
+										},
+										{
+											"key": "ar[warranty]",
+											"value": "ضمان سنتين شامل",
+											"type": "text"
+										},
+										{
+											"key": "sku",
+											"value": "IP15PM-BLUE10",
+											"type": "text"
+										},
+										{
+											"key": "modelNumber",
+											"value": "RF-500",
+											"type": "text"
+										},
+										{
+											"key": "price",
+											"value": "5500",
+											"type": "text"
+										},
+										{
+											"key": "discountPrice",
+											"value": "500",
+											"type": "text"
+										},
+										{
+											"key": "stock",
+											"value": "30",
+											"type": "text"
+										},
+										{
+											"key": "category",
+											"value": "692cbc957473061c0bf86d8f",
+											"type": "text"
+										},
+										{
+											"key": "brand",
+											"value": "691f0e0a650f4c793ded9a99",
+											"type": "text"
+										},
+										{
+											"key": "images",
+											"type": "file",
+											"src": "postman-cloud:///1f0d4fc4-a472-48f0-9a9f-b32ef83b6594"
+										},
+										{
+											"key": "images",
+											"type": "file",
+											"src": "postman-cloud:///1f0b979b-24df-4440-8227-5cc910896ab5"
+										},
+										{
+											"key": "tags",
+											"value": "best_seller",
+											"type": "text"
+										},
+										{
+											"key": "catalog",
+											"type": "file",
+											"src": "postman-cloud:///1f0cebf3-3ce5-4140-9a89-0517f04aa81c"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/orders/admin/all",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"orders",
+										"admin",
+										"all"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get order statistics",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/orders/admin/stats",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"orders",
+										"admin",
+										"stats"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get order analytics",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/orders/admin/stats",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"orders",
+										"admin",
+										"stats"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Bulk export orders",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/orders/admin/export",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"orders",
+										"admin",
+										"export"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "cancel order",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"reason\":\"o don't need make it\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/orders/:orderId/cancel",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"orders",
+										":orderId",
+										"cancel"
+									],
+									"variable": [
+										{
+											"key": "orderId",
+											"value": "6942db1b7ef935424caf86ee"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "settings page",
+					"item": [
+						{
+							"name": "post email and platforms",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"officialEmail\": \"elba@shop.com\",\r\n  \"socialmediaLinks\": [\r\n    {\r\n      \"platform\": \"facebook\",\r\n      \"link\": \"https://facebook.com/shop\"\r\n    },\r\n    {\r\n      \"platform\": \"instagram\",\r\n      \"link\": \"https://instagram.com/shop\"\r\n    }\r\n  ]\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/settings",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"settings"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get all settings",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"officialEmail\": \"elba@shop.com\",\r\n  \"socialmediaLinks\": [\r\n    {\r\n      \"platform\": \"facebook\",\r\n      \"link\": \"https://facebook.com/shop\"\r\n    },\r\n    {\r\n      \"platform\": \"instagram\",\r\n      \"link\": \"https://instagram.com/shop\"\r\n    }\r\n  ]\r\n}\r\n"
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/settings",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"settings"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get specific setting by id",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"officialEmail\": \"elba@shop.com\",\r\n  \"socialmediaLinks\": [\r\n    {\r\n      \"platform\": \"facebook\",\r\n      \"link\": \"https://facebook.com/shop\"\r\n    },\r\n    {\r\n      \"platform\": \"instagram\",\r\n      \"link\": \"https://instagram.com/shop\"\r\n    }\r\n  ]\r\n}\r\n"
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/settings/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"settings",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "693aa0b75715b06ec6070a9c"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "New Request",
+							"request": {
+								"method": "PUT",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/settings/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"settings",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "693aa0b75715b06ec6070a9c"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "sign up admin",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"firstName\": \"Super\",\r\n  \"lastName\": \"Admin\",\r\n  \"email\": \"superadmin4@elba.com\",\r\n  \"password\": \"SuperAdmin1@123\",\r\n  \"confirmPassword\": \"SuperAdmin1@123\",\r\n  \"phone\": \"+966500000011\",\r\n  \"address\": \"Riyadh\",\r\n  \"role\":\"superAdmin\",\r\n  \"legacyRole\":\"superAdmin\"\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/auth/admin/register",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"auth",
+										"admin",
+										"register"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "static pages",
+					"item": [
+						{
+							"name": "for admins",
+							"item": [
+								{
+									"name": "create page",
+									"request": {
+										"auth": {
+											"type": "bearer",
+											"bearer": [
+												{
+													"key": "token",
+													"value": "{{authToken}}",
+													"type": "string"
+												}
+											]
+										},
+										"method": "POST",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\r\n  \"pageType\": \"faq\",  // Required - must be one of your allowed page types\r\n  \"language\": \"en\",     // Required - 'en' or 'ar'\r\n  \"title\": \"About Us\",\r\n  \"content\": \"This is the about us page content\",\r\n  \"metaTitle\": \"About Us | Your Site\",\r\n  \"metaDescription\": \"Learn more about our company\",\r\n  \"metaKeywords\": [\"about\", \"company\", \"info\"],\r\n  \"isActive\": true\r\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "http://localhost:3000/api/v1/staticPages/admin/create",
+											"protocol": "http",
+											"host": [
+												"localhost"
+											],
+											"port": "3000",
+											"path": [
+												"api",
+												"v1",
+												"staticPages",
+												"admin",
+												"create"
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "update page",
+									"request": {
+										"auth": {
+											"type": "bearer",
+											"bearer": [
+												{
+													"key": "token",
+													"value": "{{authToken}}",
+													"type": "string"
+												}
+											]
+										},
+										"method": "PUT",
+										"header": [],
+										"body": {
+											"mode": "raw",
+											"raw": "{\r\n  \"title\": \"Updated About Us\",\r\n  \"content\": \"Updated content here\",\r\n  \"isActive\": true\r\n}",
+											"options": {
+												"raw": {
+													"language": "json"
+												}
+											}
+										},
+										"url": {
+											"raw": "http://localhost:3000/api/v1/staticPages/admin/:pageId",
+											"protocol": "http",
+											"host": [
+												"localhost"
+											],
+											"port": "3000",
+											"path": [
+												"api",
+												"v1",
+												"staticPages",
+												"admin",
+												":pageId"
+											],
+											"variable": [
+												{
+													"key": "pageId",
+													"value": "69399e41048aada9ab5f5284"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "get page by id",
+									"request": {
+										"auth": {
+											"type": "bearer",
+											"bearer": [
+												{
+													"key": "token",
+													"value": "{{authToken}}",
+													"type": "string"
+												}
+											]
+										},
+										"method": "GET",
+										"header": [],
+										"url": {
+											"raw": "http://localhost:3000/api/v1/staticPages/admin/:pageId",
+											"protocol": "http",
+											"host": [
+												"localhost"
+											],
+											"port": "3000",
+											"path": [
+												"api",
+												"v1",
+												"staticPages",
+												"admin",
+												":pageId"
+											],
+											"variable": [
+												{
+													"key": "pageId",
+													"value": "69399e41048aada9ab5f5284"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "delete soft the page",
+									"request": {
+										"auth": {
+											"type": "bearer",
+											"bearer": [
+												{
+													"key": "token",
+													"value": "{{authToken}}",
+													"type": "string"
+												}
+											]
+										},
+										"method": "DELETE",
+										"header": [],
+										"url": {
+											"raw": "http://localhost:3000/api/v1/staticPages/admin/:pageId",
+											"protocol": "http",
+											"host": [
+												"localhost"
+											],
+											"port": "3000",
+											"path": [
+												"api",
+												"v1",
+												"staticPages",
+												"admin",
+												":pageId"
+											],
+											"variable": [
+												{
+													"key": "pageId",
+													"value": "69399e41048aada9ab5f5284"
+												}
+											]
+										}
+									},
+									"response": []
+								},
+								{
+									"name": "Toggle Page Status",
+									"request": {
+										"method": "PATCH",
+										"header": []
+									},
+									"response": []
+								}
+							]
+						},
+						{
+							"name": "get all static pages",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/staticPages",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"staticPages"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get specific static page",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/staticPages/:pageType",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"staticPages",
+										":pageType"
+									],
+									"variable": [
+										{
+											"key": "pageType",
+											"value": "terms_conditions"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "blogs API",
+					"item": [
+						{
+							"name": "get blogs",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/blogs",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"blogs"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get blog by slug",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/blogs/slug/:slug?language=en",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"blogs",
+										"slug",
+										":slug"
+									],
+									"query": [
+										{
+											"key": "language",
+											"value": "en"
+										}
+									],
+									"variable": [
+										{
+											"key": "slug",
+											"value": "how-ai-is-changing-web-development"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Trending Blogs",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/blogs/trending",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"blogs",
+										"trending"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Recent Blogs",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/blogs/recent",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"blogs",
+										"recent"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "create blog",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "ar[title]",
+											"value": "كيف يغيّر الذكاء الاصطناعي تطوير الويب",
+											"type": "text"
+										},
+										{
+											"key": "en[title]",
+											"value": "How AI Is Changing Web Development",
+											"type": "text"
+										},
+										{
+											"key": "ar[subtitle]",
+											"value": "كيف يغيّر الذكاء الاصطناعي تطوير الويب",
+											"type": "text"
+										},
+										{
+											"key": "en[subtitle]",
+											"value": "How AI Is Changing Web Development",
+											"type": "text"
+										},
+										{
+											"key": "ar[content]",
+											"value": "الذكاء الاصطناعي يغيّر طريقة بناء التطبيقات الحديثة...",
+											"type": "text"
+										},
+										{
+											"key": "en[content]",
+											"value": "Artificial Intelligence is transforming how we build apps...",
+											"type": "text"
+										},
+										{
+											"key": "category",
+											"value": "energy_saving",
+											"type": "text"
+										},
+										{
+											"key": "featuredImage",
+											"type": "file",
+											"src": "postman-cloud:///1f0b979b-24df-4440-8227-5cc910896ab5"
+										},
+										{
+											"key": "tags",
+											"value": "tech,programming,ai,web",
+											"type": "text"
+										},
+										{
+											"key": "en[excerpt]",
+											"value": "Artificial Intelligence is transforming how we build apps...",
+											"type": "text"
+										},
+										{
+											"key": "ar[excerpt]",
+											"value": "الذكاء الاصطناعي يغيّر طريقة بناء التطبيقات الحديثة...",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/blogs",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"blogs"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "update the blog",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "ar[title]",
+											"value": "كيف يغيّر الذكاء الاصطناعي تطوير الويب",
+											"type": "text"
+										},
+										{
+											"key": "en[title]",
+											"value": "How AI Is Changing Web Development",
+											"type": "text"
+										},
+										{
+											"key": "ar[subtitle]",
+											"value": "كيف يغيّر الذكاء الاصطناعي تطوير الويب",
+											"type": "text"
+										},
+										{
+											"key": "en[subtitle]",
+											"value": "How AI Is Changing Web Development",
+											"type": "text"
+										},
+										{
+											"key": "ar[content]",
+											"value": "الذكاء الاصطناعي يغيّر طريقة بناء التطبيقات الحديثة...",
+											"type": "text"
+										},
+										{
+											"key": "en[content]",
+											"value": "Artificial Intelligence is transforming how we build apps...",
+											"type": "text"
+										},
+										{
+											"key": "category",
+											"value": "energy_saving",
+											"type": "text"
+										},
+										{
+											"key": "featuredImage",
+											"type": "file",
+											"src": "postman-cloud:///1f0b979b-24df-4440-8227-5cc910896ab5"
+										},
+										{
+											"key": "tags",
+											"value": "tech,programming,ai,web",
+											"type": "text"
+										},
+										{
+											"key": "en[excerpt]",
+											"value": "Artificial Intelligence is transforming how we build apps...",
+											"type": "text"
+										},
+										{
+											"key": "ar[excerpt]",
+											"value": "الذكاء الاصطناعي يغيّر طريقة بناء التطبيقات الحديثة...",
+											"type": "text"
+										},
+										{
+											"key": "status",
+											"value": "published",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/blogs/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"blogs",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "6942b61ebe568a7a9780eb5f"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "delete blogs",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "ar[title]",
+											"value": "كيف يغيّر الذكاء الاصطناعي تطوير الويب",
+											"type": "text"
+										},
+										{
+											"key": "en[title]",
+											"value": "How AI Is Changing Web Development",
+											"type": "text"
+										},
+										{
+											"key": "ar[subtitle]",
+											"value": "كيف يغيّر الذكاء الاصطناعي تطوير الويب",
+											"type": "text"
+										},
+										{
+											"key": "en[subtitle]",
+											"value": "How AI Is Changing Web Development",
+											"type": "text"
+										},
+										{
+											"key": "ar[content]",
+											"value": "الذكاء الاصطناعي يغيّر طريقة بناء التطبيقات الحديثة...",
+											"type": "text"
+										},
+										{
+											"key": "en[content]",
+											"value": "Artificial Intelligence is transforming how we build apps...",
+											"type": "text"
+										},
+										{
+											"key": "category",
+											"value": "energy_saving",
+											"type": "text"
+										},
+										{
+											"key": "featuredImage",
+											"type": "file",
+											"src": "postman-cloud:///1f0b979b-24df-4440-8227-5cc910896ab5"
+										},
+										{
+											"key": "tags",
+											"value": "tech,programming,ai,web",
+											"type": "text"
+										},
+										{
+											"key": "en[excerpt]",
+											"value": "Artificial Intelligence is transforming how we build apps...",
+											"type": "text"
+										},
+										{
+											"key": "ar[excerpt]",
+											"value": "الذكاء الاصطناعي يغيّر طريقة بناء التطبيقات الحديثة...",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/blogs/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"blogs",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "6942b61ebe568a7a9780eb5f"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "dashboard API",
+					"item": [
+						{
+							"name": "dashboard",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "User analytics",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/admin/analytics/users",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"analytics",
+										"users"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Sales analytics",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/admin/analytics/sales",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"analytics",
+										"sales"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Product analytics",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "stats",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "analytics",
+					"item": [
+						{
+							"name": "Dashboard Overview",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "Revenue metrics",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "Event Tracking",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"eventName\": \"product_viewed\",\r\n  \"eventCategory\": \"product\",\r\n  \"userId\": \"693951b7b83786c3ea336329\",\r\n  \"sessionId\": \"session_test_001\",\r\n  \"product\": {\r\n    \"productId\": \"694c15b5f96edd20e5c0a72d\",\r\n    \"name\": \"Test Product\",\r\n    \"price\": 250,\r\n    \"category\": \"electronics\"\r\n  },\r\n  \"page\": {\r\n    \"url\": \"/products/test-product\",\r\n    \"type\": \"product\"\r\n  }\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/analytics/track",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"analytics",
+										"track"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Conversion Metrics",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "funnel track",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "Cart Abandonment",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/analytics/cart/abandonment",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"analytics",
+										"cart",
+										"abandonment"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Abandoned Carts",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "User Segmentation",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/analytics/segments/user/:id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"analytics",
+										"segments",
+										"user",
+										":id"
+									],
+									"variable": [
+										{
+											"key": "id",
+											"value": "69539a511d98a35b3e78adbf"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Segment Distribution",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "At-Risk Users",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/analytics/segments/at-risk",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"analytics",
+										"segments",
+										"at-risk"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "VIP Users",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "high-intent",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "New Request",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "get tickets stats",
+							"request": {
+								"auth": {
+									"type": "basic"
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/tickets",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"tickets"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "RBAC Role API",
+					"item": [
+						{
+							"name": "create role",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"name\": \"user_manager\",\r\n  \"displayName\": {\r\n    \"en\": \"user manager\",\r\n    \"ar\": \"مدير عملا\"\r\n  },\r\n  \"permissions\": [\r\n    {\r\n      \"resource\": \"users\",\r\n      \"actions\": {\r\n        \"create\": true,\r\n        \"update\": true,\r\n        \"read\": false,\r\n        \"delete\": false\r\n      }\r\n    }\r\n  ]\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/roles",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"roles"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Assign Role to User",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"userId\": \"69539a511d98a35b3e78adbf\",\r\n  \"roleId\": \"695a74adb964b2818c58b19b\"\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/roles/assign",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"roles",
+										"assign"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "update Role",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"name\": \"user_manager\",\r\n  \"displayName\": {\r\n    \"en\": \"user manager\",\r\n    \"ar\": \"مدير عملا\"\r\n  },\r\n  \"permissions\": [\r\n    {\r\n      \"resource\": \"users\",\r\n      \"actions\": {\r\n        \"create\": true,\r\n        \"update\": true,\r\n        \"read\": true,\r\n        \"delete\": false\r\n      }\r\n    }\r\n  ],\r\n  \"status\":\"active\"\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/roles/:Id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"roles",
+										":Id"
+									],
+									"variable": [
+										{
+											"key": "Id",
+											"value": "695a74adb964b2818c58b19b"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get all roles",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n \"status\":\"inactive\"\r\n}\r\n"
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/roles",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"roles"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get user with specific role",
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"name\": \"cashiersa_man\",\r\n  \"displayName\": {\r\n    \"en\": \"Cashier\",\r\n    \"ar\": \"كاشير\"\r\n  },\r\n  \"permissions\": [\r\n    {\r\n      \"resource\": \"products\",\r\n      \"actions\": {\r\n        \"read\": true\r\n      }\r\n    },\r\n    {\r\n      \"resource\": \"orders\",\r\n      \"actions\": {\r\n        \"create\": true,\r\n        \"read\": true\r\n      }\r\n    }\r\n  ],\r\n  \"priority\": 50,\r\n  \"status\": \"active\"\r\n}\r\n"
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/roles/:roleId/users",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"roles",
+										":roleId",
+										"users"
+									],
+									"variable": [
+										{
+											"key": "roleId",
+											"value": "695a74adb964b2818c58b19b"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "delete role",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"name\": \"user_manager\",\r\n  \"displayName\": {\r\n    \"en\": \"user manager\",\r\n    \"ar\": \"مدير عملا\"\r\n  },\r\n  \"permissions\": [\r\n    {\r\n      \"resource\": \"users\",\r\n      \"actions\": {\r\n        \"create\": true,\r\n        \"update\": true,\r\n        \"read\": true,\r\n        \"delete\": false\r\n      }\r\n    }\r\n  ]\r\n}\r\n"
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/roles/:Id",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"roles",
+										":Id"
+									],
+									"variable": [
+										{
+											"key": "Id",
+											"value": "695a7304b964b2818c58af72"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "support API",
+					"item": [
+						{
+							"name": "get tickets",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "http://localhost:3000/api/v1/tickets",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"tickets"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get ticket by ID",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "update ticket",
+							"request": {
+								"method": "PATCH",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"status\": \"resolved\",\r\n  \"priority\": \"high\",\r\n  \"assignedTo\": \"695d1dbab2c6de69434f0327\",\r\n  \"agentResponse\": \"تم حل المشكلة بنجاح، لو في أي استفسار تاني كلمنا\"\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/tickets/:ticketId",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"tickets",
+										":ticketId"
+									],
+									"variable": [
+										{
+											"key": "ticketId",
+											"value": "TKT-MK0Z1TXU-YW4D"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "notification API",
+					"item": [
+						{
+							"name": "send discount",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n  \"broadcast\": true,\r\n  \"couponId\": \"695b8e52236f0b9c0d3846ba\"\r\n}\r\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/notifications/send-discount",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"notifications",
+										"send-discount"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get notification stats",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "send order ststus",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"orderNumber\": \"ORD-20260106-0007\",\r\n    \"status\": \"shipped\",\r\n    \"trackingNumber\": \"TRACK123456\",\r\n    \"estimatedDelivery\": \"2026-02-15\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/whatsapp/order/update",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"whatsapp",
+										"order",
+										"update"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "New Request",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						},
+						{
+							"name": "create notification",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "whatsapp API",
+					"item": [
+						{
+							"name": "send welcome register",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{authToken}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"phone\": \"01020077264\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "http://localhost:3000/api/v1/whatsapp/register",
+									"protocol": "http",
+									"host": [
+										"localhost"
+									],
+									"port": "3000",
+									"path": [
+										"api",
+										"v1",
+										"whatsapp",
+										"register"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "New Request",
+							"request": {
+								"method": "GET",
+								"header": []
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "orders",
+			"item": [
+				{
+					"name": "create order",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"shippingAddress\": {\r\n    \"fullName\":\"mohyamed\",\r\n    \"details\": \"123 Main St, Apt 4B\",\r\n    \"phone\": \"+201234567890\",\r\n    \"city\": \"Cairo\",\r\n    \"postalCode\": \"12345\",\r\n    \"country\": \"Egypt\",\r\n    \"address\":\"elmashaya\"\r\n  },\r\n\r\n  \"paymentMethod\": \"credit_card\"\r\n}\r\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/orders",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"orders"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "support",
+			"item": [
+				{
+					"name": "create support",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"companyName\": \"Example Corp\",\r\n  \"email\": \"contact@example.com\",\r\n  \"phone\": \"0512345678\",\r\n  \"supportType\": \"installation_request\",\r\n  \"description\": \"Need help with product installation\",\r\n  \"fixDate\": \"2024-01-10\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/support",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"support"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "New Request",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "notification",
+			"item": [
+				{
+					"name": "get all notifications",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "sizeType",
+									"value": "Small",
+									"type": "text"
+								},
+								{
+									"key": "en[name]",
+									"value": "TV",
+									"type": "text"
+								},
+								{
+									"key": "ar[name]",
+									"value": "تلفيزونات",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": "postman-cloud:///1f0c87b7-db82-4c80-8de8-4b4d7f0fba69"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/notifications",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"notifications"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get unread notififcation",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "sizeType",
+									"value": "Small",
+									"type": "text"
+								},
+								{
+									"key": "en[name]",
+									"value": "TV",
+									"type": "text"
+								},
+								{
+									"key": "ar[name]",
+									"value": "تلفيزونات",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": "postman-cloud:///1f0c87b7-db82-4c80-8de8-4b4d7f0fba69"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/notifications/unread-count",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"notifications",
+								"unread-count"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Mark Notification As Read",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{authToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "sizeType",
+									"value": "Small",
+									"type": "text"
+								},
+								{
+									"key": "en[name]",
+									"value": "TV",
+									"type": "text"
+								},
+								{
+									"key": "ar[name]",
+									"value": "تلفيزونات",
+									"type": "text"
+								},
+								{
+									"key": "image",
+									"type": "file",
+									"src": "postman-cloud:///1f0c87b7-db82-4c80-8de8-4b4d7f0fba69"
+								}
+							]
+						},
+						"url": {
+							"raw": "http://localhost:3000/api/v1/notifications/:notificationId/read",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "3000",
+							"path": [
+								"api",
+								"v1",
+								"notifications",
+								":notificationId",
+								"read"
+							],
+							"variable": [
+								{
+									"key": "notificationId",
+									"value": ""
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Mark All As Read",
+					"request": {
+						"method": "GET",
+						"header": []
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

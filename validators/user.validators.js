@@ -1,5 +1,6 @@
 import { body, param } from "express-validator";
 import Role from "../models/role.model.js";
+import User from "../models/user.model.js";
 import { validationResult } from "express-validator";
 import validatorMiddleware from "../middlewares/validatorMiddleware.js";
 
@@ -27,15 +28,16 @@ const SAUDI_CITIES = [
 ];
 export const validateCreateUser = [
   body("firstName")
-    .notEmpty().withMessage("Name is required")
+    .notEmpty().withMessage("First name is required")
     .isLength({ min: 3, max: 50 }),
+
   body("lastName")
-    .notEmpty().withMessage("Name is required")
+    .notEmpty().withMessage("Last name is required")
     .isLength({ min: 3, max: 50 }),
 
   body("email")
-    .notEmpty().isEmail()
-    .withMessage("Valid email required")
+    .notEmpty().withMessage("Email is required")
+    .isEmail().withMessage("Valid email required")
     .bail()
     .custom(async (email) => {
       const exists = await User.findOne({ email: email.toLowerCase() });
@@ -44,13 +46,16 @@ export const validateCreateUser = [
     }),
 
   body("password")
-    .notEmpty().isLength({ min: 6 }),
+    .notEmpty()
+    .isLength({ min: 6 })
+    .withMessage("Password must be at least 6 characters"),
 
   body("confirmPassword")
     .notEmpty()
     .custom((value, { req }) => {
-      if (value !== req.body.password)
+      if (value !== req.body.password) {
         throw new Error("Passwords do not match");
+      }
       return true;
     }),
 
@@ -68,16 +73,15 @@ export const validateCreateUser = [
   body("role")
     .optional()
     .isString()
-    .withMessage("Role must be a string")
     .custom(async (roleName) => {
       const role = await Role.findOne({ name: roleName });
       if (!role) throw new Error("Invalid role name");
-      // if (!role.isActive) throw new Error("Role is not active assssaaa");
       return true;
     }),
 
   validatorMiddleware,
 ];
+
 
 // ----------------------------------------------------------
 // UPDATE PROFILE VALIDATOR
@@ -216,7 +220,11 @@ export const validateAdminUpdateUser = [
     .custom(async (roleName) => {
       const role = await Role.findOne({ name: roleName });
       if (!role) throw new Error("Invalid role name");
-      if (!role.isActive) throw new Error("Role is not active");
+
+      if (role.status !== "active") {
+        throw new Error("Role is not active");
+      }
+
       return true;
     }),
 

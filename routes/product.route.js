@@ -17,7 +17,8 @@ import {
   uploadProductManual,
   getProductByCatalogController,
   searchProductsController,
-  getAllProductsforAdminController
+  getAllProductsforAdminController,
+  getProductByBrandController
 } from "../controllers/product.controller.js";
 
 import {
@@ -74,7 +75,7 @@ router.get("/", getAllProductsController);
 
 router.get("/admin", protect , allowTo("superAdmin"),getAllProductsforAdminController);
 router.get("/catalog/:keyword", getProductByCatalogController);
-
+router.get("/brand/:brandId", getProductByBrandController);
 router.get("/compare", getCompareProductsController);
 router.get("/best-offers", getBestOffersController);
 

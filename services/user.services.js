@@ -23,7 +23,7 @@ export const adminGetAllUsersService = async (query) => {
     .paginate()
     .limitFields();
 
-  const users = await features.mongooseQuery;
+  const users = await features.mongooseQuery.populate("role", "name");
   const total = await User.countDocuments(features.getFilter());
 
   return {
@@ -40,7 +40,7 @@ export const adminGetAllUsersService = async (query) => {
 export const adminGetUserByIdService = async (id) => {
   if (!id) throw BadRequest("User ID is required");
 
-  const user = await User.findById(id);
+  const user = await User.findById(id).populate("role", "name permissions");
   if (!user) throw NotFound("User not found");
 
   return {
@@ -56,7 +56,7 @@ export const adminGetUserByIdService = async (id) => {
 export const adminUpdateUserService = async (id, data, adminRole, file = null) => {
   if (!id) throw BadRequest("User ID is required");
 
-  const user = await User.findById(id).populate("role");
+  const user = await User.findById(id).populate("role", "name");
   if (!user) throw NotFound("User not found");
 
   // Prevent password change from admin
@@ -162,6 +162,7 @@ export const adminUpdateUserService = async (id, data, adminRole, file = null) =
 };
 
 export const createUserWithSpecificRole = async (data) => {
+  console.log(data);
   const user = await User.create(data);
   return {
     OK: true,

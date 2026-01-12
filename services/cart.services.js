@@ -155,56 +155,93 @@ export const getCartService = async (userId) => {
   }
 };
 
-/* --------------------------------------------------
-   UPDATE CART ITEM QUANTITY
---------------------------------------------------- */
-export const updateCartItemService = async (userId, productId, quantity, color = null) => {
+export const updateCartItemService = async (
+  userId,
+  productId,
+  quantity,
+  color = null
+) => {
   try {
-    if (quantity < 1) {
-      throw BadRequest("Quantity must be at least 1");
+    /* ----------------------------
+       Validate input
+    ----------------------------- */
+    if (!productId) {
+      throw new BadRequest("Product ID is required");
     }
 
-    const cart = await Cart.findOne({ user: userId, isActive: true });
-    if (!cart) throw NotFound("Cart not found");
+    if (quantity < 1) {
+      throw new BadRequest("Quantity must be at least 1");
+    }
 
-    // Find the item in cart
+    /* ----------------------------
+       Get cart
+    ----------------------------- */
+    const cart = await Cart.findOne({ user: userId, isActive: true });
+    if (!cart) throw new NotFound("Cart not found");
+
+    /* ----------------------------
+       Clean corrupted cart items
+    ----------------------------- */
+    cart.cartItems = cart.cartItems.filter(
+      (item) => item.product !== undefined && item.product !== null
+    );
+
+    /* ----------------------------
+       Find cart item
+    ----------------------------- */
     const itemIndex = cart.cartItems.findIndex(
       (item) =>
-        item.product.toString() === productId.toString() &&
-        item.color === color
+        item.product?.toString() === productId.toString() &&
+        (item.color ?? null) === (color ?? null)
     );
 
     if (itemIndex === -1) {
-      throw NotFound("Product not found in cart");
+      throw new NotFound("Product not found in cart");
     }
 
-    // Validate stock
+    /* ----------------------------
+       Validate product & stock
+    ----------------------------- */
     const product = await Product.findById(productId);
-    if (!product) throw NotFound("Product not found");
+    if (!product) throw new NotFound("Product not found");
+
+    if (product.status !== "active") {
+      throw new BadRequest("Product is not available");
+    }
 
     if (product.stock < quantity) {
-      throw BadRequest(`Only ${product.stock} items available in stock`);
+      throw new BadRequest(
+        `Only ${product.stock} items available in stock`
+      );
     }
 
-    // Update quantity
-    cart.cartItems[itemIndex].quantity = quantity;
+    /* ----------------------------
+       Update item
+    ----------------------------- */
+    const itemPrice =
+      product.discountPrice > 0
+        ? product.discountPrice
+        : product.price;
 
-    // Update price (in case it changed)
-    const itemPrice = product.discountPrice > 0 && product.discountPrice < product.price
-      ? product.price - product.discountPrice
-      : product.price;
+    cart.cartItems[itemIndex].quantity = quantity;
     cart.cartItems[itemIndex].price = itemPrice;
 
-    // Recalculate totals
+    /* ----------------------------
+       Recalculate totals
+    ----------------------------- */
     const totals = calculateCartTotals(cart.cartItems);
     cart.totalCartPrice = totals.totalCartPrice;
     cart.totalPriceAfterDiscount = totals.totalPriceAfterDiscount;
 
+    /* ----------------------------
+       Save & populate
+    ----------------------------- */
     await cart.save();
 
     await cart.populate({
       path: "cartItems.product",
-      select: "en.name ar.name en.slug ar.slug sku en.images ar.images stock status",
+      select:
+        "en.name ar.name en.slug ar.slug sku en.images ar.images stock status price discountPrice",
     });
 
     return {
@@ -213,12 +250,16 @@ export const updateCartItemService = async (userId, productId, quantity, color =
       data: cart,
     };
   } catch (err) {
-    if (err.name === "ApiError" || err instanceof BadRequest || err instanceof NotFound) {
+    console.error("updateCartItemService error:", err);
+
+    if (err instanceof ApiError) {
       throw err;
     }
-    throw ServerError("Failed to update cart", err);
+
+    throw ServerError("Failed to update cart", err?.message);
   }
 };
+
 
 /* --------------------------------------------------
    REMOVE ITEM FROM CART

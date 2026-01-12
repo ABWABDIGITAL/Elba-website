@@ -46,9 +46,9 @@ export const getCartController = async (req, res, next) => {
 export const updateCartItemController = async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const { slug, quantity, color } = req.body;
+    const { slug, quantity } = req.body;
 
-    const result = await updateCartItemService(userId, slug, quantity, color);
+    const result = await updateCartItemService(userId, slug, quantity);
 
     res.status(StatusCodes.OK).json(result);
   } catch (err) {

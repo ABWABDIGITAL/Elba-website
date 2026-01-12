@@ -16,7 +16,8 @@ import {
   getCategoryAndProductsByType,
   getProductByCatalogService,
   searchProducts,
-  getAllProductsForAdminService
+  getAllProductsForAdminService,
+  getProductByBrandService
 } from "../services/product.services.js";
 
 import { StatusCodes } from "http-status-codes";
@@ -335,6 +336,16 @@ export const searchProductsController = async (req, res, next) => {
     next(error);
   }
 };
+
+export const getProductByBrandController = async (req, res, next) => {
+  try {
+    const result = await getProductByBrandService(req.params.brandId);
+    res.status(StatusCodes.OK).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const uploadProductManual = async (req, res, next) => {
   try {
     const { id } = req.params;

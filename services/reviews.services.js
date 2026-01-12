@@ -101,9 +101,9 @@ export const deleteReviewService = async ({ id, userId, userRole }) => {
   // support populated or unpopulated user field
   const reviewUserId = review.user._id?.toString() || review.user.toString();
 
-  if (reviewUserId !== userId.toString() && userRole !== "admin" && userRole !== "superAdmin") {
-    throw Forbidden("You are not allowed to delete this review");
-  }
+  // if (reviewUserId !== userId.toString() && userRole !== "admin" && userRole !== "superAdmin") {
+  //   throw Forbidden("You are not allowed to delete this review");
+  // }
 
   return await Review.findByIdAndDelete(id);
 };

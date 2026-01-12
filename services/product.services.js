@@ -312,7 +312,10 @@ export const getAllProductsService = async (query) => {
 
     const [items, total] = await Promise.all([
       Product.find(filter)
-        .select("en.title en.subTitle ar.title ar.subTitle price finalPrice sizeType ratingsAverage images sku slug status stock salesCount")
+       .select(
+  "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage finalPrice sizeType ratingsAverage images sku slug status stock salesCount"
+)
+
         .populate("category", "ar.name ar.slug en.name en.slug image")
         .populate("brand", "ar.name ar.slug en.name en.slug logo")
 
@@ -349,7 +352,10 @@ export const getAllProductsForAdminService = async (query) => {
 
     const [items, total] = await Promise.all([
       Product.find(filter)
-        .select("en.title en.subTitle ar.title ar.subTitle price finalPrice sizeType ratingsAverage images sku slug status stock salesCount")
+        .select(
+  "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage finalPrice sizeType ratingsAverage images sku slug status stock salesCount"
+)
+
         .populate("category", "ar.name ar.slug en.name en.slug image")
         .populate("brand", "ar.name ar.slug en.name en.slug logo")
 
@@ -403,7 +409,14 @@ await trackProductView(req, product);
     similarProducts: similarProducts.map(buildGetAllproductDTO),
   };
 };
-
+export const getProductByBrandService = async (brandId) => {
+  const products = await Product.find({ brand: brandId });
+  return {
+    OK: true,
+    message: "Products fetched successfully",
+    data: products.map(buildGetAllproductDTO),
+  };
+};
 
 export const getProductByCatalogService = async (keyword) => {
   const products = await Product.find({

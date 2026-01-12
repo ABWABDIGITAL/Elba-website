@@ -23,17 +23,26 @@ export const adminGetAllUsers = async (req, res, next) => {
 };
 export const createUserWithSpecificRoleController = async (req, res, next) => {
   try {
+    console.log('Starting user creation with data:', req.body);
+    
     if (req.body.role && typeof req.body.role === "string") {
-    const role = await Role.findOne({ name: req.body.role });
-    if (!role) {
-      throw new Error("Invalid role");
+      console.log('Looking up role:', req.body.role);
+      const role = await Role.findOne({ name: req.body.role });
+      if (!role) {
+        console.error('Role not found:', req.body.role);
+        throw new Error("Invalid role");
+      }
+      req.body.role = role._id;
+      console.log('Found role ID:', role._id);
     }
-    req.body.role = role._id;
-  }
-
+    
+    console.log('Creating user with data:', req.body);
     const result = await createUserWithSpecificRole(req.body);
-    res.status(StatusCodes.OK).json(result);
+    console.log('User created successfully:', result);
+    
+    res.status(StatusCodes.CREATED).json(result);
   } catch (err) {
+    console.error('Error in createUserWithSpecificRoleController:', err);
     next(err);
   }
 };

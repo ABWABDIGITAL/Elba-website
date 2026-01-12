@@ -34,10 +34,7 @@ export const updateProfileService = async (userId, data) => {
     if (exists) throw BadRequest("Phone number already in use");
   }
 
-  // --- Auto-generate profileName if not provided ---
-  if (data.firstName || data.lastName) {
-    data.profileName = `${data.firstName || user.firstName} ${data.lastName || user.lastName}`;
-  }
+
 
   // --- Remove deprecated name field automatically ---
   data.name = undefined;
