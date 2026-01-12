@@ -166,18 +166,18 @@ export const updateCartItemService = async (
        Validate input
     ----------------------------- */
     if (!productId) {
-      throw new BadRequest("Product ID is required");
+      throw  BadRequest("Product ID is required");
     }
 
     if (quantity < 1) {
-      throw new BadRequest("Quantity must be at least 1");
+      throw  BadRequest("Quantity must be at least 1");
     }
 
     /* ----------------------------
        Get cart
     ----------------------------- */
     const cart = await Cart.findOne({ user: userId, isActive: true });
-    if (!cart) throw new NotFound("Cart not found");
+    if (!cart) throw  NotFound("Cart not found");
 
     /* ----------------------------
        Clean corrupted cart items
@@ -196,21 +196,21 @@ export const updateCartItemService = async (
     );
 
     if (itemIndex === -1) {
-      throw new NotFound("Product not found in cart");
+      throw  NotFound("Product not found in cart");
     }
 
     /* ----------------------------
        Validate product & stock
     ----------------------------- */
     const product = await Product.findById(productId);
-    if (!product) throw new NotFound("Product not found");
+    if (!product) throw  NotFound("Product not found");
 
     if (product.status !== "active") {
-      throw new BadRequest("Product is not available");
+      throw  BadRequest("Product is not available");
     }
 
     if (product.stock < quantity) {
-      throw new BadRequest(
+      throw  BadRequest(
         `Only ${product.stock} items available in stock`
       );
     }
@@ -264,7 +264,7 @@ export const updateCartItemService = async (
 /* --------------------------------------------------
    REMOVE ITEM FROM CART
 --------------------------------------------------- */
-export const removeCartItemService = async (userId, slug) => {
+export const removeCartItemService = async (req, userId, productId) => {
   try {
     const cart = await Cart.findOne({ user: userId, isActive: true });
     if (!cart) throw NotFound("Cart not found");
@@ -275,7 +275,7 @@ export const removeCartItemService = async (userId, slug) => {
     const initialLength = cart.cartItems.length;
 
     cart.cartItems = cart.cartItems.filter(
-      (item) => item.product.slug !== slug
+      (item) => item.product._id.toString() !== productId.toString()
     );
 
     if (cart.cartItems.length === initialLength) {
@@ -293,7 +293,7 @@ export const removeCartItemService = async (userId, slug) => {
       path: "cartItems.product",
       select: "en.name ar.name en.slug ar.slug sku en.images ar.images stock status",
     });
-await trackRemoveFromCart(req, product, quantity, updatedCart);
+await trackRemoveFromCart(req, cart);
     return {
       OK: true,
       message: "Product removed from cart successfully",
@@ -303,7 +303,7 @@ await trackRemoveFromCart(req, product, quantity, updatedCart);
     if (err.name === "ApiError" || err instanceof ApiError) {
       throw err;
     }
-    throw ServerError("Failed to remove item from cart", err);
+    throw ServerError("Failed to remove item from cart", err.message);
   }
 };
 

@@ -46,9 +46,9 @@ export const getCartController = async (req, res, next) => {
 export const updateCartItemController = async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const { slug, quantity } = req.body;
+    const { productId, quantity } = req.body;
 
-    const result = await updateCartItemService(userId, slug, quantity);
+    const result = await updateCartItemService(userId, productId, quantity);
 
     res.status(StatusCodes.OK).json(result);
   } catch (err) {
@@ -62,9 +62,9 @@ export const updateCartItemController = async (req, res, next) => {
 export const removeCartItemController = async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const { slug} = req.body;
+    const { productId} = req.body;
 
-    const result = await removeCartItemService(userId, slug);
+    const result = await removeCartItemService(req, userId, productId);
 
     res.status(StatusCodes.OK).json(result);
   } catch (err) {
