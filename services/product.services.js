@@ -55,15 +55,32 @@ export const buildGetAllproductDTO = (p) => {
     discountPrice: p.discountPrice,
     discountPercentage: p.discountPercentage,
     finalPrice: p.finalPrice,
-    ratingsAverage:p.ratingsAverage,
+    ratingsAverage: p.ratingsAverage,
     sizeType: p.sizeType || null,
-    brand:p.brand,
-    category:p.category,
-    stock:p.stock,
-    status:p.status,
-    salesCount:p.salesCount,
+    stock: p.stock,
+    status: p.status,
+    salesCount: p.salesCount,
+
+    category: p.category
+      ? {
+          id: p.category._id,
+          ar: p.category.ar,
+          en: p.category.en,
+          image: p.category.image,
+        }
+      : null,
+
+    brand: p.brand
+      ? {
+          id: p.brand._id,
+          ar: p.brand.ar,
+          en: p.brand.en,
+          logo: p.brand.logo,
+        }
+      : null,
   };
 };
+
 
 export const buildProductDTO = (p) => {
   if (!p) return null;
@@ -303,7 +320,7 @@ export const deleteProductService = async (slug) => {
 export const getAllProductsService = async (query) => {
   try {
     const page = Number(query.page) || 1;
-    const limit = Number(query.limit) ;
+    const limit = Number(query.limit) || 20;
     const skip = (page - 1) * limit;
 
     const filter = {};
@@ -312,9 +329,10 @@ export const getAllProductsService = async (query) => {
 
     const [items, total] = await Promise.all([
       Product.find(filter)
-       .select(
-  "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage finalPrice sizeType ratingsAverage images sku slug status stock salesCount"
-)
+    .select(
+      "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage finalPrice sizeType ratingsAverage images sku slug status stock salesCount category brand"
+    )
+
 
         .populate("category", "ar.name ar.slug en.name en.slug image")
         .populate("brand", "ar.name ar.slug en.name en.slug logo")
@@ -342,8 +360,8 @@ export const getAllProductsService = async (query) => {
 };
 export const getAllProductsForAdminService = async (query) => {
   try {
-    const page = Number(query.page) ;
-    const limit = Number(query.limit);
+    const page = Number(query.page) ||1;
+    const limit = Number(query.limit)||20;
     const skip = (page - 1) * limit;
 
     const filter = {};
@@ -352,10 +370,9 @@ export const getAllProductsForAdminService = async (query) => {
 
     const [items, total] = await Promise.all([
       Product.find(filter)
-        .select(
-  "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage finalPrice sizeType ratingsAverage images sku slug status stock salesCount"
-)
-
+      .select(
+        "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage finalPrice sizeType ratingsAverage images sku slug status stock salesCount category brand"
+      )
         .populate("category", "ar.name ar.slug en.name en.slug image")
         .populate("brand", "ar.name ar.slug en.name en.slug logo")
 
@@ -683,7 +700,9 @@ export const getProductsByCategory = async (slug) => {
     const products = await Product.find({
       category: category._id 
     })
-    .select("en.title ar.title sku images ratingsAverage finalPrice discountPercentage sizeType")
+    .select(
+        "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage finalPrice sizeType ratingsAverage images sku slug status stock salesCount category brand"
+    )
     .populate("category", "ar.name ar.slug en.name en.slug image")
     .populate("brand", "ar.name ar.slug en.name en.slug logo")
 
