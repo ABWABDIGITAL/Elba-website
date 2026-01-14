@@ -1,5 +1,6 @@
 import Product from "../models/product.model.js";
 import Category from "../models/category.model.js";
+import Brand from "../models/brand.model.js";
 import mongoose from "mongoose";
 import ApiError, {
   BadRequest,
@@ -427,12 +428,22 @@ await trackProductView(req, product);
   };
 };
 export const getProductByBrandService = async (slug) => {
-  const products = await Product.find({
+  const brand = await Brand.findOne({
     $or: [
-      { "brand.en.slug": slug },
-      { "brand.ar.slug": slug }
+      { "en.slug": slug },
+      { "ar.slug": slug }
     ]
   });
+
+  if (!brand) {
+    return {
+      OK: true,
+      message: "Products fetched successfully",
+      data: [],
+    };
+  }
+
+  const products = await Product.find({ brand: brand._id });
 
   return {
     OK: true,
