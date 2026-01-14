@@ -75,7 +75,7 @@ router.get("/", getAllProductsController);
 
 router.get("/admin", protect , allowTo("superAdmin"),getAllProductsforAdminController);
 router.get("/catalog/:keyword", getProductByCatalogController);
-router.get("/brand/:brandId", getProductByBrandController);
+router.get("/brand/:slug", getProductByBrandController);
 router.get("/compare", getCompareProductsController);
 router.get("/best-offers", getBestOffersController);
 

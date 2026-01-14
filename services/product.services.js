@@ -426,14 +426,21 @@ await trackProductView(req, product);
     similarProducts: similarProducts.map(buildGetAllproductDTO),
   };
 };
-export const getProductByBrandService = async (brandId) => {
-  const products = await Product.find({ brand: brandId });
+export const getProductByBrandService = async (slug) => {
+  const products = await Product.find({
+    $or: [
+      { "brand.en.slug": slug },
+      { "brand.ar.slug": slug }
+    ]
+  });
+
   return {
     OK: true,
     message: "Products fetched successfully",
     data: products.map(buildGetAllproductDTO),
   };
 };
+
 
 export const getProductByCatalogService = async (keyword) => {
   const products = await Product.find({

@@ -339,7 +339,7 @@ export const searchProductsController = async (req, res, next) => {
 
 export const getProductByBrandController = async (req, res, next) => {
   try {
-    const result = await getProductByBrandService(req.params.brandId);
+    const result = await getProductByBrandService(req.params.slug);
     res.status(StatusCodes.OK).json(result);
   } catch (err) {
     next(err);
