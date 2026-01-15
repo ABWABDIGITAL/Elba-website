@@ -8,10 +8,10 @@ import { BadRequest, NotFound } from "../utlis/apiError.js";
 
 const HOME_CACHE_KEY = "home:page";
 const HOME_CACHE_TTL = 3600;
-
-/* ---------------------------------------
-   CREATE HOME (Once)
----------------------------------------- */
+const dedupeById = (arr = []) =>
+  Array.from(
+    new Map(arr.map(item => [item._id.toString(), item])).values()
+  );
 export const createHomeService = async (payload) => {
   try {
     const existing = await Home.findOne();
@@ -80,32 +80,25 @@ export const updateHomeService = async (payload) => {
 };
 
 
-/* ---------------------------------------
-   GET HOME PAGE (With cache)
----------------------------------------- */
 export const getHomeService = async () => {
+  /* ---------------- GET CACHE ---------------- */
   try {
-       const cached = await RedisHelper.get(HOME_CACHE_KEY);
-
+    const cached = await RedisHelper.get(HOME_CACHE_KEY);
     if (cached) {
-      if (typeof cached === "string") {
-        return { fromCache: true, data: JSON.parse(cached) };
-      }
-
-      // Upstash sometimes returns objects directly
-      if (typeof cached === "object") {
-        console.warn("⚠️ Redis returned an object instead of JSON string");
-        return { fromCache: true, data: cached };
-      }
+      return {
+        fromCache: true,
+        data: typeof cached === "string" ? JSON.parse(cached) : cached,
+      };
     }
   } catch (err) {
-    console.error("RedisHelper GET error:", err);
+    console.error("Redis GET error:", err);
   }
 
+  /* ---------------- DB QUERY ---------------- */
   const config = await Home.findOne().lean();
   if (!config) throw NotFound("Home page not created yet");
 
-  let result = {
+  const result = {
     seo: config.seo,
     hero: config.hero,
     gif: config.gif,
@@ -126,11 +119,9 @@ export const getHomeService = async () => {
         ? await Category.find({ _id: { $in: categoryIds } })
             .limit(limit)
             .select("ar.name en.name en.slug image productCount")
-            .lean()
         : await Category.find({})
             .limit(limit)
-            .select("ar.name en.name en.slug image productCount")
-            .lean();
+            .select("ar.name en.name en.slug image productCount");
   } else {
     result.categories = [];
   }
@@ -153,12 +144,12 @@ export const getHomeService = async () => {
             .select(
               "ar.title en.title ar.subTitle en.subTitle slug price discountPrice discountPercentage finalPrice images brand ratingsAverage tags"
             )
-            .populate("brand", "en.name en.slug ar.name ar.slug logo");
+            .populate("brand", "en.name en.slug ar.name ar.slug logo")
   } else {
     result.bestOffers = [];
   }
 
-  /* ---------------- PRODUCTS SECTION ---------------- */
+  /* ---------------- PRODUCTS ---------------- */
   if (config.Products?.enabled) {
     const { limit, productIds } = config.Products;
 
@@ -166,15 +157,19 @@ export const getHomeService = async () => {
       productIds?.length > 0
         ? await Product.find({ _id: { $in: productIds } })
             .limit(limit)
-            .select("ar.title en.title slug price finalPrice images brand category ratingsAverage tags")
+            .select(
+              "ar.title en.title slug price discountPrice discountPercentage finalPrice images brand category ratingsAverage tags"
+            )
             .populate("brand", "en.name en.slug ar.name ar.slug logo")
             .populate("category", "en.name ar.name type")
         : await Product.find({})
             .sort("-salesCount -ratingsQuantity -views")
             .limit(limit)
-            .select("ar.title en.title slug price finalPrice images brand category ratingsAverage tags")
+            .select(
+              "ar.title en.title slug price discountPrice discountPercentage finalPrice images brand category ratingsAverage tags"
+            )
             .populate("brand", "en.name en.slug ar.name ar.slug logo")
-            .populate("category", "en.name ar.name type");
+            .populate("category", "en.name ar.name type")
   } else {
     result.products = [];
   }
@@ -191,18 +186,21 @@ export const getHomeService = async () => {
     result.branches = await branchQuery
       .limit(limit)
       .select("ar.name en.name ar.address en.address images longitude latitude")
-      .lean();
   } else {
     result.branches = [];
   }
 
+  /* ---------------- DEDUPE (🔥 IMPORTANT) ---------------- */
+  result.products = dedupeById(result.products);
+  result.bestOffers = dedupeById(result.bestOffers);
+
   /* ---------------- SAVE CACHE ---------------- */
   try {
     await RedisHelper.set(HOME_CACHE_KEY, JSON.stringify(result), {
-      ex: HOME_CACHE_TTL,
+      ex: HOME_CACHE_TTL || 60,
     });
   } catch (err) {
-    console.error("RedisHelper SET error:", err);
+    console.error("Redis SET error:", err);
   }
 
   return { fromCache: false, data: result };

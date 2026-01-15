@@ -10,6 +10,10 @@ import ApiError, {
 import ApiFeatures from "../utlis/apiFeatures.js";
 import slugify from "slugify";
 import { trackProductView } from '../services/analytics.services.js';
+import { RedisHelper } from "../config/redis.js";
+ const HOME_CACHE_KEY = "home:page";
+ const HOME_CACHE_TTL = 3600;
+
 export const buildCompareDTO = (p) => {
   if (!p) return null;
   return {
@@ -218,7 +222,7 @@ export const createProductService = async (data) => {
     validateProductDomain(product);
 
     await product.save();
-    console.log(product)
+    await RedisHelper.del(HOME_CACHE_KEY);
     return {
       OK: true,
       message: "Product created successfully",
@@ -289,7 +293,7 @@ export const updateProductService = async (slug, data) => {
     validateProductDomain(product);
 
     const updated = await product.save();
-
+    await RedisHelper.del(HOME_CACHE_KEY);
     return {
       OK: true,
       message: "Product updated successfully",
@@ -307,7 +311,7 @@ export const deleteProductService = async (slug) => {
     const deleted = await Product.findOneAndDelete({ slug });
 
     if (!deleted) throw NotFound("Product not found");
-
+    await RedisHelper.del(HOME_CACHE_KEY);
     return {
       OK: true,
       message: "Product deleted successfully",
