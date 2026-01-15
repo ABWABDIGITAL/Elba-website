@@ -6,8 +6,8 @@ import Branch from "../models/branches.model.js";
 import { RedisHelper } from "../config/redis.js";
 import { BadRequest, NotFound } from "../utlis/apiError.js";
 
-const HOME_CACHE_KEY = "home:page";
-const HOME_CACHE_TTL = 3600;
+// const HOME_CACHE_KEY = "home:page";
+// const HOME_CACHE_TTL = 3600;
 
 /* ---------------------------------------
    CREATE HOME (Once)
