@@ -157,7 +157,7 @@ export const getCartService = async (userId) => {
 
 export const updateCartItemService = async (
   userId,
-  productId,
+  slug,
   quantity,
   color = null
 ) => {
@@ -165,54 +165,52 @@ export const updateCartItemService = async (
     /* ----------------------------
        Validate input
     ----------------------------- */
-    if (!productId) {
-      throw  BadRequest("Product ID is required");
+    if (!slug) {
+      throw BadRequest("Product slug is required");
     }
 
     if (quantity < 1) {
-      throw  BadRequest("Quantity must be at least 1");
+      throw BadRequest("Quantity must be at least 1");
     }
 
     /* ----------------------------
-       Get cart
+       Get product first
+    ----------------------------- */
+    const product = await Product.findOne({ slug });
+    if (!product) throw NotFound("Product not found");
+
+    if (product.status !== "active") {
+      throw BadRequest("Product is not available");
+    }
+
+    if (product.stock < quantity) {
+      throw BadRequest(`Only ${product.stock} items available in stock`);
+    }
+
+    /* ----------------------------
+       Get active cart
     ----------------------------- */
     const cart = await Cart.findOne({ user: userId, isActive: true });
-    if (!cart) throw  NotFound("Cart not found");
+    if (!cart) throw NotFound("Cart not found");
 
     /* ----------------------------
        Clean corrupted cart items
     ----------------------------- */
     cart.cartItems = cart.cartItems.filter(
-      (item) => item.product !== undefined && item.product !== null
+      (item) => item.product
     );
 
     /* ----------------------------
-       Find cart item
+       Find cart item (ID-based match)
     ----------------------------- */
     const itemIndex = cart.cartItems.findIndex(
       (item) =>
-        item.product?.toString() === productId.toString() &&
+        item.product.toString() === product._id.toString() &&
         (item.color ?? null) === (color ?? null)
     );
 
     if (itemIndex === -1) {
-      throw  NotFound("Product not found in cart");
-    }
-
-    /* ----------------------------
-       Validate product & stock
-    ----------------------------- */
-    const product = await Product.findById(productId);
-    if (!product) throw  NotFound("Product not found");
-
-    if (product.status !== "active") {
-      throw  BadRequest("Product is not available");
-    }
-
-    if (product.stock < quantity) {
-      throw  BadRequest(
-        `Only ${product.stock} items available in stock`
-      );
+      throw NotFound("Product not found in cart");
     }
 
     /* ----------------------------
