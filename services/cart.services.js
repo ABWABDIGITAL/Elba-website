@@ -264,7 +264,7 @@ export const updateCartItemService = async (
 /* --------------------------------------------------
    REMOVE ITEM FROM CART
 --------------------------------------------------- */
-export const removeCartItemService = async (req, userId, productId) => {
+export const removeCartItemService = async (req, userId, slug) => {
   try {
     const cart = await Cart.findOne({ user: userId, isActive: true });
     if (!cart) throw NotFound("Cart not found");
@@ -275,7 +275,7 @@ export const removeCartItemService = async (req, userId, productId) => {
     const initialLength = cart.cartItems.length;
 
     cart.cartItems = cart.cartItems.filter(
-      (item) => item.product._id.toString() !== productId.toString()
+      (item) => item.product.slug.toString() !== slug.toString()
     );
 
     if (cart.cartItems.length === initialLength) {
