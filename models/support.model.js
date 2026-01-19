@@ -5,7 +5,7 @@ export const SUPPORT_TYPES = [
   "technical_issue",
   "warranty_claim",
   "product_inquiry",
-  "return_or_exchange"
+  "return_or_exchange",
 ];
 
 import mongoose from "mongoose";

@@ -30,11 +30,11 @@ router
   createBranch
 )
 
-  .get(protect,getBranches);
+  .get(getBranches);
 
 router
   .route("/:id")
-  .get(protect ,getBranch)
+  .get(getBranch)
   .put(
   protect,
   requirePermission("branches", "update"),
