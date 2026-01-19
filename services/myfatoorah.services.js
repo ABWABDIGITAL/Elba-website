@@ -10,10 +10,15 @@ const mf = axios.create({
     "Content-Type": "application/json",
   },
 });
-export const initiateMyFatoorahSession = async (orderId) => {
+export const initiateMyFatoorahSession = async ({ orderId, amount, currency, customerEmail, customerName }) => {
   try {
+    // Use customerEmail as the identifier (MyFatoorah best practice)
+    const customerIdentifier = customerEmail || orderId;
+
     console.log("=== MyFatoorah InitiateSession Request ===");
-    console.log("Request CustomerIdentifier:", orderId);
+    console.log("OrderId:", orderId);
+    console.log("Amount:", amount, currency);
+    console.log("CustomerIdentifier:", customerIdentifier);
     console.log("Using Base URL:", MF_BASE_URL);
     console.log("API Key present:", !!MF_API_KEY);
     console.log("API Key prefix:", MF_API_KEY ? MF_API_KEY.substring(0, 10) + "..." : "MISSING");
@@ -21,7 +26,7 @@ export const initiateMyFatoorahSession = async (orderId) => {
     const response = await axios.post(
       `${MF_BASE_URL}/v2/InitiateSession`,
       {
-        CustomerIdentifier: orderId,
+        CustomerIdentifier: customerIdentifier,
       },
       {
         headers: {
