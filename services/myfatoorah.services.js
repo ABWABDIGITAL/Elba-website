@@ -79,3 +79,31 @@ export const getMyFatoorahPaymentStatus = async (invoiceId) => {
 
   return response.data.Data;
 };
+
+export const getPaymentStatusBySession = async (sessionId) => {
+  console.log("=== MyFatoorah GetPaymentStatus by Session ===");
+  console.log("SessionId:", sessionId);
+
+  const response = await axios.post(
+    `${MF_BASE_URL}/v2/GetPaymentStatus`,
+    {
+      Key: sessionId,
+      KeyType: "PaymentId",
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${MF_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  console.log("Response IsSuccess:", response.data.IsSuccess);
+  console.log("Response Data:", JSON.stringify(response.data.Data, null, 2));
+
+  if (!response.data.IsSuccess) {
+    throw new Error(response.data.Message || "Failed to verify payment");
+  }
+
+  return response.data.Data;
+};

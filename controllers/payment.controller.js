@@ -4,9 +4,10 @@ import Order from "../models/order.model.js";
 import Cart from "../models/cart.model.js";
 import Product from "../models/product.model.js";
 import PaymentLog from "../models/paymentLog.model.js"; // New model for audit
-import { 
-  getMyFatoorahPaymentStatus, 
-  initiateMyFatoorahSession 
+import {
+  getMyFatoorahPaymentStatus,
+  initiateMyFatoorahSession,
+  getPaymentStatusBySession
 } from "../services/myfatoorah.services.js";
 import { NotFound, BadRequest, Forbidden } from "../utlis/apiError.js";
 
@@ -332,6 +333,164 @@ export const initiateEmbeddedPaymentSession = async (req, res, next) => {
 
   } catch (err) {
     next(err);
+  }
+};
+
+// ============================================
+// VERIFY PAYMENT (Called by Frontend after Embedded Payment)
+// ============================================
+export const verifyEmbeddedPayment = async (req, res, next) => {
+  const session = await mongoose.startSession();
+
+  try {
+    session.startTransaction();
+
+    const { orderId } = req.body;
+    const userId = req.user._id;
+
+    console.log("=== Verify Embedded Payment ===");
+    console.log("OrderId:", orderId);
+    console.log("UserId:", userId);
+
+    // 1. Validate orderId
+    if (!orderId || !mongoose.Types.ObjectId.isValid(orderId)) {
+      throw BadRequest("Invalid order ID");
+    }
+
+    // 2. Find the order
+    const order = await Order.findById(orderId).session(session);
+
+    if (!order) {
+      throw NotFound("Order not found");
+    }
+
+    // 3. Verify order belongs to user
+    if (order.user.toString() !== userId.toString()) {
+      throw Forbidden("Not authorized to verify this order");
+    }
+
+    // 4. Check if already paid
+    if (order.paymentStatus === "paid") {
+      await session.commitTransaction();
+      return res.json({
+        success: true,
+        message: "Payment already verified",
+        paymentStatus: "paid",
+        orderStatus: order.orderStatus,
+      });
+    }
+
+    // 5. Get sessionId from order
+    const sessionId = order.myFatoorah?.sessionId;
+    if (!sessionId) {
+      throw BadRequest("No payment session found for this order");
+    }
+
+    console.log("SessionId from order:", sessionId);
+
+    // 6. Verify payment status with MyFatoorah
+    let paymentData;
+    try {
+      paymentData = await getPaymentStatusBySession(sessionId);
+    } catch (error) {
+      console.error("MyFatoorah verification error:", error.message);
+      throw BadRequest("Unable to verify payment status");
+    }
+
+    console.log("Payment Status:", paymentData.InvoiceStatus);
+
+    // 7. Check payment status
+    if (paymentData.InvoiceStatus !== "Paid") {
+      // Payment not completed yet
+      order.paymentStatus = paymentData.InvoiceStatus === "Failed" ? "failed" : "pending";
+      await order.save({ session });
+      await session.commitTransaction();
+
+      return res.json({
+        success: false,
+        message: `Payment ${paymentData.InvoiceStatus.toLowerCase()}`,
+        paymentStatus: order.paymentStatus,
+        orderStatus: order.orderStatus,
+      });
+    }
+
+    // 8. Verify amount (with tolerance)
+    const expectedAmount = order.totalPrice;
+    const paidAmount = paymentData.InvoiceValue;
+    const tolerance = 0.01;
+
+    if (Math.abs(paidAmount - expectedAmount) > tolerance) {
+      console.error(`Amount mismatch: expected ${expectedAmount}, got ${paidAmount}`);
+      throw BadRequest("Payment amount mismatch");
+    }
+
+    // 9. Update order to paid
+    order.paymentStatus = "paid";
+    order.orderStatus = "confirmed";
+    order.paidAt = new Date();
+    order.paymentResult = {
+      id: paymentData.InvoiceId,
+      status: "paid",
+      transactionId: paymentData.InvoiceTransactions?.[0]?.TransactionId,
+      paymentMethod: paymentData.InvoiceTransactions?.[0]?.PaymentGateway,
+      paidAmount: paidAmount,
+      paidAt: new Date(),
+    };
+
+    // 10. Deduct stock
+    for (const item of order.orderItems) {
+      await Product.findByIdAndUpdate(
+        item.product,
+        { $inc: { quantity: -item.quantity } },
+        { session }
+      );
+    }
+
+    // 11. Clear user's cart
+    await Cart.findOneAndUpdate(
+      { user: userId },
+      { $set: { items: [], totalPrice: 0 } },
+      { session }
+    );
+
+    // 12. Add status history
+    order.statusHistory.push({
+      status: "confirmed",
+      timestamp: new Date(),
+    });
+
+    await order.save({ session });
+
+    // 13. Log successful payment
+    await PaymentLog.create({
+      eventType: "payment_verified",
+      orderId: orderId,
+      userId: userId,
+      invoiceId: paymentData.InvoiceId,
+      amount: paidAmount,
+      timestamp: new Date(),
+      status: "success",
+    });
+
+    await session.commitTransaction();
+
+    console.log("=== Payment Verified Successfully ===");
+
+    res.json({
+      success: true,
+      message: "Payment verified successfully",
+      paymentStatus: "paid",
+      orderStatus: "confirmed",
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+    });
+
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Verify payment error:", error);
+    next(error);
+  } finally {
+    session.endSession();
   }
 };
 

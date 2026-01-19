@@ -3,8 +3,9 @@ import express from "express";
 import {
   initiateEmbeddedPaymentSession,
   myFatoorahWebhookController,
+  verifyEmbeddedPayment,
 } from "../controllers/payment.controller.js";
-import { protect } from "../middlewares/authMiddleware.js";
+import { protect, allowTo } from "../middlewares/authMiddleware.js";
 import {
   verifyWebhookSignature,
   verifyWebhookIP,
@@ -17,7 +18,6 @@ import {
   validateInitiatePayment,
   validateWebhookPayload,
 } from "../validators/payment.validator.js";
-import { requirePermission } from "../middlewares/permission.middleware.js";
 
 const router = express.Router();
 
@@ -28,9 +28,20 @@ router.post(
   "/init-session",
   paymentRateLimiter,           // 1. Rate limit: 10 req/min per IP
   protect,                       // 2. Must be logged in
-  requirePermission("payment", "create"), // 3. Must have payment create permission
+  allowTo("user"),              // 3. Must be a user (not admin)
   validateInitiatePayment,      // 4. Validate request body
   initiateEmbeddedPaymentSession
+);
+
+// ═══════════════════════════════════════════════════════════════
+// ✅ VERIFY PAYMENT (Called by Frontend after Embedded Payment)
+// ═══════════════════════════════════════════════════════════════
+router.post(
+  "/verify",
+  paymentRateLimiter,           // 1. Rate limit
+  protect,                       // 2. Must be logged in
+  // allowTo("user"),              // 3. Must be a user
+  verifyEmbeddedPayment
 );
 
 // ═══════════════════════════════════════════════════════════════
