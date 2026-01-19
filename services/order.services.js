@@ -184,7 +184,7 @@ export const getOrderByIdService = async (userId, orderId, isAdmin = false) => {
     }
 
     const order = await Order.findOne(filter)
-      .populate("orderItems.product", "en.title ar.title   en.images ar.images sku")
+      .populate("orderItems.product", "en.title ar.title images sku")
       .populate("user", "firstName lastName email phone")
       .populate("appliedCoupon", "code discountType discountValue");
 
