@@ -287,6 +287,14 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
     const filters = await extractProductFilters(userQuery);
     console.log("🔍 Strict Filters:", filters);
 
+    // Detect sorting/comparison intent (highest price, cheapest, best discount, etc.)
+    const sortingIntent = detectSortingIntent(userQuery);
+    console.log("📊 Sorting Intent:", sortingIntent);
+
+    // Detect detail-specific queries (warranty, size, features, specs, etc.)
+    const detailQuery = detectDetailQuery(userQuery);
+    console.log("📋 Detail Query:", detailQuery);
+
     const vector = await embed(userQuery);
 
     // Check if this is a special search type (like deals/offers)
@@ -360,8 +368,10 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
       {
         $project: {
           _id: 1, en: 1, ar: 1, price: 1, discountPrice: 1, discountPercentage: 1,
-          slug: 1, stock: 1, images: 1, brand: 1, category: 1, features: 1,
-          warranty: 1, currency: 1, score: { $meta: "vectorSearchScore" }
+          slug: 1, stock: 1, images: 1, brand: 1, category: 1,
+          modelNumber: 1, sku: 1, sizeType: 1, currencyCode: 1,
+          ratingsAverage: 1, ratingsQuantity: 1, salesCount: 1, tags: 1,
+          score: { $meta: "vectorSearchScore" }
         }
       }
     ];
@@ -415,8 +425,9 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
       results = await productsCol.find(directFilter)
         .project({
           _id: 1, en: 1, ar: 1, price: 1, discountPrice: 1, discountPercentage: 1,
-          slug: 1, stock: 1, images: 1, brand: 1, category: 1, features: 1,
-          warranty: 1, currency: 1
+          slug: 1, stock: 1, images: 1, brand: 1, category: 1,
+          modelNumber: 1, sku: 1, sizeType: 1, currencyCode: 1,
+          ratingsAverage: 1, ratingsQuantity: 1, salesCount: 1, tags: 1
         })
         .limit(10)
         .toArray();
@@ -425,6 +436,18 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
     }
 
     products = results;
+
+    // Sort products based on user's sorting intent (highest price, cheapest, best discount, etc.)
+    if (sortingIntent.sortBy && products.length > 0) {
+      products = sortProductsByIntent(products, sortingIntent);
+      console.log("📊 Products sorted by:", sortingIntent.sortBy, sortingIntent.order);
+    }
+
+    // Generate sorting context for LLM (accurate info about highest/lowest price, best discount, etc.)
+    const sortingContext = generateSortingContext(products, sortingIntent);
+
+    // Generate detail context for LLM (warranty, size, features, specs, etc.)
+    const detailContext = generateDetailContext(products, detailQuery);
 
     // If no products found with strict filter, tell user instead of suggesting alternatives
     if (products.length === 0 && (filters.product_type || filters.brand)) {
@@ -444,7 +467,9 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
         conversationHistory: conversation.messages,
         products,
         intent,
-        filters // Pass filters to enforce strict recommendations
+        filters,
+        sortingContext, // Pass sorting context for accurate price/discount info
+        detailContext // Pass detail context for accurate specs/warranty/features info
       });
     }
 
@@ -590,6 +615,306 @@ const PRODUCT_TYPE_AR_MAP = {
  */
 function getProductTypeSearchTerms(productType) {
   return PRODUCT_TYPE_AR_MAP[productType] || [productType];
+}
+
+/**
+ * Detect sorting/comparison intent from user query
+ * Returns: { sortBy: 'price'|'discount'|'rating'|null, order: 'asc'|'desc', queryType: string|null }
+ */
+function detectSortingIntent(query) {
+  const q = query.toLowerCase();
+
+  // Highest/most expensive price
+  const highPricePatterns = [
+    /أغلى/, /اغلى/, /أعلى سعر/, /اعلى سعر/, /أكبر سعر/, /اكبر سعر/,
+    /الأغلى/, /الاغلى/, /أعلى/, /اعلى/, /الأعلى/, /الاعلى/,
+    /most expensive/, /highest price/, /biggest price/
+  ];
+
+  // Lowest/cheapest price
+  const lowPricePatterns = [
+    /أرخص/, /ارخص/, /أقل سعر/, /اقل سعر/, /أصغر سعر/, /اصغر سعر/,
+    /الأرخص/, /الارخص/, /أقل/, /اقل/, /الأقل/, /الاقل/,
+    /cheapest/, /lowest price/, /smallest price/
+  ];
+
+  // Best discount
+  const discountPatterns = [
+    /أكبر خصم/, /اكبر خصم/, /أعلى خصم/, /اعلى خصم/,
+    /أفضل عرض/, /افضل عرض/, /أكبر تخفيض/, /اكبر تخفيض/,
+    /biggest discount/, /best deal/, /highest discount/
+  ];
+
+  // Best rated
+  const ratingPatterns = [
+    /أفضل تقييم/, /افضل تقييم/, /أعلى تقييم/, /اعلى تقييم/,
+    /الأعلى تقييم/, /الاعلى تقييم/, /best rated/, /highest rated/, /top rated/
+  ];
+
+  // Price comparison
+  const priceComparePatterns = [
+    /كم سعر/, /بكم/, /سعره/, /أسعار/, /اسعار/, /السعر/,
+    /how much/, /price of/, /what.*price/
+  ];
+
+  if (highPricePatterns.some(p => p.test(q))) {
+    return { sortBy: 'price', order: 'desc', queryType: 'highest_price' };
+  }
+
+  if (lowPricePatterns.some(p => p.test(q))) {
+    return { sortBy: 'price', order: 'asc', queryType: 'lowest_price' };
+  }
+
+  if (discountPatterns.some(p => p.test(q))) {
+    return { sortBy: 'discount', order: 'desc', queryType: 'best_discount' };
+  }
+
+  if (ratingPatterns.some(p => p.test(q))) {
+    return { sortBy: 'rating', order: 'desc', queryType: 'best_rated' };
+  }
+
+  if (priceComparePatterns.some(p => p.test(q))) {
+    return { sortBy: null, order: null, queryType: 'price_inquiry' };
+  }
+
+  return { sortBy: null, order: null, queryType: null };
+}
+
+/**
+ * Detect detail-specific queries (size, warranty, features, specs, etc.)
+ * Returns: { detailType: string|null, patterns: string[] }
+ */
+function detectDetailQuery(query) {
+  const q = query.toLowerCase();
+
+  const detailPatterns = {
+    'warranty': [/ضمان/, /كفالة/, /warranty/, /guarantee/],
+    'size': [/حجم/, /قياس/, /أبعاد/, /ابعاد/, /مقاس/, /size/, /dimensions/],
+    'weight': [/وزن/, /ثقيل/, /خفيف/, /weight/],
+    'color': [/لون/, /ألوان/, /الوان/, /color/, /colours/],
+    'capacity': [/سعة/, /لتر/, /كيلو/, /capacity/, /liters/, /litres/],
+    'power': [/قوة/, /واط/, /كهرباء/, /استهلاك/, /power/, /watt/, /watts/],
+    'features': [/مميزات/, /خصائص/, /ميزة/, /features/, /characteristics/],
+    'specs': [/مواصفات/, /تفاصيل/, /specifications/, /specs/, /details/],
+    'rating': [/تقييم/, /تقييمات/, /رأي/, /آراء/, /rating/, /ratings/, /reviews/],
+    'model': [/موديل/, /إصدار/, /اصدار/, /model/, /version/],
+    'brand_info': [/معلومات.*ماركة/, /عن الماركة/, /about.*brand/],
+    'comparison': [/مقارنة/, /الفرق/, /أفضل/, /افضل/, /compare/, /difference/, /better/]
+  };
+
+  for (const [detailType, patterns] of Object.entries(detailPatterns)) {
+    if (patterns.some(p => p.test(q))) {
+      return { detailType, patterns: patterns.map(p => p.source) };
+    }
+  }
+
+  return { detailType: null, patterns: [] };
+}
+
+/**
+ * Sort products based on detected intent
+ */
+function sortProductsByIntent(products, sortingIntent) {
+  if (!sortingIntent.sortBy || !products.length) return products;
+
+  const sorted = [...products].sort((a, b) => {
+    const priceA = a.price || 0;
+    const priceB = b.price || 0;
+    const discountA = a.discountPrice || 0;
+    const discountB = b.discountPrice || 0;
+    const finalPriceA = discountA > 0 ? priceA - discountA : priceA;
+    const finalPriceB = discountB > 0 ? priceB - discountB : priceB;
+
+    if (sortingIntent.sortBy === 'price') {
+      return sortingIntent.order === 'desc' ? finalPriceB - finalPriceA : finalPriceA - finalPriceB;
+    }
+
+    if (sortingIntent.sortBy === 'discount') {
+      // Sort by discount percentage or amount
+      const discountPercentA = a.discountPercentage || (discountA > 0 ? (discountA / priceA) * 100 : 0);
+      const discountPercentB = b.discountPercentage || (discountB > 0 ? (discountB / priceB) * 100 : 0);
+      return sortingIntent.order === 'desc' ? discountPercentB - discountPercentA : discountPercentA - discountPercentB;
+    }
+
+    if (sortingIntent.sortBy === 'rating') {
+      const ratingA = a.ratingsAverage || 0;
+      const ratingB = b.ratingsAverage || 0;
+      return sortingIntent.order === 'desc' ? ratingB - ratingA : ratingA - ratingB;
+    }
+
+    return 0;
+  });
+
+  return sorted;
+}
+
+/**
+ * Generate sorting context for LLM prompt
+ */
+function generateSortingContext(products, sortingIntent) {
+  if (!sortingIntent.queryType || !products.length) return '';
+
+  const firstProduct = products[0];
+  const title = firstProduct.ar?.title || firstProduct.en?.title || 'المنتج';
+  const price = firstProduct.price || 0;
+  const discountPrice = firstProduct.discountPrice || 0;
+  const finalPrice = discountPrice > 0 ? price - discountPrice : price;
+  const discountPercent = firstProduct.discountPercentage || (discountPrice > 0 ? Math.round((discountPrice / price) * 100) : 0);
+
+  switch (sortingIntent.queryType) {
+    case 'highest_price':
+      return `
+🎯 معلومة دقيقة (استخدمها في ردك):
+أغلى منتج هو: "${title}" بسعر ${finalPrice} ريال
+- هذه المعلومة مؤكدة من قاعدة البيانات
+- لا تذكر منتج آخر على أنه الأغلى`;
+
+    case 'lowest_price':
+      return `
+🎯 معلومة دقيقة (استخدمها في ردك):
+أرخص منتج هو: "${title}" بسعر ${finalPrice} ريال
+- هذه المعلومة مؤكدة من قاعدة البيانات
+- لا تذكر منتج آخر على أنه الأرخص`;
+
+    case 'best_discount':
+      return `
+🎯 معلومة دقيقة (استخدمها في ردك):
+أفضل عرض هو: "${title}" بخصم ${discountPercent}% (وفّر ${discountPrice} ريال)
+السعر بعد الخصم: ${finalPrice} ريال (بدلاً من ${price} ريال)
+- هذه المعلومة مؤكدة من قاعدة البيانات
+- لا تذكر منتج آخر على أنه الأفضل عرضاً`;
+
+    case 'best_rated':
+      const ratingProduct = products[0];
+      const rTitle = ratingProduct.ar?.title || ratingProduct.en?.title || 'المنتج';
+      const rAvg = ratingProduct.ratingsAverage || 0;
+      const rCount = ratingProduct.ratingsQuantity || 0;
+      return `
+🎯 معلومة دقيقة (استخدمها في ردك):
+أعلى منتج تقييماً هو: "${rTitle}" بتقييم ${rAvg}/5 (${rCount} تقييم)
+- هذه المعلومة مؤكدة من قاعدة البيانات
+- لا تذكر منتج آخر على أنه الأعلى تقييماً`;
+
+    case 'price_inquiry':
+      return `
+🎯 أسعار المنتجات (معلومات دقيقة من قاعدة البيانات):
+${products.slice(0, 5).map((p, i) => {
+  const t = p.ar?.title || p.en?.title || 'منتج';
+  const pr = p.price || 0;
+  const dp = p.discountPrice || 0;
+  const fp = dp > 0 ? pr - dp : pr;
+  return `${i + 1}. ${t}: ${fp} ريال${dp > 0 ? ` (خصم ${dp} ريال)` : ''}`;
+}).join('\n')}
+- استخدم هذه الأسعار بالضبط في ردك`;
+
+    default:
+      return '';
+  }
+}
+
+/**
+ * Generate detail-specific context for LLM prompt
+ */
+function generateDetailContext(products, detailQuery) {
+  if (!detailQuery.detailType || !products.length) return '';
+
+  const detailLabels = {
+    'warranty': 'الضمان',
+    'size': 'الحجم/الأبعاد',
+    'weight': 'الوزن',
+    'color': 'الألوان',
+    'capacity': 'السعة',
+    'power': 'استهلاك الطاقة',
+    'features': 'المميزات',
+    'specs': 'المواصفات',
+    'rating': 'التقييم',
+    'model': 'الموديل',
+    'comparison': 'المقارنة'
+  };
+
+  const label = detailLabels[detailQuery.detailType] || detailQuery.detailType;
+
+  // Build detail info for each product
+  const detailInfo = products.slice(0, 5).map((p, i) => {
+    const title = p.ar?.title || p.en?.title || 'منتج';
+    const specs = p.ar?.specifications || p.en?.specifications || [];
+    const features = p.ar?.features || p.en?.features || [];
+    const warranty = p.ar?.warranty || p.en?.warranty || 'غير محدد';
+
+    let info = `${i + 1}. ${title}:`;
+
+    switch (detailQuery.detailType) {
+      case 'warranty':
+        info += ` الضمان: ${warranty}`;
+        break;
+
+      case 'size':
+      case 'weight':
+      case 'capacity':
+      case 'power':
+        const relevantSpecs = specs.filter(s => {
+          const key = (s.key || '').toLowerCase();
+          const group = (s.group || '').toLowerCase();
+          if (detailQuery.detailType === 'size') return key.includes('حجم') || key.includes('أبعاد') || key.includes('قياس') || key.includes('dimension') || key.includes('size');
+          if (detailQuery.detailType === 'weight') return key.includes('وزن') || key.includes('weight');
+          if (detailQuery.detailType === 'capacity') return key.includes('سعة') || key.includes('لتر') || key.includes('capacity') || key.includes('liter');
+          if (detailQuery.detailType === 'power') return key.includes('واط') || key.includes('طاقة') || key.includes('استهلاك') || key.includes('power') || key.includes('watt');
+          return false;
+        });
+        if (relevantSpecs.length > 0) {
+          info += ` ${relevantSpecs.map(s => `${s.key}: ${s.value}${s.unit ? ' ' + s.unit : ''}`).join(' | ')}`;
+        } else {
+          info += ' غير متوفر';
+        }
+        break;
+
+      case 'features':
+        if (features.length > 0) {
+          info += `\n   المميزات: ${features.slice(0, 5).join('، ')}`;
+        } else {
+          info += ' لا توجد مميزات مسجلة';
+        }
+        break;
+
+      case 'specs':
+        if (specs.length > 0) {
+          info += `\n   ${specs.slice(0, 6).map(s => `${s.key}: ${s.value}${s.unit ? ' ' + s.unit : ''}`).join('\n   ')}`;
+        } else {
+          info += ' لا توجد مواصفات مسجلة';
+        }
+        break;
+
+      case 'rating':
+        const avg = p.ratingsAverage || 0;
+        const count = p.ratingsQuantity || 0;
+        info += ` التقييم: ${avg}/5 (${count} تقييم)`;
+        break;
+
+      case 'model':
+        info += ` الموديل: ${p.modelNumber || 'غير محدد'}`;
+        break;
+
+      case 'comparison':
+        const price = p.price || 0;
+        const dp = p.discountPrice || 0;
+        const fp = dp > 0 ? price - dp : price;
+        info += `\n   - السعر: ${fp} ريال`;
+        info += `\n   - الضمان: ${warranty}`;
+        info += `\n   - التقييم: ${p.ratingsAverage || 0}/5`;
+        if (features.length > 0) info += `\n   - المميزات: ${features.slice(0, 3).join('، ')}`;
+        break;
+
+      default:
+        break;
+    }
+
+    return info;
+  }).join('\n');
+
+  return `
+🎯 معلومات ${label} (من قاعدة البيانات):
+${detailInfo}
+- استخدم هذه المعلومات بالضبط في ردك`;
 }
 
 /**
@@ -764,21 +1089,63 @@ function populateProductCard(p) {
   // Calculate final price (price - discountPrice), NOT using virtual field
   const calculatedFinalPrice = discountPrice > 0 ? price - discountPrice : price;
 
+  // Extract specifications for common attributes (size, weight, color, capacity, etc.)
+  const specs = p.ar?.specifications || p.en?.specifications || [];
+  const specMap = {};
+  specs.forEach(s => {
+    if (s.key && s.value) {
+      specMap[s.key.toLowerCase()] = s.value + (s.unit ? ` ${s.unit}` : '');
+    }
+  });
+
+  // Extract details
+  const details = p.ar?.details || p.en?.details || [];
+  const detailMap = {};
+  details.forEach(d => {
+    if (d.key && d.value) {
+      detailMap[d.key.toLowerCase()] = d.value;
+    }
+  });
+
   return {
     _id: p._id?.toString() || p._id,
-    en: { title: p.en?.title || null },
-    ar: { title: p.ar?.title || null },
+    en: {
+      title: p.en?.title || null,
+      subTitle: p.en?.subTitle || null,
+      description: p.en?.description || [],
+      features: p.en?.features || [],
+      warranty: p.en?.warranty || null,
+      specifications: p.en?.specifications || [],
+      details: p.en?.details || []
+    },
+    ar: {
+      title: p.ar?.title || null,
+      subTitle: p.ar?.subTitle || null,
+      description: p.ar?.description || [],
+      features: p.ar?.features || [],
+      warranty: p.ar?.warranty || null,
+      specifications: p.ar?.specifications || [],
+      details: p.ar?.details || []
+    },
     price: price,
     discountPrice: discountPrice > 0 ? discountPrice : null,
     discountPercentage: p.discountPercentage ?? null,
     finalPrice: calculatedFinalPrice,
-    currency: p.currency || "SAR",
+    currency: p.currencyCode || "SAR",
     brand: p.brand?.en?.name || p.brand?.ar?.name || p.brand?.en?.slug || p.brand || null,
     category: p.category?.en?.name || p.category?.ar?.name || p.category?.en?.slug || p.category || null,
     stock: p.stock ?? null,
     images: Array.isArray(p.images) ? p.images : [],
-    features: p.en?.features || p.ar?.features || p.features || [],
-    warranty: p.en?.warranty || p.ar?.warranty || p.warranty || null,
+    modelNumber: p.modelNumber || null,
+    sku: p.sku || null,
+    sizeType: p.sizeType || null,
+    ratingsAverage: p.ratingsAverage ?? 0,
+    ratingsQuantity: p.ratingsQuantity ?? 0,
+    salesCount: p.salesCount ?? 0,
+    tags: p.tags || [],
+    // Quick access to common specs
+    specs: specMap,
+    details: detailMap,
     link: p.slug ? `/product/${p.slug}` : null,
     ui: { type: "product_card", addToCart: true, viewDetails: true },
   };
@@ -793,7 +1160,9 @@ async function generateAIResponse(salesModel, context) {
     supportType = null,
     followUpInfo = {},
     isFirstMessage = false,
-    filters = {}
+    filters = {},
+    sortingContext = '',
+    detailContext = ''
   } = context;
 
   // Build conversation history
@@ -802,28 +1171,76 @@ async function generateAIResponse(salesModel, context) {
     .map(m => `${m.role === "user" ? "العميل" : "المساعد"}: ${m.content}`)
     .join("\n");
 
-  // Build product list if available
+  // Build product list if available with FULL details
   const productList = products
     .slice(0, 5)
     .map((p, i) => {
       const title = p.ar?.title || p.en?.title || "منتج";
+      const subTitle = p.ar?.subTitle || p.en?.subTitle || "";
       const price = p.price || 0;
       const discountPrice = p.discountPrice || 0;
       const finalPrice = discountPrice > 0 ? price - discountPrice : price;
       const brand = p.brand?.en?.name || p.brand?.ar?.name || p.brand?.en?.slug || p.brand || "غير محدد";
       const category = p.category?.en?.name || p.category?.ar?.name || p.category?.en?.slug || "غير محدد";
       const stock = p.stock || 0;
+      const warranty = p.ar?.warranty || p.en?.warranty || "غير محدد";
+      const features = p.ar?.features || p.en?.features || [];
+      const specifications = p.ar?.specifications || p.en?.specifications || [];
+      const modelNumber = p.modelNumber || "";
+      const ratingsAverage = p.ratingsAverage || 0;
+      const ratingsQuantity = p.ratingsQuantity || 0;
+      const tags = p.tags || [];
 
       let priceText = `${finalPrice} ريال`;
       if (discountPrice > 0) {
-        priceText = `${finalPrice} ريال (خصم ${discountPrice} من ${price})`;
+        const discountPercent = p.discountPercentage || Math.round((discountPrice / price) * 100);
+        priceText = `${finalPrice} ريال (خصم ${discountPercent}% - وفّر ${discountPrice} ريال)`;
       }
 
-      return `${i + 1}. ${title}
+      // Build specifications text
+      let specsText = "";
+      if (specifications.length > 0) {
+        const importantSpecs = specifications.slice(0, 6).map(s => {
+          const unit = s.unit ? ` ${s.unit}` : "";
+          return `${s.key}: ${s.value}${unit}`;
+        });
+        specsText = `\n   - المواصفات: ${importantSpecs.join(" | ")}`;
+      }
+
+      // Build features text
+      let featuresText = "";
+      if (features.length > 0) {
+        featuresText = `\n   - المميزات: ${features.slice(0, 4).join("، ")}`;
+      }
+
+      // Build tags text
+      let tagsText = "";
+      if (tags.length > 0) {
+        const tagLabels = {
+          'best_seller': 'الأكثر مبيعاً',
+          'hot': 'رائج',
+          'new_arrival': 'وصل حديثاً',
+          'trending': 'شائع',
+          'featured': 'مميز',
+          'on_sale': 'عرض خاص',
+          'top_rated': 'الأعلى تقييماً'
+        };
+        const arabicTags = tags.map(t => tagLabels[t] || t).join("، ");
+        tagsText = ` [${arabicTags}]`;
+      }
+
+      // Build rating text
+      let ratingText = "";
+      if (ratingsAverage > 0) {
+        ratingText = `\n   - التقييم: ${ratingsAverage}/5 (${ratingsQuantity} تقييم)`;
+      }
+
+      return `${i + 1}. ${title}${tagsText}${subTitle ? `\n   ${subTitle}` : ""}${modelNumber ? `\n   - موديل: ${modelNumber}` : ""}
    - السعر: ${priceText}
    - الماركة: ${brand}
    - النوع: ${category}
-   - المتوفر: ${stock} قطعة`;
+   - الضمان: ${warranty}
+   - المتوفر: ${stock} قطعة${specsText}${featuresText}${ratingText}`;
     })
     .join("\n\n");
 
@@ -910,7 +1327,7 @@ ${historyText ? `📜 المحادثة السابقة:\n${historyText}\n` : ""}
 "${userQuery}"
 
 ${productList ? `📦 المنتجات المتاحة:\n${productList}\n` : ""}
-
+${sortingContext ? `${sortingContext}\n` : ""}${detailContext ? `${detailContext}\n` : ""}
 📋 السياق والتعليمات:
 ${intentInstructions}
 
@@ -923,6 +1340,7 @@ ${intentInstructions}
 - لا تخترع معلومات غير موجودة
 - اقترح فقط المنتجات الموجودة في القائمة
 - لا تقترح منتجات من ماركات أو أنواع مختلفة عن المطلوب
+- إذا وُجدت "معلومة دقيقة" في السياق، استخدمها بالضبط ولا تغير الأرقام أو المنتجات
 - اذكر المميزات الحقيقية فقط:
   * توصيل مجاني للطلبات فوق 200 ريال
   * إمكانية التقسيط بتابي وتمارا
