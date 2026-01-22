@@ -289,6 +289,9 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
 
     const vector = await embed(userQuery);
 
+    // Check if this is a special search type (like deals/offers)
+    const isDealsSearch = filters.product_type === 'deals';
+
     // Base filter for vector search (only supports basic operators, NOT $regex)
     const vectorSearchFilter = {
       $and: [
@@ -300,15 +303,27 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
     // Build post-filter for product type and brand (supports $regex)
     const postFilterConditions = [];
 
+    // Add special filter for deals (products with discounts) - moved to post-filter
+    // because discountPrice is not indexed for vector search pre-filter
+    if (isDealsSearch) {
+      postFilterConditions.push({ discountPrice: { $gt: 0 } });
+    }
+
     // STRICT product type filtering (post-filter with $regex)
-    if (filters.product_type) {
+    // Skip for special search types like 'deals'
+    if (filters.product_type && !isDealsSearch) {
+      // Get all search terms (English + Arabic)
+      const searchTerms = getProductTypeSearchTerms(filters.product_type);
+      const regexPattern = searchTerms.join('|');
+
       postFilterConditions.push({
         $or: [
-          { "category.en.slug": { $regex: filters.product_type, $options: "i" } },
-          { "category.en.title": { $regex: filters.product_type, $options: "i" } },
-          { "category.ar.title": { $regex: filters.product_type, $options: "i" } },
-          { "en.title": { $regex: filters.product_type, $options: "i" } },
-          { "ar.title": { $regex: filters.product_type, $options: "i" } }
+          { "category.en.slug": { $regex: regexPattern, $options: "i" } },
+          { "category.en.name": { $regex: regexPattern, $options: "i" } },
+          { "category.ar.name": { $regex: regexPattern, $options: "i" } },
+          { "category.ar.slug": { $regex: regexPattern, $options: "i" } },
+          { "en.title": { $regex: regexPattern, $options: "i" } },
+          { "ar.title": { $regex: regexPattern, $options: "i" } }
         ]
       });
     }
@@ -318,14 +333,17 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
       postFilterConditions.push({
         $or: [
           { "brand.en.slug": { $regex: filters.brand, $options: "i" } },
-          { "brand.en.title": { $regex: filters.brand, $options: "i" } },
           { "brand.en.name": { $regex: filters.brand, $options: "i" } },
-          { "brand.ar.title": { $regex: filters.brand, $options: "i" } },
+          { "brand.ar.name": { $regex: filters.brand, $options: "i" } },
           { "en.title": { $regex: `\\b${filters.brand}\\b`, $options: "i" } },
           { "ar.title": { $regex: filters.brand, $options: "i" } }
         ]
       });
     }
+
+    // When we have filters, we need to search MORE products to find matches
+    const hasFilters = filters.product_type || filters.brand;
+    const searchLimit = hasFilters ? 200 : 50;
 
     // Build aggregation pipeline
     const pipeline = [
@@ -334,16 +352,16 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
           index: "vector_index",
           path: "embedding",
           queryVector: Binary.fromFloat32Array(new Float32Array(vector)),
-          numCandidates: 500,
-          limit: 50, // Fetch more to filter down
+          numCandidates: 1000,
+          limit: searchLimit,
           filter: vectorSearchFilter
         }
       },
       {
         $project: {
-          _id: 1, en: 1, ar: 1, price: 1, slug: 1, stock: 1, images: 1,
-          brand: 1, category: 1, features: 1, warranty: 1, currency: 1,
-          score: { $meta: "vectorSearchScore" }
+          _id: 1, en: 1, ar: 1, price: 1, discountPrice: 1, discountPercentage: 1,
+          slug: 1, stock: 1, images: 1, brand: 1, category: 1, features: 1,
+          warranty: 1, currency: 1, score: { $meta: "vectorSearchScore" }
         }
       }
     ];
@@ -358,7 +376,53 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
     // Limit final results
     pipeline.push({ $limit: 10 });
 
-    const results = await productsCol.aggregate(pipeline).toArray();
+    let results = await productsCol.aggregate(pipeline).toArray();
+
+    // If vector search + post-filter returns nothing, try direct category search
+    if (results.length === 0 && filters.product_type) {
+      console.log("⚠️ Vector search returned no matches, trying direct category search...");
+
+      // Get all search terms (English + Arabic)
+      const searchTerms = getProductTypeSearchTerms(filters.product_type);
+      const regexPattern = searchTerms.join('|');
+
+      const directFilter = {
+        status: "active",
+        stock: { $gt: 0 },
+        $or: [
+          { "category.en.slug": { $regex: regexPattern, $options: "i" } },
+          { "category.en.name": { $regex: regexPattern, $options: "i" } },
+          { "category.ar.name": { $regex: regexPattern, $options: "i" } },
+          { "category.ar.slug": { $regex: regexPattern, $options: "i" } },
+          { "en.title": { $regex: regexPattern, $options: "i" } },
+          { "ar.title": { $regex: regexPattern, $options: "i" } }
+        ]
+      };
+
+      // Add brand filter if specified
+      if (filters.brand) {
+        directFilter.$and = [{
+          $or: [
+            { "brand.en.slug": { $regex: filters.brand, $options: "i" } },
+            { "brand.en.name": { $regex: filters.brand, $options: "i" } },
+            { "brand.ar.name": { $regex: filters.brand, $options: "i" } },
+            { "en.title": { $regex: filters.brand, $options: "i" } },
+            { "ar.title": { $regex: filters.brand, $options: "i" } }
+          ]
+        }];
+      }
+
+      results = await productsCol.find(directFilter)
+        .project({
+          _id: 1, en: 1, ar: 1, price: 1, discountPrice: 1, discountPercentage: 1,
+          slug: 1, stock: 1, images: 1, brand: 1, category: 1, features: 1,
+          warranty: 1, currency: 1
+        })
+        .limit(10)
+        .toArray();
+
+      console.log(`✅ Direct search found ${results.length} products`);
+    }
 
     products = results;
 
@@ -459,21 +523,28 @@ async function embed(text) {
 const PRODUCT_TYPE_MAP = {
   'ثلاجة': 'refrigerator', 'ثلاجات': 'refrigerator',
   'غسالة': 'washing-machine', 'غسالات': 'washing-machine',
-  'تلفزيون': 'tv', 'تلفاز': 'tv', 'شاشة': 'tv', 'شاشات': 'tv',
-  'مكيف': 'air-conditioner', 'مكيفات': 'air-conditioner',
-  'ميكروويف': 'microwave', 'مايكرويف': 'microwave',
-  'فرن': 'oven', 'أفران': 'oven',
-  'غسالة صحون': 'dishwasher', 'جلاية': 'dishwasher',
-  'مكنسة': 'vacuum', 'مكانس': 'vacuum',
+  'تلفزيون': 'tv', 'تلفاز': 'tv', 'شاشة': 'tv', 'شاشات': 'tv', 'تلفزيونات': 'tv', 'تلفازات': 'tv',
+  'مكيف': 'air-conditioner', 'مكيفات': 'air-conditioner', 'تكييف': 'air-conditioner',
+  'ميكروويف': 'microwave', 'مايكرويف': 'microwave', 'ميكرويف': 'microwave',
+  'فرن': 'oven', 'أفران': 'oven', 'افران': 'oven',
+  'غسالة صحون': 'dishwasher', 'جلاية': 'dishwasher', 'جلايات': 'dishwasher', 'غسالات صحون': 'dishwasher',
+  'مكنسة': 'vacuum', 'مكانس': 'vacuum', 'مكنسات': 'vacuum',
   'خلاط': 'blender', 'خلاطات': 'blender',
-  'قهوة': 'coffee-maker', 'صانعة قهوة': 'coffee-maker',
-  'فريزر': 'freezer', 'مجمد': 'freezer',
-  'نشافة': 'dryer', 'مجفف': 'dryer',
-  'طباخ': 'cooker', 'بوتاجاز': 'cooker',
-  'شفاط': 'hood',
+  'قهوة': 'coffee-maker', 'صانعة قهوة': 'coffee-maker', 'ماكينة قهوة': 'coffee-maker', 'مكينة قهوة': 'coffee-maker',
+  'فريزر': 'freezer', 'مجمد': 'freezer', 'فريزرات': 'freezer', 'مجمدات': 'freezer',
+  'نشافة': 'dryer', 'مجفف': 'dryer', 'نشافات': 'dryer', 'مجففات': 'dryer',
+  'طباخ': 'cooker', 'بوتاجاز': 'cooker', 'طباخات': 'cooker', 'فرن غاز': 'cooker',
+  'شفاط': 'hood', 'شفاطات': 'hood',
   'سخان': 'water-heater', 'سخانات': 'water-heater',
-  'لابتوب': 'laptop', 'لاب توب': 'laptop', 'كمبيوتر': 'laptop',
-  'جوال': 'mobile', 'موبايل': 'mobile', 'هاتف': 'mobile'
+  'لابتوب': 'laptop', 'لاب توب': 'laptop', 'كمبيوتر': 'laptop', 'لابتوبات': 'laptop', 'كمبيوترات': 'laptop',
+  'جوال': 'mobile', 'موبايل': 'mobile', 'هاتف': 'mobile', 'جوالات': 'mobile', 'موبايلات': 'mobile', 'هواتف': 'mobile',
+  // Special categories
+  'عروض': 'deals', 'عروض اليوم': 'deals', 'تخفيضات': 'deals', 'خصم': 'deals', 'خصومات': 'deals'
+};
+
+// Special search type for deals/offers
+const SPECIAL_SEARCH_TYPES = {
+  'deals': { discountPrice: { $gt: 0 } }  // Products with discounts
 };
 
 const BRAND_MAP = {
@@ -492,6 +563,34 @@ const BRAND_MAP = {
   'إلكترولوكس': 'electrolux',
   'بيكو': 'beko'
 };
+
+// Reverse mapping: English -> Arabic for searching (includes singular/plural forms)
+const PRODUCT_TYPE_AR_MAP = {
+  'refrigerator': ['ثلاجة', 'ثلاجات', 'refrigerator', 'refrigerators', 'fridge', 'fridges'],
+  'washing-machine': ['غسالة', 'غسالات', 'washing', 'washer', 'washers', 'washing-machine', 'washing-machines'],
+  'tv': ['تلفزيون', 'تلفاز', 'شاشة', 'شاشات', 'تلفزيونات', 'تلفازات', 'television', 'televisions', 'tv', 'tvs'],
+  'air-conditioner': ['مكيف', 'مكيفات', 'تكييف', 'air-conditioner', 'air-conditioners', 'air conditioner', 'air conditioners', 'ac', 'acs', 'a/c'],
+  'microwave': ['ميكروويف', 'مايكرويف', 'ميكرويف', 'microwave', 'microwaves'],
+  'oven': ['فرن', 'أفران', 'افران', 'oven', 'ovens'],
+  'dishwasher': ['غسالة صحون', 'غسالات صحون', 'جلاية', 'جلايات', 'dishwasher', 'dishwashers'],
+  'vacuum': ['مكنسة', 'مكانس', 'مكنسات', 'vacuum', 'vacuums', 'vacuum-cleaner', 'vacuum-cleaners'],
+  'blender': ['خلاط', 'خلاطات', 'blender', 'blenders'],
+  'coffee-maker': ['قهوة', 'صانعة قهوة', 'ماكينة قهوة', 'مكينة قهوة', 'coffee', 'coffee-maker', 'coffee-makers'],
+  'freezer': ['فريزر', 'مجمد', 'فريزرات', 'مجمدات', 'freezer', 'freezers'],
+  'dryer': ['نشافة', 'مجفف', 'نشافات', 'مجففات', 'dryer', 'dryers'],
+  'cooker': ['طباخ', 'بوتاجاز', 'طباخات', 'فرن غاز', 'cooker', 'cookers', 'stove', 'stoves'],
+  'hood': ['شفاط', 'شفاطات', 'hood', 'hoods', 'range-hood'],
+  'water-heater': ['سخان', 'سخانات', 'heater', 'heaters', 'water-heater', 'water-heaters'],
+  'laptop': ['لابتوب', 'لاب توب', 'كمبيوتر', 'لابتوبات', 'كمبيوترات', 'laptop', 'laptops', 'notebook', 'notebooks'],
+  'mobile': ['جوال', 'موبايل', 'هاتف', 'جوالات', 'موبايلات', 'هواتف', 'phone', 'phones', 'mobile', 'mobiles', 'smartphone', 'smartphones']
+};
+
+/**
+ * Get all search terms for a product type (English + Arabic)
+ */
+function getProductTypeSearchTerms(productType) {
+  return PRODUCT_TYPE_AR_MAP[productType] || [productType];
+}
 
 /**
  * Extract product type and brand from user query
@@ -660,14 +759,22 @@ function detectSupportType(query) {
 }
 
 function populateProductCard(p) {
+  const price = p.price ?? 0;
+  const discountPrice = p.discountPrice ?? 0;
+  // Calculate final price (price - discountPrice), NOT using virtual field
+  const calculatedFinalPrice = discountPrice > 0 ? price - discountPrice : price;
+
   return {
     _id: p._id?.toString() || p._id,
     en: { title: p.en?.title || null },
     ar: { title: p.ar?.title || null },
-    price: p.price ?? null,
+    price: price,
+    discountPrice: discountPrice > 0 ? discountPrice : null,
+    discountPercentage: p.discountPercentage ?? null,
+    finalPrice: calculatedFinalPrice,
     currency: p.currency || "SAR",
-    brand: p.brand?.en?.name || p.brand?.en?.title || p.brand?.ar?.title || p.brand || null,
-    category: p.category?.en?.slug || p.category?.en?.title || p.category?.ar?.title || p.category || null,
+    brand: p.brand?.en?.name || p.brand?.ar?.name || p.brand?.en?.slug || p.brand || null,
+    category: p.category?.en?.name || p.category?.ar?.name || p.category?.en?.slug || p.category || null,
     stock: p.stock ?? null,
     images: Array.isArray(p.images) ? p.images : [],
     features: p.en?.features || p.ar?.features || p.features || [],
@@ -701,11 +808,19 @@ async function generateAIResponse(salesModel, context) {
     .map((p, i) => {
       const title = p.ar?.title || p.en?.title || "منتج";
       const price = p.price || 0;
-      const brand = p.brand?.en?.name || p.brand?.en?.title || p.brand?.ar?.title || p.brand || "غير محدد";
-      const category = p.category?.en?.title || p.category?.ar?.title || p.category?.en?.slug || "غير محدد";
+      const discountPrice = p.discountPrice || 0;
+      const finalPrice = discountPrice > 0 ? price - discountPrice : price;
+      const brand = p.brand?.en?.name || p.brand?.ar?.name || p.brand?.en?.slug || p.brand || "غير محدد";
+      const category = p.category?.en?.name || p.category?.ar?.name || p.category?.en?.slug || "غير محدد";
       const stock = p.stock || 0;
+
+      let priceText = `${finalPrice} ريال`;
+      if (discountPrice > 0) {
+        priceText = `${finalPrice} ريال (خصم ${discountPrice} من ${price})`;
+      }
+
       return `${i + 1}. ${title}
-   - السعر: ${price} ريال
+   - السعر: ${priceText}
    - الماركة: ${brand}
    - النوع: ${category}
    - المتوفر: ${stock} قطعة`;

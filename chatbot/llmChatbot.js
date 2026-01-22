@@ -33,6 +33,31 @@ async function embed(text) {
   return vector;
 }
 
+// Reverse mapping: English -> Arabic for searching (includes singular/plural forms)
+const PRODUCT_TYPE_AR_MAP = {
+  'refrigerator': ['ثلاجة', 'ثلاجات', 'refrigerator', 'refrigerators', 'fridge', 'fridges'],
+  'washing-machine': ['غسالة', 'غسالات', 'washing', 'washer', 'washers', 'washing-machine', 'washing-machines'],
+  'tv': ['تلفزيون', 'تلفاز', 'شاشة', 'شاشات', 'television', 'televisions', 'tv', 'tvs'],
+  'air-conditioner': ['مكيف', 'مكيفات', 'air-conditioner', 'air-conditioners', 'air conditioner', 'air conditioners', 'ac', 'acs', 'a/c'],
+  'microwave': ['ميكروويف', 'مايكرويف', 'microwave', 'microwaves'],
+  'oven': ['فرن', 'أفران', 'oven', 'ovens'],
+  'dishwasher': ['غسالة صحون', 'جلاية', 'dishwasher', 'dishwashers'],
+  'vacuum': ['مكنسة', 'مكانس', 'vacuum', 'vacuums', 'vacuum-cleaner', 'vacuum-cleaners'],
+  'blender': ['خلاط', 'خلاطات', 'blender', 'blenders'],
+  'coffee-maker': ['قهوة', 'صانعة قهوة', 'coffee', 'coffee-maker', 'coffee-makers'],
+  'freezer': ['فريزر', 'مجمد', 'freezer', 'freezers'],
+  'dryer': ['نشافة', 'مجفف', 'dryer', 'dryers'],
+  'cooker': ['طباخ', 'بوتاجاز', 'cooker', 'cookers', 'stove', 'stoves'],
+  'hood': ['شفاط', 'hood', 'hoods', 'range-hood'],
+  'water-heater': ['سخان', 'سخانات', 'heater', 'heaters', 'water-heater', 'water-heaters'],
+  'laptop': ['لابتوب', 'لاب توب', 'كمبيوتر', 'laptop', 'laptops', 'notebook', 'notebooks'],
+  'mobile': ['جوال', 'موبايل', 'هاتف', 'phone', 'phones', 'mobile', 'mobiles', 'smartphone', 'smartphones']
+};
+
+function getProductTypeSearchTerms(productType) {
+  return PRODUCT_TYPE_AR_MAP[productType] || [productType];
+}
+
 /**
  * Extract product type and brand from user query using LLM
  * Returns strictly required filters
@@ -102,13 +127,17 @@ async function strictVectorSearch(query, filters, limit = 12) {
 
   // STRICT product type filtering
   if (filters.product_type) {
+    const searchTerms = getProductTypeSearchTerms(filters.product_type);
+    const regexPattern = searchTerms.join('|');
+
     postFilterConditions.push({
       $or: [
-        { "category.en.slug": { $regex: filters.product_type, $options: "i" } },
-        { "category.en.title": { $regex: filters.product_type, $options: "i" } },
-        { "category.ar.title": { $regex: filters.product_type, $options: "i" } },
-        { "en.title": { $regex: filters.product_type, $options: "i" } },
-        { "ar.title": { $regex: filters.product_type, $options: "i" } }
+        { "category.en.slug": { $regex: regexPattern, $options: "i" } },
+        { "category.en.name": { $regex: regexPattern, $options: "i" } },
+        { "category.ar.name": { $regex: regexPattern, $options: "i" } },
+        { "category.ar.slug": { $regex: regexPattern, $options: "i" } },
+        { "en.title": { $regex: regexPattern, $options: "i" } },
+        { "ar.title": { $regex: regexPattern, $options: "i" } }
       ]
     });
   }
@@ -118,14 +147,17 @@ async function strictVectorSearch(query, filters, limit = 12) {
     postFilterConditions.push({
       $or: [
         { "brand.en.slug": { $regex: filters.brand, $options: "i" } },
-        { "brand.en.title": { $regex: filters.brand, $options: "i" } },
         { "brand.en.name": { $regex: filters.brand, $options: "i" } },
-        { "brand.ar.title": { $regex: filters.brand, $options: "i" } },
+        { "brand.ar.name": { $regex: filters.brand, $options: "i" } },
         { "en.title": { $regex: `\\b${filters.brand}\\b`, $options: "i" } },
         { "ar.title": { $regex: filters.brand, $options: "i" } }
       ]
     });
   }
+
+  // When we have filters, search MORE products to find matches
+  const hasFilters = filters.product_type || filters.brand;
+  const searchLimit = hasFilters ? 200 : 50;
 
   // Build aggregation pipeline
   const pipeline = [
@@ -134,8 +166,8 @@ async function strictVectorSearch(query, filters, limit = 12) {
         index: INDEX_NAME,
         path: "embedding",
         queryVector: queryVector,
-        numCandidates: 500,
-        limit: 50, // Fetch more to filter down
+        numCandidates: 1000,
+        limit: searchLimit,
         filter: vectorSearchFilter,
       },
     },
@@ -144,6 +176,8 @@ async function strictVectorSearch(query, filters, limit = 12) {
         ar: 1,
         en: 1,
         price: 1,
+        discountPrice: 1,
+        discountPercentage: 1,
         images: 1,
         category: 1,
         brand: 1,
@@ -162,7 +196,52 @@ async function strictVectorSearch(query, filters, limit = 12) {
   // Limit final results
   pipeline.push({ $limit: limit });
 
-  const results = await col.aggregate(pipeline).toArray();
+  let results = await col.aggregate(pipeline).toArray();
+
+  // If vector search + post-filter returns nothing, try direct category search
+  if (results.length === 0 && filters.product_type) {
+    console.log("⚠️ Vector search returned no matches, trying direct category search...");
+
+    const searchTerms = getProductTypeSearchTerms(filters.product_type);
+    const regexPattern = searchTerms.join('|');
+
+    const directFilter = {
+      status: "active",
+      stock: { $gt: 0 },
+      $or: [
+        { "category.en.slug": { $regex: regexPattern, $options: "i" } },
+        { "category.en.name": { $regex: regexPattern, $options: "i" } },
+        { "category.ar.name": { $regex: regexPattern, $options: "i" } },
+        { "category.ar.slug": { $regex: regexPattern, $options: "i" } },
+        { "en.title": { $regex: regexPattern, $options: "i" } },
+        { "ar.title": { $regex: regexPattern, $options: "i" } }
+      ]
+    };
+
+    // Add brand filter if specified
+    if (filters.brand) {
+      directFilter.$and = [{
+        $or: [
+          { "brand.en.slug": { $regex: filters.brand, $options: "i" } },
+          { "brand.en.name": { $regex: filters.brand, $options: "i" } },
+          { "brand.ar.name": { $regex: filters.brand, $options: "i" } },
+          { "en.title": { $regex: filters.brand, $options: "i" } },
+          { "ar.title": { $regex: filters.brand, $options: "i" } }
+        ]
+      }];
+    }
+
+    results = await col.find(directFilter)
+      .project({
+        ar: 1, en: 1, price: 1, discountPrice: 1, discountPercentage: 1,
+        images: 1, category: 1, brand: 1
+      })
+      .limit(limit)
+      .toArray();
+
+    console.log(`✅ Direct search found ${results.length} products`);
+  }
+
   return results;
 }
 
@@ -205,13 +284,21 @@ export async function llmChatbot(userMessage) {
   }
 
   /* 4️⃣ Prepare context for LLM - only matched products */
-  const context = products.map((p, i) => ({
-    index: i + 1,
-    title: p.ar?.title || p.en?.title,
-    price: p.price,
-    category: p.category?.en?.title || p.category?.ar?.title,
-    brand: p.brand?.en?.title || p.brand?.ar?.title,
-  }));
+  const context = products.map((p, i) => {
+    const price = p.price || 0;
+    const discountPrice = p.discountPrice || 0;
+    const finalPrice = discountPrice > 0 ? price - discountPrice : price;
+
+    return {
+      index: i + 1,
+      title: p.ar?.title || p.en?.title,
+      price: finalPrice,
+      originalPrice: discountPrice > 0 ? price : null,
+      discount: discountPrice > 0 ? discountPrice : null,
+      category: p.category?.en?.name || p.category?.ar?.name || p.category?.en?.slug,
+      brand: p.brand?.en?.name || p.brand?.ar?.name || p.brand?.en?.slug,
+    };
+  });
 
   /* 5️⃣ Strict recommendation prompt */
   const prompt = `أنت شات بوت لمتجر إلكتروني.
