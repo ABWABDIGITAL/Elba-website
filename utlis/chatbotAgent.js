@@ -323,6 +323,7 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
       // Get all search terms (English + Arabic)
       const searchTerms = getProductTypeSearchTerms(filters.product_type);
       const regexPattern = searchTerms.join('|');
+      console.log(`🔍 Product type filter: "${filters.product_type}" → regex: "${regexPattern}"`);
 
       postFilterConditions.push({
         $or: [
@@ -331,7 +332,8 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
           { "category.ar.name": { $regex: regexPattern, $options: "i" } },
           { "category.ar.slug": { $regex: regexPattern, $options: "i" } },
           { "en.title": { $regex: regexPattern, $options: "i" } },
-          { "ar.title": { $regex: regexPattern, $options: "i" } }
+          { "ar.title": { $regex: regexPattern, $options: "i" } },
+          { "sku": { $regex: regexPattern, $options: "i" } } // Also search in SKU
         ]
       });
     }
@@ -351,7 +353,7 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
 
     // When we have filters, we need to search MORE products to find matches
     const hasFilters = filters.product_type || filters.brand;
-    const searchLimit = hasFilters ? 200 : 50;
+    const searchLimit = hasFilters ? 500 : 50; // Increased to 500 to find more matching products
 
     // Build aggregation pipeline
     const pipeline = [
@@ -387,10 +389,20 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
     pipeline.push({ $limit: 10 });
 
     let results = await productsCol.aggregate(pipeline).toArray();
+    console.log(`📊 Vector search + post-filter returned ${results.length} products`);
 
-    // If vector search + post-filter returns nothing, try direct category search
-    if (results.length === 0 && filters.product_type) {
-      console.log("⚠️ Vector search returned no matches, trying direct category search...");
+    // Log first few results to debug
+    if (results.length > 0 && filters.product_type) {
+      console.log("📋 First 3 results:");
+      results.slice(0, 3).forEach((p, i) => {
+        console.log(`   ${i + 1}. ${p.ar?.title || p.en?.title} | Category: ${p.category?.en?.slug || p.category?.ar?.name}`);
+      });
+    }
+
+    // If vector search + post-filter returns nothing OR very few results, try direct category search
+    // This ensures we ALWAYS prioritize the exact product type match
+    if ((results.length === 0 || results.length < 3) && filters.product_type && !isDealsSearch) {
+      console.log("⚠️ Vector search returned few/no matches, trying direct category search...");
 
       // Get all search terms (English + Arabic)
       const searchTerms = getProductTypeSearchTerms(filters.product_type);
@@ -405,7 +417,8 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
           { "category.ar.name": { $regex: regexPattern, $options: "i" } },
           { "category.ar.slug": { $regex: regexPattern, $options: "i" } },
           { "en.title": { $regex: regexPattern, $options: "i" } },
-          { "ar.title": { $regex: regexPattern, $options: "i" } }
+          { "ar.title": { $regex: regexPattern, $options: "i" } },
+          { "sku": { $regex: regexPattern, $options: "i" } }
         ]
       };
 
@@ -422,7 +435,7 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
         }];
       }
 
-      results = await productsCol.find(directFilter)
+      const directResults = await productsCol.find(directFilter)
         .project({
           _id: 1, en: 1, ar: 1, price: 1, discountPrice: 1, discountPercentage: 1,
           slug: 1, stock: 1, images: 1, brand: 1, category: 1,
@@ -432,10 +445,42 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
         .limit(10)
         .toArray();
 
-      console.log(`✅ Direct search found ${results.length} products`);
+      console.log(`✅ Direct search found ${directResults.length} products`);
+
+      // Use direct results if they found more products
+      if (directResults.length > results.length) {
+        results = directResults;
+        console.log("✅ Using direct search results (more matches)");
+      }
     }
 
     products = results;
+
+    // FINAL VALIDATION: Ensure all products match the requested product type
+    // This is a last-line defense against any products that slipped through the filters
+    if (filters.product_type && !isDealsSearch && products.length > 0) {
+      const searchTerms = getProductTypeSearchTerms(filters.product_type);
+      const validatedProducts = products.filter(p => {
+        const title = ((p.ar?.title || '') + ' ' + (p.en?.title || '')).toLowerCase();
+        const catName = ((p.category?.en?.name || '') + ' ' + (p.category?.ar?.name || '')).toLowerCase();
+        const catSlug = ((p.category?.en?.slug || '') + ' ' + (p.category?.ar?.slug || '')).toLowerCase();
+        const sku = (p.sku || '').toLowerCase();
+
+        // Check if any search term matches
+        return searchTerms.some(term => {
+          const termLower = term.toLowerCase();
+          return title.includes(termLower) || catName.includes(termLower) || catSlug.includes(termLower) || sku.includes(termLower);
+        });
+      });
+
+      // Only use validated products if we found any, otherwise keep original (in case category names differ)
+      if (validatedProducts.length > 0) {
+        console.log(`✅ Final validation: ${validatedProducts.length}/${products.length} products match "${filters.product_type}"`);
+        products = validatedProducts;
+      } else {
+        console.log(`⚠️ Final validation: No products match search terms, keeping ${products.length} results`);
+      }
+    }
 
     // Sort products based on user's sorting intent (highest price, cheapest, best discount, etc.)
     if (sortingIntent.sortBy && products.length > 0) {
@@ -451,16 +496,20 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
 
     // If no products found with strict filter, tell user instead of suggesting alternatives
     if (products.length === 0 && (filters.product_type || filters.brand)) {
+      // Get Arabic name for the product type
+      const productTypeArabic = getProductTypeArabicName(filters.product_type);
+
       let noMatchMsg = "للأسف ما لقيت منتجات";
       if (filters.product_type && filters.brand) {
-        noMatchMsg += ` من نوع "${filters.product_type}" وماركة "${filters.brand}"`;
+        noMatchMsg += ` من نوع "${productTypeArabic}" وماركة "${filters.brand}"`;
       } else if (filters.product_type) {
-        noMatchMsg += ` من نوع "${filters.product_type}"`;
+        noMatchMsg += ` من نوع "${productTypeArabic}"`;
       } else if (filters.brand) {
         noMatchMsg += ` من ماركة "${filters.brand}"`;
       }
       noMatchMsg += " متوفرة حالياً.\n\nتحب:\n- تغيّر نوع المنتج؟\n- تغيّر الماركة؟";
       reply = noMatchMsg;
+      console.log(`⚠️ No products found for: ${filters.product_type || ''} ${filters.brand || ''}`);
     } else {
       reply = await generateAIResponse(salesModel, {
         userQuery,
@@ -546,6 +595,7 @@ async function embed(text) {
  * Arabic to English product type mapping for quick local extraction
  */
 const PRODUCT_TYPE_MAP = {
+  // Arabic keywords
   'ثلاجة': 'refrigerator', 'ثلاجات': 'refrigerator',
   'غسالة': 'washing-machine', 'غسالات': 'washing-machine',
   'تلفزيون': 'tv', 'تلفاز': 'tv', 'شاشة': 'tv', 'شاشات': 'tv', 'تلفزيونات': 'tv', 'تلفازات': 'tv',
@@ -564,16 +614,43 @@ const PRODUCT_TYPE_MAP = {
   'سخان': 'water-heater', 'سخانات': 'water-heater',
   'لابتوب': 'laptop', 'لاب توب': 'laptop', 'كمبيوتر': 'laptop', 'لابتوبات': 'laptop', 'كمبيوترات': 'laptop',
   'جوال': 'mobile', 'موبايل': 'mobile', 'هاتف': 'mobile', 'جوالات': 'mobile', 'موبايلات': 'mobile', 'هواتف': 'mobile',
-  // Small appliances
+  // Small appliances (Arabic)
   'توستر': 'toaster', 'محمصة': 'toaster', 'محمصة خبز': 'toaster',
   'مكواة': 'iron', 'مكوى': 'iron', 'مكاوي': 'iron',
   'عصارة': 'juicer', 'عصارات': 'juicer',
-  'قلاية': 'air-fryer', 'قلاية هوائية': 'air-fryer', 'اير فراير': 'air-fryer', 'airfryer': 'air-fryer',
+  'قلاية': 'air-fryer', 'قلاية هوائية': 'air-fryer', 'اير فراير': 'air-fryer',
   'شواية': 'grill', 'شوايات': 'grill', 'جريل': 'grill',
   'خباز': 'sandwich-maker', 'صانعة ساندويتش': 'sandwich-maker',
   'مطحنة': 'grinder', 'طحانة': 'grinder', 'مطحنة قهوة': 'grinder',
+  // English keywords (so "kettle", "oven", etc. work directly)
+  'refrigerator': 'refrigerator', 'fridge': 'refrigerator',
+  'washing machine': 'washing-machine', 'washer': 'washing-machine',
+  'television': 'tv', 'tv': 'tv',
+  'air conditioner': 'air-conditioner', 'ac': 'air-conditioner',
+  'microwave': 'microwave',
+  'oven': 'oven',
+  'dishwasher': 'dishwasher',
+  'vacuum': 'vacuum', 'vacuum cleaner': 'vacuum',
+  'blender': 'blender',
+  'coffee maker': 'coffee-maker', 'coffee machine': 'coffee-maker',
+  'kettle': 'kettle', 'electric kettle': 'kettle',
+  'freezer': 'freezer',
+  'dryer': 'dryer',
+  'cooker': 'cooker', 'stove': 'cooker',
+  'hood': 'hood', 'range hood': 'hood',
+  'water heater': 'water-heater', 'heater': 'water-heater',
+  'laptop': 'laptop', 'notebook': 'laptop',
+  'mobile': 'mobile', 'phone': 'mobile', 'smartphone': 'mobile',
+  'toaster': 'toaster',
+  'iron': 'iron',
+  'juicer': 'juicer',
+  'air fryer': 'air-fryer', 'airfryer': 'air-fryer',
+  'grill': 'grill',
+  'sandwich maker': 'sandwich-maker',
+  'grinder': 'grinder', 'coffee grinder': 'grinder',
   // Special categories
-  'عروض': 'deals', 'عروض اليوم': 'deals', 'تخفيضات': 'deals', 'خصم': 'deals', 'خصومات': 'deals'
+  'عروض': 'deals', 'عروض اليوم': 'deals', 'تخفيضات': 'deals', 'خصم': 'deals', 'خصومات': 'deals',
+  'deals': 'deals', 'offers': 'deals', 'sale': 'deals'
 };
 
 // Special search type for deals/offers
@@ -633,6 +710,41 @@ const PRODUCT_TYPE_AR_MAP = {
  */
 function getProductTypeSearchTerms(productType) {
   return PRODUCT_TYPE_AR_MAP[productType] || [productType];
+}
+
+/**
+ * Get Arabic display name for a product type
+ */
+function getProductTypeArabicName(productType) {
+  const arabicNames = {
+    'refrigerator': 'ثلاجة',
+    'washing-machine': 'غسالة',
+    'tv': 'تلفزيون',
+    'air-conditioner': 'مكيف',
+    'microwave': 'ميكروويف',
+    'oven': 'فرن',
+    'dishwasher': 'غسالة صحون',
+    'vacuum': 'مكنسة',
+    'blender': 'خلاط',
+    'coffee-maker': 'صانعة قهوة',
+    'kettle': 'غلاية',
+    'freezer': 'فريزر',
+    'dryer': 'نشافة',
+    'cooker': 'طباخ',
+    'hood': 'شفاط',
+    'water-heater': 'سخان',
+    'laptop': 'لابتوب',
+    'mobile': 'جوال',
+    'toaster': 'توستر',
+    'iron': 'مكواة',
+    'juicer': 'عصارة',
+    'air-fryer': 'قلاية هوائية',
+    'grill': 'شواية',
+    'sandwich-maker': 'صانعة ساندويتش',
+    'grinder': 'مطحنة',
+    'deals': 'عروض'
+  };
+  return arabicNames[productType] || productType;
 }
 
 /**
@@ -943,10 +1055,16 @@ async function extractProductFilters(query) {
   const queryLower = query.toLowerCase();
   let localFilters = { product_type: null, brand: null };
 
+  // Sort keys by length (longer first) to avoid partial matches
+  // e.g., "غلاية كهربائية" should match before "غلاية"
+  const sortedProductTypes = Object.entries(PRODUCT_TYPE_MAP)
+    .sort((a, b) => b[0].length - a[0].length);
+
   // Try local extraction first (faster)
-  for (const [ar, en] of Object.entries(PRODUCT_TYPE_MAP)) {
-    if (queryLower.includes(ar)) {
-      localFilters.product_type = en;
+  for (const [keyword, productType] of sortedProductTypes) {
+    if (queryLower.includes(keyword.toLowerCase())) {
+      localFilters.product_type = productType;
+      console.log(`🎯 Local match: "${keyword}" → "${productType}"`);
       break;
     }
   }
