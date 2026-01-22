@@ -283,31 +283,106 @@ export async function callAgent(mongoClient, userQuery, threadId, clearHistory =
   // ============================================================
 
   } else if (intent === "product_search" || intent === "recommendation") {
-    // Your existing product search logic
+    // Extract STRICT filters from user query
+    const filters = await extractProductFilters(userQuery);
+    console.log("🔍 Strict Filters:", filters);
+
     const vector = await embed(userQuery);
-    
-    const results = await productsCol.aggregate([
+
+    // Base filter for vector search (only supports basic operators, NOT $regex)
+    const vectorSearchFilter = {
+      $and: [
+        { status: { $eq: "active" } },
+        { stock: { $gt: 0 } }
+      ]
+    };
+
+    // Build post-filter for product type and brand (supports $regex)
+    const postFilterConditions = [];
+
+    // STRICT product type filtering (post-filter with $regex)
+    if (filters.product_type) {
+      postFilterConditions.push({
+        $or: [
+          { "category.en.slug": { $regex: filters.product_type, $options: "i" } },
+          { "category.en.title": { $regex: filters.product_type, $options: "i" } },
+          { "category.ar.title": { $regex: filters.product_type, $options: "i" } },
+          { "en.title": { $regex: filters.product_type, $options: "i" } },
+          { "ar.title": { $regex: filters.product_type, $options: "i" } }
+        ]
+      });
+    }
+
+    // STRICT brand filtering (post-filter with $regex)
+    if (filters.brand) {
+      postFilterConditions.push({
+        $or: [
+          { "brand.en.slug": { $regex: filters.brand, $options: "i" } },
+          { "brand.en.title": { $regex: filters.brand, $options: "i" } },
+          { "brand.en.name": { $regex: filters.brand, $options: "i" } },
+          { "brand.ar.title": { $regex: filters.brand, $options: "i" } },
+          { "en.title": { $regex: `\\b${filters.brand}\\b`, $options: "i" } },
+          { "ar.title": { $regex: filters.brand, $options: "i" } }
+        ]
+      });
+    }
+
+    // Build aggregation pipeline
+    const pipeline = [
       {
         $vectorSearch: {
           index: "vector_index",
           path: "embedding",
           queryVector: Binary.fromFloat32Array(new Float32Array(vector)),
-          numCandidates: 80,
-          limit: 5,
-          filter: { $and: [{ status: "active" }, { stock: { $gt: 0 } }] }
+          numCandidates: 500,
+          limit: 50, // Fetch more to filter down
+          filter: vectorSearchFilter
         }
       },
-      { $project: { _id: 1, en: 1, ar: 1, price: 1, slug: 1, stock: 1, images: 1 } }
-    ]).toArray();
+      {
+        $project: {
+          _id: 1, en: 1, ar: 1, price: 1, slug: 1, stock: 1, images: 1,
+          brand: 1, category: 1, features: 1, warranty: 1, currency: 1,
+          score: { $meta: "vectorSearchScore" }
+        }
+      }
+    ];
+
+    // Add post-filter if we have product type or brand filters
+    if (postFilterConditions.length > 0) {
+      pipeline.push({
+        $match: { $and: postFilterConditions }
+      });
+    }
+
+    // Limit final results
+    pipeline.push({ $limit: 10 });
+
+    const results = await productsCol.aggregate(pipeline).toArray();
 
     products = results;
 
-    reply = await generateAIResponse(salesModel, {
-      userQuery,
-      conversationHistory: conversation.messages,
-      products,
-      intent
-    });
+    // If no products found with strict filter, tell user instead of suggesting alternatives
+    if (products.length === 0 && (filters.product_type || filters.brand)) {
+      let noMatchMsg = "للأسف ما لقيت منتجات";
+      if (filters.product_type && filters.brand) {
+        noMatchMsg += ` من نوع "${filters.product_type}" وماركة "${filters.brand}"`;
+      } else if (filters.product_type) {
+        noMatchMsg += ` من نوع "${filters.product_type}"`;
+      } else if (filters.brand) {
+        noMatchMsg += ` من ماركة "${filters.brand}"`;
+      }
+      noMatchMsg += " متوفرة حالياً.\n\nتحب:\n- تغيّر نوع المنتج؟\n- تغيّر الماركة؟";
+      reply = noMatchMsg;
+    } else {
+      reply = await generateAIResponse(salesModel, {
+        userQuery,
+        conversationHistory: conversation.messages,
+        products,
+        intent,
+        filters // Pass filters to enforce strict recommendations
+      });
+    }
 
   // ============================================================
   // HANDLE GENERAL CHAT
@@ -372,6 +447,135 @@ async function embed(text) {
     inputs: text,
   });
   return Array.isArray(res[0]) ? res[0] : res;
+}
+
+/**
+ * Extract product type and brand from user query
+ * Returns strictly required filters - NEVER broadens the search
+ */
+/**
+ * Arabic to English product type mapping for quick local extraction
+ */
+const PRODUCT_TYPE_MAP = {
+  'ثلاجة': 'refrigerator', 'ثلاجات': 'refrigerator',
+  'غسالة': 'washing-machine', 'غسالات': 'washing-machine',
+  'تلفزيون': 'tv', 'تلفاز': 'tv', 'شاشة': 'tv', 'شاشات': 'tv',
+  'مكيف': 'air-conditioner', 'مكيفات': 'air-conditioner',
+  'ميكروويف': 'microwave', 'مايكرويف': 'microwave',
+  'فرن': 'oven', 'أفران': 'oven',
+  'غسالة صحون': 'dishwasher', 'جلاية': 'dishwasher',
+  'مكنسة': 'vacuum', 'مكانس': 'vacuum',
+  'خلاط': 'blender', 'خلاطات': 'blender',
+  'قهوة': 'coffee-maker', 'صانعة قهوة': 'coffee-maker',
+  'فريزر': 'freezer', 'مجمد': 'freezer',
+  'نشافة': 'dryer', 'مجفف': 'dryer',
+  'طباخ': 'cooker', 'بوتاجاز': 'cooker',
+  'شفاط': 'hood',
+  'سخان': 'water-heater', 'سخانات': 'water-heater',
+  'لابتوب': 'laptop', 'لاب توب': 'laptop', 'كمبيوتر': 'laptop',
+  'جوال': 'mobile', 'موبايل': 'mobile', 'هاتف': 'mobile'
+};
+
+const BRAND_MAP = {
+  'سامسونج': 'samsung', 'سامسونغ': 'samsung',
+  'ال جي': 'lg', 'إل جي': 'lg',
+  'سوني': 'sony',
+  'فيليبس': 'philips',
+  'بوش': 'bosch',
+  'هاير': 'haier',
+  'سيمنس': 'siemens', 'سيمينز': 'siemens',
+  'هيتاشي': 'hitachi',
+  'توشيبا': 'toshiba',
+  'باناسونيك': 'panasonic',
+  'شارب': 'sharp',
+  'ويرلبول': 'whirlpool',
+  'إلكترولوكس': 'electrolux',
+  'بيكو': 'beko'
+};
+
+/**
+ * Extract product type and brand from user query
+ * Uses local mapping first, then falls back to LLM if needed
+ */
+async function extractProductFilters(query) {
+  const queryLower = query.toLowerCase();
+  let localFilters = { product_type: null, brand: null };
+
+  // Try local extraction first (faster)
+  for (const [ar, en] of Object.entries(PRODUCT_TYPE_MAP)) {
+    if (queryLower.includes(ar)) {
+      localFilters.product_type = en;
+      break;
+    }
+  }
+  for (const [ar, en] of Object.entries(BRAND_MAP)) {
+    if (queryLower.includes(ar)) {
+      localFilters.brand = en;
+      break;
+    }
+  }
+
+  // Check for English brand names directly
+  const englishBrands = ['lg', 'samsung', 'sony', 'philips', 'bosch', 'haier', 'siemens', 'hitachi', 'toshiba', 'panasonic', 'sharp', 'whirlpool', 'electrolux', 'beko'];
+  for (const brand of englishBrands) {
+    if (queryLower.includes(brand)) {
+      localFilters.brand = brand;
+      break;
+    }
+  }
+
+  // If local extraction found something, return it
+  if (localFilters.product_type || localFilters.brand) {
+    console.log("🎯 Local Extracted Filters:", localFilters);
+    return localFilters;
+  }
+
+  // Fall back to LLM extraction
+  try {
+    const prompt = `You are a strict product filter extractor for an electronics e-commerce store.
+
+User query: "${query}"
+
+Extract ONLY what is EXPLICITLY mentioned:
+- product_type: The exact product type in English (e.g., "refrigerator", "washing-machine", "tv", "laptop", "air-conditioner", "microwave", "oven", "dishwasher", "vacuum", "blender", "coffee-maker", "freezer", "dryer", "cooker", "hood", "water-heater")
+- brand: The exact brand name in lowercase (e.g., "lg", "samsung", "sony", "philips", "bosch", "haier", "siemens", "hitachi", "toshiba", "panasonic", "sharp", "whirlpool", "electrolux", "beko")
+
+STRICT RULES:
+1. Only extract what the user EXPLICITLY stated
+2. Do NOT infer, guess, or assume anything
+3. Do NOT broaden categories (refrigerator stays refrigerator, NOT kitchen appliance)
+4. If user says "ثلاجة" = refrigerator, "غسالة" = washing-machine, "تلفزيون/تلفاز" = tv, "مكيف" = air-conditioner
+5. Return null if not explicitly mentioned
+
+Return ONLY JSON: {"product_type": "type_or_null", "brand": "brand_or_null"}
+
+Examples:
+- "عاوز ثلاجات LG" → {"product_type": "refrigerator", "brand": "lg"}
+- "غسالة سامسونج" → {"product_type": "washing-machine", "brand": "samsung"}
+- "أبي تلفزيون" → {"product_type": "tv", "brand": null}
+- "ما أفضل ماركة؟" → {"product_type": null, "brand": null}`;
+
+    const res = await hf.chatCompletion({
+      model: "meta-llama/Meta-Llama-3-8B-Instruct",
+      messages: [{ role: "user", content: prompt }],
+      max_tokens: 50,
+    });
+
+    const content = res.choices?.[0]?.message?.content || "";
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      // Normalize null strings to actual null
+      parsed.product_type = parsed.product_type === "null" ? null : parsed.product_type;
+      parsed.brand = parsed.brand === "null" ? null : parsed.brand;
+      console.log("🎯 LLM Extracted Filters:", parsed);
+      return parsed;
+    }
+    return { product_type: null, brand: null };
+  } catch (e) {
+    console.error("⚠️ Filter extraction failed:", e.message);
+    return { product_type: null, brand: null };
+  }
 }
 
 async function classifyIntent(query) {
@@ -462,12 +666,12 @@ function populateProductCard(p) {
     ar: { title: p.ar?.title || null },
     price: p.price ?? null,
     currency: p.currency || "SAR",
-    brand: p.brand?.en?.name || p.brand || null,
-    category: p.category?.en?.slug || p.category || null,
+    brand: p.brand?.en?.name || p.brand?.en?.title || p.brand?.ar?.title || p.brand || null,
+    category: p.category?.en?.slug || p.category?.en?.title || p.category?.ar?.title || p.category || null,
     stock: p.stock ?? null,
     images: Array.isArray(p.images) ? p.images : [],
-    features: p.en?.features || p.ar?.features || [],
-    warranty: p.en?.warranty || p.ar?.warranty || null,
+    features: p.en?.features || p.ar?.features || p.features || [],
+    warranty: p.en?.warranty || p.ar?.warranty || p.warranty || null,
     link: p.slug ? `/product/${p.slug}` : null,
     ui: { type: "product_card", addToCart: true, viewDetails: true },
   };
@@ -481,7 +685,8 @@ async function generateAIResponse(salesModel, context) {
     intent,
     supportType = null,
     followUpInfo = {},
-    isFirstMessage = false
+    isFirstMessage = false,
+    filters = {}
   } = context;
 
   // Build conversation history
@@ -496,18 +701,34 @@ async function generateAIResponse(salesModel, context) {
     .map((p, i) => {
       const title = p.ar?.title || p.en?.title || "منتج";
       const price = p.price || 0;
-      const brand = p.brand?.en?.name || p.brand || "";
+      const brand = p.brand?.en?.name || p.brand?.en?.title || p.brand?.ar?.title || p.brand || "غير محدد";
+      const category = p.category?.en?.title || p.category?.ar?.title || p.category?.en?.slug || "غير محدد";
       const stock = p.stock || 0;
       return `${i + 1}. ${title}
    - السعر: ${price} ريال
    - الماركة: ${brand}
+   - النوع: ${category}
    - المتوفر: ${stock} قطعة`;
     })
     .join("\n\n");
 
   // Build intent-specific instructions
   let intentInstructions = "";
-  
+
+  // Build strict filter context
+  let strictFilterContext = "";
+  if (filters.product_type || filters.brand) {
+    strictFilterContext = `
+⚠️ قواعد صارمة (لا يمكن كسرها):
+- اقترح فقط المنتجات الموجودة في القائمة أدناه
+- لا تقترح منتجات من أنواع أخرى
+- لا توسّع البحث أو تقترح بدائل من فئات مختلفة
+${filters.product_type ? `- نوع المنتج المطلوب: ${filters.product_type} فقط` : ""}
+${filters.brand ? `- الماركة المطلوبة: ${filters.brand} فقط` : ""}
+- إذا المنتج غير متوفر، قل ذلك مباشرة ولا تقترح ماركات أو أنواع أخرى
+`;
+  }
+
   switch(intent) {
     case "product_search":
     case "recommendation":
@@ -515,15 +736,16 @@ async function generateAIResponse(salesModel, context) {
         intentInstructions = `
 المنتج المطلوب غير متوفر حالياً.
 - اعتذر بلطف
-- اسأل عن تفاصيل أكثر (الميزانية، الماركة المفضلة، المواصفات)
-- اقترح البحث عن منتجات مشابهة`;
+- لا تقترح منتجات من ماركات أو أنواع أخرى
+- اسأل العميل إذا يحب يغير نوع المنتج أو الماركة`;
       } else {
         intentInstructions = `
+${strictFilterContext}
 عرض المنتجات المتوفرة:
-- اذكر أهم 2-3 منتجات بمميزاتها
+- اذكر أهم 2-3 منتجات بمميزاتها من القائمة فقط
 - قارن بينها بشكل مختصر
 - اسأل عن التفضيلات (اللون، الحجم، الميزانية)
-- اذكر عروض خاصة إن وجدت`;
+- لا تقترح منتجات غير موجودة في القائمة`;
       }
       break;
 
@@ -550,6 +772,8 @@ ${supportInstructions[supportType] || supportInstructions.general_support}
         intentInstructions = "أجب على السؤال بناءً على المنتجات المعروضة";
       } else if (followUpInfo.wantsAlternative) {
         intentInstructions = "اعرض بدائل جديدة من المنتجات المتاحة";
+      } else {
+        intentInstructions = "تابع المحادثة بناءً على السياق السابق";
       }
       break;
 
@@ -582,6 +806,8 @@ ${intentInstructions}
 - لا تكرر نفس الصياغة من الردود السابقة
 - اجعل ردك قصير ومفيد (2-3 جمل)
 - لا تخترع معلومات غير موجودة
+- اقترح فقط المنتجات الموجودة في القائمة
+- لا تقترح منتجات من ماركات أو أنواع مختلفة عن المطلوب
 - اذكر المميزات الحقيقية فقط:
   * توصيل مجاني للطلبات فوق 200 ريال
   * إمكانية التقسيط بتابي وتمارا
