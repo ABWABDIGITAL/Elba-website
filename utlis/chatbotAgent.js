@@ -556,6 +556,7 @@ const PRODUCT_TYPE_MAP = {
   'مكنسة': 'vacuum', 'مكانس': 'vacuum', 'مكنسات': 'vacuum',
   'خلاط': 'blender', 'خلاطات': 'blender',
   'قهوة': 'coffee-maker', 'صانعة قهوة': 'coffee-maker', 'ماكينة قهوة': 'coffee-maker', 'مكينة قهوة': 'coffee-maker',
+  'غلاية': 'kettle', 'غلايات': 'kettle', 'غلاية كهربائية': 'kettle', 'كاتل': 'kettle',
   'فريزر': 'freezer', 'مجمد': 'freezer', 'فريزرات': 'freezer', 'مجمدات': 'freezer',
   'نشافة': 'dryer', 'مجفف': 'dryer', 'نشافات': 'dryer', 'مجففات': 'dryer',
   'طباخ': 'cooker', 'بوتاجاز': 'cooker', 'طباخات': 'cooker', 'فرن غاز': 'cooker',
@@ -563,6 +564,14 @@ const PRODUCT_TYPE_MAP = {
   'سخان': 'water-heater', 'سخانات': 'water-heater',
   'لابتوب': 'laptop', 'لاب توب': 'laptop', 'كمبيوتر': 'laptop', 'لابتوبات': 'laptop', 'كمبيوترات': 'laptop',
   'جوال': 'mobile', 'موبايل': 'mobile', 'هاتف': 'mobile', 'جوالات': 'mobile', 'موبايلات': 'mobile', 'هواتف': 'mobile',
+  // Small appliances
+  'توستر': 'toaster', 'محمصة': 'toaster', 'محمصة خبز': 'toaster',
+  'مكواة': 'iron', 'مكوى': 'iron', 'مكاوي': 'iron',
+  'عصارة': 'juicer', 'عصارات': 'juicer',
+  'قلاية': 'air-fryer', 'قلاية هوائية': 'air-fryer', 'اير فراير': 'air-fryer', 'airfryer': 'air-fryer',
+  'شواية': 'grill', 'شوايات': 'grill', 'جريل': 'grill',
+  'خباز': 'sandwich-maker', 'صانعة ساندويتش': 'sandwich-maker',
+  'مطحنة': 'grinder', 'طحانة': 'grinder', 'مطحنة قهوة': 'grinder',
   // Special categories
   'عروض': 'deals', 'عروض اليوم': 'deals', 'تخفيضات': 'deals', 'خصم': 'deals', 'خصومات': 'deals'
 };
@@ -601,13 +610,22 @@ const PRODUCT_TYPE_AR_MAP = {
   'vacuum': ['مكنسة', 'مكانس', 'مكنسات', 'vacuum', 'vacuums', 'vacuum-cleaner', 'vacuum-cleaners'],
   'blender': ['خلاط', 'خلاطات', 'blender', 'blenders'],
   'coffee-maker': ['قهوة', 'صانعة قهوة', 'ماكينة قهوة', 'مكينة قهوة', 'coffee', 'coffee-maker', 'coffee-makers'],
+  'kettle': ['غلاية', 'غلايات', 'غلاية كهربائية', 'كاتل', 'kettle', 'kettles', 'electric kettle'],
   'freezer': ['فريزر', 'مجمد', 'فريزرات', 'مجمدات', 'freezer', 'freezers'],
   'dryer': ['نشافة', 'مجفف', 'نشافات', 'مجففات', 'dryer', 'dryers'],
   'cooker': ['طباخ', 'بوتاجاز', 'طباخات', 'فرن غاز', 'cooker', 'cookers', 'stove', 'stoves'],
   'hood': ['شفاط', 'شفاطات', 'hood', 'hoods', 'range-hood'],
   'water-heater': ['سخان', 'سخانات', 'heater', 'heaters', 'water-heater', 'water-heaters'],
   'laptop': ['لابتوب', 'لاب توب', 'كمبيوتر', 'لابتوبات', 'كمبيوترات', 'laptop', 'laptops', 'notebook', 'notebooks'],
-  'mobile': ['جوال', 'موبايل', 'هاتف', 'جوالات', 'موبايلات', 'هواتف', 'phone', 'phones', 'mobile', 'mobiles', 'smartphone', 'smartphones']
+  'mobile': ['جوال', 'موبايل', 'هاتف', 'جوالات', 'موبايلات', 'هواتف', 'phone', 'phones', 'mobile', 'mobiles', 'smartphone', 'smartphones'],
+  // Small appliances
+  'toaster': ['توستر', 'محمصة', 'محمصة خبز', 'toaster', 'toasters'],
+  'iron': ['مكواة', 'مكوى', 'مكاوي', 'iron', 'irons'],
+  'juicer': ['عصارة', 'عصارات', 'juicer', 'juicers'],
+  'air-fryer': ['قلاية', 'قلاية هوائية', 'اير فراير', 'airfryer', 'air-fryer', 'air fryer', 'air-fryers'],
+  'grill': ['شواية', 'شوايات', 'جريل', 'grill', 'grills'],
+  'sandwich-maker': ['خباز', 'صانعة ساندويتش', 'sandwich-maker', 'sandwich maker', 'sandwich-makers'],
+  'grinder': ['مطحنة', 'طحانة', 'مطحنة قهوة', 'grinder', 'grinders', 'coffee grinder']
 };
 
 /**
