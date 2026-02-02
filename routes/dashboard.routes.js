@@ -8,10 +8,19 @@ import {
   getMarketingDashboardController,
   getOperationsDashboardController,
   getRealtimeMetricsController,
-  getDashboardAlertsController
+  getDashboardAlertsController,
+  getOverviewDashboardController,
 } from "../controllers/dashboard.controller.js";
 
 const router = express.Router();
+
+// Overview Dashboard (heatmap, metrics, top performers, anomalies)
+router.get(
+  "/overview",
+  protect,
+  requirePermission("dashboard", "read"),
+  getOverviewDashboardController
+);
 
 // CEO Dashboard
 router.get(

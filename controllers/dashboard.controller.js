@@ -7,6 +7,7 @@ import {
   getOperationsDashboard,
   getRealtimeMetrics,
   getDashboardAlerts,
+  getOverviewDashboard,
 } from "../services/dashboard.services.js";
 import { BadRequest } from "../utlis/apiError.js";
 
@@ -101,6 +102,25 @@ export const getDashboardAlertsController = async (req, res) => {
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       success: false,
       message: "Failed to fetch dashboard alerts",
+      error: error.message,
+    });
+  }
+};
+
+/**
+ * Get Overview Dashboard (heatmap, metrics, top performers, anomalies)
+ */
+export const getOverviewDashboardController = async (req, res) => {
+  try {
+    const data = await getOverviewDashboard(req.query);
+    res.status(StatusCodes.OK).json({
+      success: true,
+      data,
+    });
+  } catch (error) {
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: "Failed to fetch overview dashboard data",
       error: error.message,
     });
   }

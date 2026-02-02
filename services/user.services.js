@@ -1,20 +1,32 @@
 import User from "../models/user.model.js";
+import Order from "../models/order.model.js";
 import { BadRequest, Forbidden, NotFound } from "../utlis/apiError.js";
 import ApiFeatures from "../utlis/apiFeatures.js";
 
-const buildAdminUserDTO = (user) => ({
+const prefixUrl = (filePath) => {
+  if (!filePath) return filePath;
+  if (filePath.startsWith("http")) return filePath;
+  const base = process.env.BASE_URL || "";
+  return `${base}${filePath.startsWith("/") ? "" : "/"}${filePath}`;
+};
+
+const buildAdminUserDTO = (user, orders = null) => ({
   id: user._id,
+  firstName: user.firstName,
+  lastName: user.lastName,
   name: user.name,
   email: user.email,
   phone: user.phone,
   address: user.address,
   role: user.role,
-  status: user.status,   // <-- status instead of isActive
+  status: user.status,
+  profileImage: user.profileImage ? prefixUrl(user.profileImage) : null,
   createdAt: user.createdAt,
+  ...(orders !== null && { orders }),
 });
 
 /* ============================================================
-   GET ALL USERS
+   GET ALL USERS (with orders)
 ============================================================ */
 export const adminGetAllUsersService = async (query) => {
   const features = new ApiFeatures(User.find({}), query)
@@ -26,16 +38,74 @@ export const adminGetAllUsersService = async (query) => {
   const users = await features.mongooseQuery.populate("role", "name");
   const total = await User.countDocuments(features.getFilter());
 
+  // Fetch orders for all paginated users in one query
+  const userIds = users.map((u) => u._id);
+  const allOrders = await Order.find({ user: { $in: userIds } })
+    .populate("orderItems.product", "en.title ar.title images sku")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  // Prefix product images
+  for (const order of allOrders) {
+    if (!order.orderItems) continue;
+    for (const item of order.orderItems) {
+      if (item.product?.images) {
+        item.product.images = item.product.images.map((img) => ({
+          ...img,
+          url: prefixUrl(img.url),
+        }));
+      }
+    }
+  }
+
+  // Group orders by user ID
+  const ordersByUser = {};
+  for (const order of allOrders) {
+    const uid = order.user.toString();
+    if (!ordersByUser[uid]) ordersByUser[uid] = [];
+    ordersByUser[uid].push({
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      orderStatus: order.orderStatus,
+      paymentMethod: order.paymentMethod,
+      paymentStatus: order.paymentStatus,
+      itemsPrice: order.itemsPrice,
+      shippingPrice: order.shippingPrice,
+      taxPrice: order.taxPrice,
+      discountAmount: order.discountAmount,
+      totalPrice: order.totalPrice,
+      orderItems: order.orderItems.map((item) => ({
+        product: item.product,
+        quantity: item.quantity,
+        price: item.price,
+        color: item.color,
+        productName: item.productName,
+      })),
+      shippingAddress: order.shippingAddress,
+      createdAt: order.createdAt,
+    });
+  }
+
+  const data = users.map((user) => {
+    const uid = user._id.toString();
+    const userOrders = ordersByUser[uid] || [];
+    return buildAdminUserDTO(user, {
+      totalOrders: userOrders.length,
+      totalSpent: userOrders.reduce((sum, o) => sum + (o.totalPrice || 0), 0),
+      orders: userOrders,
+    });
+  });
+
   return {
     OK: true,
     message: "Users fetched successfully",
-    data: users.map(buildAdminUserDTO),
+    data,
     pagination: features.buildPaginationResult(total),
   };
 };
 
 /* ============================================================
-   GET USER BY ID
+   GET USER BY ID (with orders)
 ============================================================ */
 export const adminGetUserByIdService = async (id) => {
   if (!id) throw BadRequest("User ID is required");
@@ -43,10 +113,54 @@ export const adminGetUserByIdService = async (id) => {
   const user = await User.findById(id).populate("role", "name permissions");
   if (!user) throw NotFound("User not found");
 
+  const userOrders = await Order.find({ user: id })
+    .populate("orderItems.product", "en.title ar.title images sku")
+    .sort({ createdAt: -1 })
+    .lean();
+
+  // Prefix product images
+  for (const order of userOrders) {
+    if (!order.orderItems) continue;
+    for (const item of order.orderItems) {
+      if (item.product?.images) {
+        item.product.images = item.product.images.map((img) => ({
+          ...img,
+          url: prefixUrl(img.url),
+        }));
+      }
+    }
+  }
+
+  const orders = userOrders.map((order) => ({
+    orderId: order._id,
+    orderNumber: order.orderNumber,
+    orderStatus: order.orderStatus,
+    paymentMethod: order.paymentMethod,
+    paymentStatus: order.paymentStatus,
+    itemsPrice: order.itemsPrice,
+    shippingPrice: order.shippingPrice,
+    taxPrice: order.taxPrice,
+    discountAmount: order.discountAmount,
+    totalPrice: order.totalPrice,
+    orderItems: order.orderItems.map((item) => ({
+      product: item.product,
+      quantity: item.quantity,
+      price: item.price,
+      color: item.color,
+      productName: item.productName,
+    })),
+    shippingAddress: order.shippingAddress,
+    createdAt: order.createdAt,
+  }));
+
   return {
     OK: true,
     message: "User fetched successfully",
-    data: buildAdminUserDTO(user),
+    data: buildAdminUserDTO(user, {
+      totalOrders: orders.length,
+      totalSpent: orders.reduce((sum, o) => sum + (o.totalPrice || 0), 0),
+      orders,
+    }),
   };
 };
 
@@ -301,8 +415,6 @@ export const getUserStatisticsService = async (userId) => {
 
   const user = await User.findById(userId);
   if (!user) throw NotFound("User not found");
-
-  const Order = (await import("../models/order.model.js")).default;
 
   const [totalOrders, completedOrders, totalSpent] = await Promise.all([
     Order.countDocuments({ user: userId }),

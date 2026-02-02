@@ -1898,6 +1898,387 @@ const getOrderTrend = async (period, granularity) => {
 };
 
 /**
+ * Admin Dashboard Overview
+ * Provides heatmap, key metrics, top performance, geographic, trends, and anomalies
+ */
+export const getOverviewDashboard = async (query = {}) => {
+  const { startDate, endDate, period = "30d" } = query;
+
+  // Determine date range
+  let rangeStart, rangeEnd;
+  if (startDate && endDate) {
+    rangeStart = new Date(startDate);
+    rangeEnd = new Date(endDate);
+  } else {
+    const range = getDateRange(period);
+    rangeStart = range.start;
+    rangeEnd = range.end;
+  }
+
+  // Heatmap: always last 365 days
+  const heatmapStart = new Date();
+  heatmapStart.setDate(heatmapStart.getDate() - 365);
+
+  const cacheKey = `${DASHBOARD_CACHE_PREFIX}overview:${rangeStart.toISOString()}:${rangeEnd.toISOString()}`;
+  try {
+    const cached = await redis.get(cacheKey);
+    if (cached) return { fromCache: true, data: JSON.parse(cached) };
+  } catch (e) { /* ignore cache errors */ }
+
+  const matchStage = {
+    isActive: true,
+    createdAt: { $gte: rangeStart, $lte: rangeEnd },
+  };
+
+  const [aggregation, totalCustomers, heatmapData] = await Promise.all([
+    // Main aggregation with $facet
+    Order.aggregate([
+      { $match: matchStage },
+      {
+        $facet: {
+          /* ── Key Metrics ── */
+          keyMetrics: [
+            {
+              $group: {
+                _id: null,
+                totalOrders: { $sum: 1 },
+                totalRevenue: { $sum: "$totalPrice" },
+                avgOrderValue: { $avg: "$totalPrice" },
+                totalItems: { $sum: { $size: "$orderItems" } },
+                uniqueCustomers: { $addToSet: "$user" },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                totalOrders: 1,
+                totalRevenue: { $round: ["$totalRevenue", 2] },
+                avgOrderValue: { $round: ["$avgOrderValue", 2] },
+                totalItems: 1,
+                totalCustomers: { $size: "$uniqueCustomers" },
+              },
+            },
+          ],
+
+          /* ── Orders by Status ── */
+          byOrderStatus: [
+            {
+              $group: {
+                _id: "$orderStatus",
+                count: { $sum: 1 },
+                revenue: { $sum: "$totalPrice" },
+              },
+            },
+            { $sort: { count: -1 } },
+          ],
+
+          /* ── Orders by Payment Status ── */
+          byPaymentStatus: [
+            {
+              $group: {
+                _id: "$paymentStatus",
+                count: { $sum: 1 },
+                revenue: { $sum: "$totalPrice" },
+              },
+            },
+            { $sort: { count: -1 } },
+          ],
+
+          /* ── Orders by Payment Method ── */
+          byPaymentMethod: [
+            {
+              $group: {
+                _id: "$paymentMethod",
+                count: { $sum: 1 },
+                revenue: { $sum: "$totalPrice" },
+              },
+            },
+            { $sort: { revenue: -1 } },
+          ],
+
+          /* ── Daily Orders (for charts + trends) ── */
+          dailyOrders: [
+            {
+              $group: {
+                _id: {
+                  $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+                },
+                orders: { $sum: 1 },
+                revenue: { $sum: "$totalPrice" },
+              },
+            },
+            { $sort: { _id: 1 } },
+          ],
+
+          /* ── Top Customers ── */
+          topCustomers: [
+            {
+              $group: {
+                _id: "$user",
+                totalOrders: { $sum: 1 },
+                totalSpent: { $sum: "$totalPrice" },
+                avgOrderValue: { $avg: "$totalPrice" },
+                lastOrderDate: { $max: "$createdAt" },
+              },
+            },
+            { $sort: { totalSpent: -1 } },
+            { $limit: 10 },
+            {
+              $lookup: {
+                from: "users",
+                localField: "_id",
+                foreignField: "_id",
+                as: "customer",
+              },
+            },
+            { $unwind: "$customer" },
+            {
+              $project: {
+                _id: 1,
+                name: {
+                  $concat: [
+                    { $ifNull: ["$customer.firstName", ""] },
+                    " ",
+                    { $ifNull: ["$customer.lastName", ""] },
+                  ],
+                },
+                email: "$customer.email",
+                phone: "$customer.phone",
+                city: "$customer.address",
+                totalOrders: 1,
+                totalSpent: { $round: ["$totalSpent", 2] },
+                avgOrderValue: { $round: ["$avgOrderValue", 2] },
+                lastOrderDate: 1,
+              },
+            },
+          ],
+
+          /* ── Top Products (by quantity & revenue) ── */
+          topProducts: [
+            { $unwind: "$orderItems" },
+            {
+              $group: {
+                _id: "$orderItems.product",
+                totalQuantity: { $sum: "$orderItems.quantity" },
+                totalRevenue: {
+                  $sum: {
+                    $multiply: ["$orderItems.price", "$orderItems.quantity"],
+                  },
+                },
+                ordersCount: { $sum: 1 },
+                productName: { $first: "$orderItems.productName" },
+              },
+            },
+            { $sort: { totalRevenue: -1 } },
+            { $limit: 10 },
+            {
+              $lookup: {
+                from: "products",
+                localField: "_id",
+                foreignField: "_id",
+                as: "product",
+              },
+            },
+            {
+              $unwind: {
+                path: "$product",
+                preserveNullAndEmptyArrays: true,
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+                title: {
+                  en: {
+                    $ifNull: ["$product.en.title", "$productName.en"],
+                  },
+                  ar: {
+                    $ifNull: ["$product.ar.title", "$productName.ar"],
+                  },
+                },
+                image: { $arrayElemAt: ["$product.images.url", 0] },
+                sku: "$product.sku",
+                totalQuantity: 1,
+                totalRevenue: { $round: ["$totalRevenue", 2] },
+                ordersCount: 1,
+              },
+            },
+          ],
+
+          /* ── Top Cities ── */
+          topCities: [
+            {
+              $group: {
+                _id: "$shippingAddress.city",
+                totalOrders: { $sum: 1 },
+                totalRevenue: { $sum: "$totalPrice" },
+                avgOrderValue: { $avg: "$totalPrice" },
+              },
+            },
+            { $sort: { totalRevenue: -1 } },
+            { $limit: 15 },
+            {
+              $project: {
+                _id: 0,
+                city: "$_id",
+                totalOrders: 1,
+                totalRevenue: { $round: ["$totalRevenue", 2] },
+                avgOrderValue: { $round: ["$avgOrderValue", 2] },
+              },
+            },
+          ],
+        },
+      },
+    ]),
+
+    // Total registered customers
+    User.countDocuments({ status: "active" }),
+
+    // Heatmap data (last 365 days)
+    Order.aggregate([
+      {
+        $match: {
+          isActive: true,
+          createdAt: { $gte: heatmapStart },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+          },
+          count: { $sum: 1 },
+          revenue: { $sum: "$totalPrice" },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]),
+  ]);
+
+  const result = aggregation[0];
+  const metrics = result.keyMetrics[0] || {
+    totalOrders: 0,
+    totalRevenue: 0,
+    avgOrderValue: 0,
+    totalItems: 0,
+    totalCustomers: 0,
+  };
+
+  // ── Calculate Trends & Averages ──
+  const dailyOrders = result.dailyOrders || [];
+  const totalDays = dailyOrders.length || 1;
+  const avgOrdersPerDay = Number(
+    (metrics.totalOrders / totalDays).toFixed(2)
+  );
+  const avgRevenuePerDay = Number(
+    (metrics.totalRevenue / totalDays).toFixed(2)
+  );
+
+  // ── Anomaly Detection ──
+  const orderCounts = dailyOrders.map((d) => d.orders);
+  const mean =
+    orderCounts.reduce((a, b) => a + b, 0) / (orderCounts.length || 1);
+  const stdDev = Math.sqrt(
+    orderCounts.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) /
+      (orderCounts.length || 1)
+  );
+  const threshold = 2; // 2 standard deviations
+
+  const anomalies = dailyOrders
+    .filter(
+      (d) =>
+        d.orders > mean + threshold * stdDev ||
+        d.orders < mean - threshold * stdDev
+    )
+    .map((d) => ({
+      date: d._id,
+      orders: d.orders,
+      revenue: d.revenue,
+      type: d.orders > mean ? "spike" : "drop",
+      deviation: Number(((d.orders - mean) / (stdDev || 1)).toFixed(2)),
+    }));
+
+  // ── Build top product of the week/month ──
+  const topProductByRevenue = result.topProducts[0] || null;
+
+  const dashboardData = {
+    /* ── Heatmap (365 days) ── */
+    heatmap: heatmapData.map((d) => ({
+      date: d._id,
+      count: d.count,
+      revenue: Number(d.revenue.toFixed(2)),
+    })),
+
+    /* ── Key Metrics ── */
+    keyMetrics: {
+      totalOrders: metrics.totalOrders,
+      totalRevenue: metrics.totalRevenue,
+      avgOrderValue: metrics.avgOrderValue,
+      totalCustomers: metrics.totalCustomers,
+      totalRegisteredCustomers: totalCustomers,
+      totalItems: metrics.totalItems,
+    },
+
+    /* ── Orders Analytics ── */
+    ordersAnalytics: {
+      byOrderStatus: result.byOrderStatus,
+      byPaymentStatus: result.byPaymentStatus,
+      byPaymentMethod: result.byPaymentMethod,
+      dailyOrders,
+    },
+
+    /* ── Top Performance ── */
+    topPerformance: {
+      topCustomers: result.topCustomers,
+      topProducts: result.topProducts,
+      bestProduct: topProductByRevenue,
+    },
+
+    /* ── Geographic Insights ── */
+    geographic: {
+      topCities: result.topCities,
+    },
+
+    /* ── Trends & Averages ── */
+    trends: {
+      avgOrdersPerDay,
+      avgRevenuePerDay,
+      avgOrderValue: metrics.avgOrderValue,
+      totalDaysInRange: totalDays,
+    },
+
+    /* ── Anomalies ── */
+    anomalies: {
+      items: anomalies,
+      stats: {
+        meanOrdersPerDay: Number(mean.toFixed(2)),
+        stdDeviation: Number(stdDev.toFixed(2)),
+        threshold,
+      },
+    },
+
+    /* ── Metadata ── */
+    metadata: {
+      dateRange: {
+        from: rangeStart.toISOString(),
+        to: rangeEnd.toISOString(),
+      },
+      generatedAt: new Date().toISOString(),
+      cacheTTL: CACHE_TTL,
+    },
+  };
+
+  // Cache the result
+  try {
+    await redis.set(cacheKey, JSON.stringify(dashboardData), {
+      ex: CACHE_TTL,
+    });
+  } catch (e) { /* ignore cache errors */ }
+
+  return { fromCache: false, data: dashboardData };
+};
+
+/**
  * Helper: Get Date Range
  */
 const getDateRange = (period) => {
