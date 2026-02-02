@@ -96,7 +96,7 @@ export const getCouponService = async (slug) => {
  */
 export const getCouponsService = async (query) => {
   try {
-    const features = new ApiFeatures(Coupon.find({isActive:true}), query, {
+    const features = new ApiFeatures(Coupon.find(), query, {
       allowedFilterFields: ["isActive", "discount"],
       searchFields: ["name", "code"],
     });
@@ -134,6 +134,7 @@ export const updateCouponService = async ({
   discount,
   expiredAt,
   code,
+  isActive,
 }) => {
   const coupon = await Coupon.findOne({ slug });
   if (!coupon) throw NotFound("Coupon not found");
@@ -142,6 +143,7 @@ export const updateCouponService = async ({
   if (discount !== undefined) coupon.discount = discount;
   if (expiredAt !== undefined) coupon.expiredAt = expiredAt;
   if (code !== undefined) coupon.code = code;
+  if (isActive !== undefined) coupon.isActive = isActive;
 
   try {
     await coupon.save();
@@ -161,24 +163,13 @@ export const updateCouponService = async ({
 };
 
 /**
- * Delete coupon (soft or hard) by slug
+ * Delete coupon (hard delete) by slug
  */
-export const deleteCouponService = async ({ slug, softDelete = true }) => {
-  const coupon = await Coupon.findOne({ slug });
+export const deleteCouponService = async (slug) => {
+  const coupon = await Coupon.findOneAndDelete({ slug });
   if (!coupon) throw NotFound("Coupon not found");
 
-  try {
-    if (softDelete) {
-      coupon.isActive = !coupon.isActive;
-      await coupon.save();
-      return { deleted: true, softDeleted: true };
-    }
-
-    await Coupon.findOneAndDelete({ slug });
-    return { deleted: true, softDeleted: false };
-  } catch (err) {
-    throw ServerError("Failed to delete coupon", err);
-  }
+  return { deleted: true };
 };
 export const applyCouponService = async ({ code, subtotal, userId }) => {
   if (subtotal === undefined || subtotal === null) {

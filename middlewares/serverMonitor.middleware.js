@@ -95,7 +95,7 @@ const attackPatterns = {
   pathTraversal: /(\.\.\/|\.\.\\|%2e%2e%2f|%2e%2e\/|\.\.%2f|%2e%2e%5c)/i,
   commandInjection: /[;&|`$]|\$\(|\)\s*{|}\s*;/,
   sensitiveFiles: /\.(env|htaccess|htpasswd|git|svn|config|ini|log|bak|sql|db)$/i,
-  suspiciousPaths: /(\/admin|\/wp-admin|\/phpmyadmin|\/cpanel|\/\.git|\/\.env|\/config|\/backup|\/shell|\/cmd|\/exec)/i,
+  suspiciousPaths: /(\/wp-admin|\/phpmyadmin|\/cpanel|\/\.git|\/\.env|\/config|\/backup|\/shell|\/cmd|\/exec)/i,
 };
 
 // Suspicious user agents (security scanners, automated tools)

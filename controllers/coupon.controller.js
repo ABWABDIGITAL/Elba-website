@@ -62,6 +62,7 @@ export const updateCouponController = async (req, res, next) => {
       discount: req.body.discount,
       expiredAt: req.body.expiredAt,
       code: req.body.code,
+      isActive: req.body.isActive,
     });
 
     res.json({
@@ -75,18 +76,11 @@ export const updateCouponController = async (req, res, next) => {
 
 export const deleteCouponController = async (req, res, next) => {
   try {
-    const soft =
-      req.query.soft !== undefined
-        ? req.query.soft === "true" || req.query.soft === true
-        : true;
-
-    const result = await deleteCouponService({
-      slug: req.params.slug,
-      softDelete: soft,
-    });
+    const result = await deleteCouponService(req.params.slug);
 
     res.json({
       success: true,
+      message: "Coupon deleted successfully",
       ...result,
     });
   } catch (err) {
