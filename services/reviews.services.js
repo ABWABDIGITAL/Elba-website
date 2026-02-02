@@ -8,6 +8,13 @@ import ApiError, {
 import ApiFeatures from "../utlis/apiFeatures.js";
 import Product from "../models/product.model.js";
 
+const prefixUrl = (filePath) => {
+  if (!filePath) return filePath;
+  if (filePath.startsWith("http")) return filePath;
+  const base = process.env.BASE_URL || "";
+  return `${base}${filePath.startsWith("/") ? "" : "/"}${filePath}`;
+};
+
 /**
  * Create review – one per user per product
  */
@@ -42,10 +49,10 @@ export const createReviewService = async ({ product, user, rating, title, commen
 /**
  * Get single review
  */
-export const getReviewService = async (id) => {
+export const getReviewService = async (slug) => {
   try {
     // 1. Find the product by slug
-    const product = await Product.findOne({ _id: id }).select("_id name slug");
+    const product = await Product.findOne({ slug }).select("_id name slug");
     if (!product) throw NotFound("Product not found");
 
     // 2. Find all reviews for that product
@@ -85,6 +92,22 @@ export const updateReviewService = async ({ id, userId, userRole, rating, title,
   } catch (err) {
     throw ServerError("Failed to update review", err);
   }
+};
+export const getReviewByIdService = async (id) => {
+  const review = await Review.findById(id)
+    .populate("user", "name email")
+    .populate("product", "ar.title en.title slug images")
+    .lean();
+  if (!review) throw NotFound("Review not found");
+
+  if (review.product?.images) {
+    review.product.images = review.product.images.map(img => ({
+      ...img,
+      url: prefixUrl(img.url),
+    }));
+  }
+
+  return review;
 };
 
 export const deleteReviewService = async ({ id, userId, userRole }) => {
@@ -147,6 +170,8 @@ export const getReviewsService = async (query) => {
     features.filter();
     let filter = features.getFilter();
 
+ 
+
     // custom rating range
     if (query.rating_gte) {
       filter.rating = filter.rating || {};
@@ -165,10 +190,20 @@ export const getReviewsService = async (query) => {
    const data = await features.mongooseQuery
   .populate({
     path: "product",
-    select: "ar.title en.title slug",
-    options: { lean: true }   // أهم حاجة!
+    select: "ar.title en.title slug images",
+    options: { lean: true }
   })
-  .lean(); // mandatory
+  .lean();
+
+    // Prefix product image URLs
+    for (const review of data) {
+      if (review.product?.images) {
+        review.product.images = review.product.images.map(img => ({
+          ...img,
+          url: prefixUrl(img.url),
+        }));
+      }
+    }
 
     const total = await Review.countDocuments(filter);
 

@@ -16,6 +16,7 @@ import {
   bulkUpdateOrderStatusController,
   bulkExportOrdersController,
   getOrderAnalyticsController,
+  getOrderInvoiceController,
 } from "../controllers/order.controller.js";
 
 const router = express.Router();
@@ -91,6 +92,13 @@ router.get(
   "/admin/analytics",
   requirePermission("analytics", "read"),
   getOrderAnalyticsController
+);
+
+// Get order invoice (admin only)
+router.get(
+  "/admin/:orderId/invoice",
+  requirePermission("orders", "read"),
+  getOrderInvoiceController
 );
 
 export default router;

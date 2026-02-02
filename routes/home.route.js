@@ -16,7 +16,13 @@ const router = express.Router();
 
 const upload = imageUpload("home");
 
-router.post("/", protect, requirePermission("home", "create"),createHome);
+router.post("/", protect, requirePermission("home", "create"), upload.fields([
+    { name: "hero", maxCount: 20 },
+    { name: "gif", maxCount: 20 },
+    { name: "promovideo", maxCount: 20 },
+    { name: "popupVideo", maxCount: 20 },
+    { name: "offerBanner", maxCount: 20 }
+  ]), createHome);
 router.get("/", getHome);
 router.put("/", protect, requirePermission("home", "update"),upload.fields([
     { name: "hero", maxCount: 20 },

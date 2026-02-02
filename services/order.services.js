@@ -13,6 +13,28 @@ import { trackOrderPlaced, trackOrderStatusChange } from '../services/analytics.
    HELPER FUNCTIONS
 --------------------------------------------------- */
 
+const prefixUrl = (filePath) => {
+  if (!filePath) return filePath;
+  if (filePath.startsWith("http")) return filePath;
+  const base = process.env.BASE_URL || "";
+  return `${base}${filePath.startsWith("/") ? "" : "/"}${filePath}`;
+};
+
+const prefixOrderProductImages = (orders) => {
+  for (const order of orders) {
+    if (!order.orderItems) continue;
+    for (const item of order.orderItems) {
+      if (item.product?.images) {
+        item.product.images = item.product.images.map(img => ({
+          ...img,
+          url: prefixUrl(img.url),
+        }));
+      }
+    }
+  }
+  return orders;
+};
+
 // Calculate tax (15% VAT for Saudi Arabia)
 const calculateTax = (price) => {
   const VAT_RATE = 0.15;
@@ -186,11 +208,14 @@ export const getOrderByIdService = async (userId, orderId, isAdmin = false) => {
     const order = await Order.findOne(filter)
       .populate("orderItems.product", "en.title ar.title images sku")
       .populate("user", "firstName lastName email phone")
-      .populate("appliedCoupon", "code discountType discountValue");
+      .populate("appliedCoupon", "code discountType discountValue")
+      .lean();
 
     if (!order) {
       throw NotFound("Order not found");
     }
+
+    prefixOrderProductImages([order]);
 
     return {
       OK: true,
@@ -240,13 +265,15 @@ export const getAllOrdersService = async (query) => {
     const [orders, total] = await Promise.all([
       Order.find(filter)
         .populate("user", "firstName lastName email phone")
-        .populate("orderItems.product", "en.title ar.title sku")
+        .populate("orderItems.product", "en.title ar.title sku images")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
       Order.countDocuments(filter),
     ]);
+
+    prefixOrderProductImages(orders);
 
     return {
       OK: true,
@@ -267,7 +294,7 @@ export const getAllOrdersService = async (query) => {
 /* --------------------------------------------------
    UPDATE ORDER STATUS (ADMIN)
 --------------------------------------------------- */
-export const updateOrderStatusService = async (orderId, status, note = null) => {
+export const updateOrderStatusService = async (orderId, status, note = null, req = null) => {
   try {
     const order = await Order.findById(orderId).populate("user");
     if (!order) {
@@ -438,8 +465,7 @@ export const updatePaymentStatusService = async (orderId, paymentData) => {
             appliedCoupon: undefined,
             isActive: false,
           },
-        },
-        { session }
+        }
       );
     }
 
@@ -815,5 +841,84 @@ export const getOrderAnalyticsService = async (startDate, endDate) => {
     };
   } catch (err) {
     throw ServerError("Failed to get order analytics", err);
+  }
+};
+
+/* --------------------------------------------------
+   GET ORDER INVOICE (ADMIN)
+--------------------------------------------------- */
+export const getOrderInvoiceService = async (orderId) => {
+  try {
+    const order = await Order.findOne({ _id: orderId, isActive: true })
+      .populate("orderItems.product", "en.title ar.title images sku")
+      .populate("user", "firstName lastName email phone")
+      .populate("appliedCoupon", "code discountType discountValue")
+      .lean();
+
+    if (!order) {
+      throw NotFound("Order not found");
+    }
+
+    prefixOrderProductImages([order]);
+
+    const invoice = {
+      invoiceNumber: `INV-${order.orderNumber}`,
+      orderNumber: order.orderNumber,
+      createdAt: order.createdAt,
+      paidAt: order.paidAt || null,
+
+      customer: {
+        name: `${order.user?.firstName || ""} ${order.user?.lastName || ""}`.trim(),
+        email: order.user?.email || null,
+        phone: order.user?.phone || null,
+      },
+
+      shippingAddress: order.shippingAddress,
+
+      products: order.orderItems.map(item => ({
+        productId: item.product?._id || item.product,
+        title: {
+          en: item.product?.en?.title || item.productName?.en || "",
+          ar: item.product?.ar?.title || item.productName?.ar || "",
+        },
+        image: item.product?.images?.[0]?.url || null,
+        sku: item.product?.sku || item.productSku || "",
+        price: item.price,
+        quantity: item.quantity,
+        lineTotal: Number((item.price * item.quantity).toFixed(2)),
+      })),
+
+      pricing: {
+        subtotal: order.itemsPrice,
+        deliveryTax: order.taxPrice,
+        shippingPrice: order.shippingPrice,
+        discountAmount: order.discountAmount,
+        totalAmount: order.totalPrice,
+      },
+
+      payment: {
+        method: order.paymentMethod,
+        status: order.paymentStatus,
+      },
+
+      orderStatus: order.orderStatus,
+
+      coupon: order.appliedCoupon
+        ? {
+            code: order.appliedCoupon.code || order.couponCode,
+            discountType: order.appliedCoupon.discountType,
+            discountValue: order.appliedCoupon.discountValue,
+          }
+        : null,
+    };
+
+    return {
+      OK: true,
+      message: "Invoice generated successfully",
+      data: invoice,
+    };
+  } catch (err) {
+    if (err instanceof NotFound) throw err;
+    throw ServerError("Failed to generate invoice", err);
   }
 };

@@ -40,7 +40,15 @@ const staticPageSchema = new mongoose.Schema(
     },
     content: {
       type: String,
-      required: true,
+    },
+
+    // Flexible structured content – shape varies by pageType:
+    // terms_conditions : [{ question, answer }]
+    // privacy_policy   : { title, subtitle, sections: [{ title, features: [String] }] }
+    // policy pages     : [{ title, description, features: [String] }]
+    structuredContent: {
+      type: mongoose.Schema.Types.Mixed,
+      default: null,
     },
 
     // SEO fields

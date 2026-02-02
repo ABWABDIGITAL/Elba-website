@@ -6,6 +6,7 @@ import {
   updateReviewController,
   deleteReviewController,
   toggleReviewActiveController,
+  getReviewByIdController,
 } from "../controllers/reviews.controller.js";
 
 import {
@@ -32,9 +33,18 @@ router
   );
  router
  .route("/toggle/:id")
- .put(protect , requirePermission("reviews", "update"), toggleReviewActiveController)
+ .put(protect , requirePermission("reviews", "update"), toggleReviewActiveController);
+
+// Admin: get single review by ID (with product details)
+router.get(
+  "/admin/:id",
+  protect,
+  requirePermission("reviews", "read"),
+  getReviewByIdController
+);
+
 router
-  .route("/:slug")
+  .route("/:id")
   .get(validateGetReview, getReviewController)
   .put(
     protect,
@@ -42,9 +52,6 @@ router
     validateUpdateReview,
     updateReviewController
   )
-
-  router
-  .route("/:id")
   .delete(
     protect,
     requirePermission("reviews", "delete"),

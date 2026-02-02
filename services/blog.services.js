@@ -35,6 +35,8 @@ const buildBlogDTO = (blog, language = "ar") => {
 
     relatedProducts: blog?.relatedProducts || [],
 
+    faqs: langData?.faqs || [],
+
     seo: {
       ...(langData?.seo || {}),
       canonicalUrl: blog?.seo?.canonicalUrl || null,

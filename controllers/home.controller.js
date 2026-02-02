@@ -25,8 +25,25 @@ function buildBannerArray(req, fieldName) {
 
 export const createHome = async (req, res, next) => {
   try {
-    const result = await createHomeService(req.body);
-    res.status(201).json({ OK: true, message: "Created", data: result });
+    const payload = { ...req.body };
+
+    // Build banner arrays from uploaded files
+    const bannerFields = ["hero", "gif", "promovideo", "popupVideo"];
+    for (const field of bannerFields) {
+      const bannerArray = buildBannerArray(req, field);
+      if (bannerArray) payload[field] = bannerArray;
+    }
+
+    if (req.files?.offerBanner) {
+      payload.offerBanner = req.files.offerBanner.map((file, index) => ({
+        url: `/uploads/home/${file.filename}`,
+        discount: Number(req.body.discount?.[index]),
+        discountTitle: req.body.discountTitle?.[index]
+      }));
+    }
+
+    const result = await createHomeService(payload);
+    res.status(201).json({ OK: true, msg: "Home page created successfully", data: result });
   } catch (err) {
     next(err);
   }

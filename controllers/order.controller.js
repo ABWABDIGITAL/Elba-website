@@ -11,6 +11,7 @@ import {
   bulkUpdateOrderStatusService,
   bulkExportOrdersService,
   getOrderAnalyticsService,
+  getOrderInvoiceService,
 } from "../services/order.services.js";
 import { StatusCodes } from "http-status-codes";
 
@@ -83,7 +84,7 @@ export const updateOrderStatusController = async (req, res, next) => {
     const { orderId } = req.params;
     const { status, note } = req.body;
 
-    const result = await updateOrderStatusService(orderId, status, note);
+    const result = await updateOrderStatusService(orderId, status, note, req);
 
     res.status(StatusCodes.OK).json(result);
   } catch (err) {
@@ -194,6 +195,20 @@ export const getOrderAnalyticsController = async (req, res, next) => {
   try {
     const { startDate, endDate } = req.query;
     const result = await getOrderAnalyticsService(startDate, endDate);
+
+    res.status(StatusCodes.OK).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* --------------------------------------------------
+   GET ORDER INVOICE (ADMIN)
+--------------------------------------------------- */
+export const getOrderInvoiceController = async (req, res, next) => {
+  try {
+    const { orderId } = req.params;
+    const result = await getOrderInvoiceService(orderId);
 
     res.status(StatusCodes.OK).json(result);
   } catch (err) {

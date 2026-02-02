@@ -4,6 +4,7 @@ import {
   updateReviewService,
   deleteReviewService,
   getReviewsService,
+  getReviewByIdService,
   toggleReviewActiveService,
 } from "../services/reviews.services.js";
 import { StatusCodes } from "http-status-codes";
@@ -35,7 +36,7 @@ export const createReviewController = async (req, res, next) => {
 
 export const getReviewController = async (req, res, next) => {
   try {
-    const review = await getReviewService(req.params.slug);
+    const review = await getReviewService(req.params.id);
 
     res.status(StatusCodes.OK).json({
       status: "success",
@@ -56,6 +57,20 @@ export const getReviewsController = async (req, res, next) => {
       message: "Reviews fetched successfully",
       data: result.data,
       pagination: result.pagination,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getReviewByIdController = async (req, res, next) => {
+  try {
+    const review = await getReviewByIdService(req.params.id);
+
+    res.status(StatusCodes.OK).json({
+      status: "success",
+      message: "Review fetched successfully",
+      data: review,
     });
   } catch (err) {
     next(err);

@@ -12,8 +12,13 @@ const blogSchema = new mongoose.Schema(
       content: { type: String, required: true },
       imageAlt: { type: String },
       authorName: { type: String },
-      questions: [{ type: String, trim: true }],
-      answers: [{ type: String, trim: true }],
+      faqs: [
+        {
+          question: { type: String, trim: true },
+          answer: { type: String, trim: true },
+          slug: { type: String, trim: true },
+        },
+      ],
       tags: [{ type: String, trim: true }],
       seo: {
         metaTitle: { type: String, maxlength: 160 },
@@ -31,8 +36,13 @@ const blogSchema = new mongoose.Schema(
       content: { type: String, required: true },
       imageAlt: { type: String },
       authorName: { type: String },
-      questions: [{ type: String, trim: true }],
-      answers: [{ type: String, trim: true }],
+      faqs: [
+        {
+          question: { type: String, trim: true },
+          answer: { type: String, trim: true },
+          slug: { type: String, trim: true },
+        },
+      ],
       tags: [{ type: String, trim: true }],
       seo: {
         metaTitle: { type: String, maxlength: 160 },
@@ -183,6 +193,17 @@ blogSchema.pre("save", function (next) {
   // Generate English slug if not provided
   if (!this.en.slug && this.en.title) {
     this.en.slug = slugify(this.en.title, { lower: true, strict: true });
+  }
+
+  // Auto-generate FAQ slugs from question text
+  for (const lang of ["ar", "en"]) {
+    if (this[lang]?.faqs?.length) {
+      for (const faq of this[lang].faqs) {
+        if (faq.question && !faq.slug) {
+          faq.slug = slugify(faq.question, { lower: true, strict: true });
+        }
+      }
+    }
   }
 
   // Calculate reading time for Arabic (approx 200 words per minute)
