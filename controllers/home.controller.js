@@ -3,7 +3,11 @@ import Home from "../models/home.model.js";
 import {
   createHomeService,
   getHomeService,
+  getHomeForEditService,
   updateHomeService,
+  updateBannerService,
+  deleteBannerService,
+  clearHomeCacheService,
 } from "../services/home.services.js";
 import { NotFound, ServerError } from "../utlis/apiError.js";
 
@@ -33,6 +37,13 @@ export const createHome = async (req, res, next) => {
 ------------------------------------------ */
 export const getHome = async (req, res, next) => {
   try {
+    const { mode } = req.query;
+
+    if (mode === "edit") {
+      const data = await getHomeForEditService();
+      return res.json({ OK: true, msg: "Home config fetched for editing", data });
+    }
+
     const result = await getHomeService();
     res.json({
       OK: true,
@@ -40,6 +51,38 @@ export const getHome = async (req, res, next) => {
       fromCache: result.fromCache,
       data: result.data,
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* -----------------------------------------
+   UPDATE SINGLE BANNER
+------------------------------------------ */
+export const updateBanner = async (req, res, next) => {
+  try {
+    const { field, bannerId } = req.params;
+    const updates = { ...req.body };
+
+    if (req.file) {
+      updates.imageUrl = `/uploads/home/${req.file.filename}`;
+    }
+
+    const banner = await updateBannerService(field, bannerId, updates);
+    res.json({ OK: true, msg: "Banner updated successfully", data: banner });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* -----------------------------------------
+   DELETE SINGLE BANNER
+------------------------------------------ */
+export const deleteBanner = async (req, res, next) => {
+  try {
+    const { field, bannerId } = req.params;
+    const result = await deleteBannerService(field, bannerId);
+    res.json({ OK: true, msg: "Banner deleted successfully", data: result });
   } catch (err) {
     next(err);
   }
@@ -111,9 +154,25 @@ export const uploadHomeBanners = async (req, res, next) => {
     await config.save();
     await Home.updateCategoryTotals();
 
+    // Refresh cache so website reflects new banners immediately
+    const { clearHomeCacheService } = await import("../services/home.services.js");
+    await clearHomeCacheService();
+
     res.json({ OK: true, msg:"Banners updated successfully", data: config });
   } catch (err) {
     next(ServerError("Failed to upload banners", err));
+  }
+};
+
+/* -----------------------------------------
+   CLEAR HOME CACHE
+------------------------------------------ */
+export const clearHomeCache = async (req, res, next) => {
+  try {
+    await clearHomeCacheService();
+    res.json({ OK: true, msg: "Home cache cleared successfully" });
+  } catch (err) {
+    next(err);
   }
 };
 

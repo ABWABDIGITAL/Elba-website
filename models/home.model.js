@@ -8,7 +8,7 @@ const bannerSchema = new mongoose.Schema({
   redirectUrl: { type: String, default :null },
   isActive: { type: Boolean, default: true },
   sortOrder: { type: Number, default: 0 },
-}, { _id: false });
+});
 
 const homeConfigSchema = new mongoose.Schema({
   hero: { type: [bannerSchema], default: [] },

@@ -6,6 +6,9 @@ import {
   getHome,
   updateHome,
   uploadHomeBanners,
+  updateBanner,
+  deleteBanner,
+  clearHomeCache,
 } from "../controllers/home.controller.js";
 import { protect } from "../middlewares/authMiddleware.js";
 import { requirePermission } from "../middlewares/permission.middleware.js";
@@ -22,6 +25,20 @@ router.put("/", protect, requirePermission("home", "update"),upload.fields([
     { name: "popupVideo", maxCount: 20 },
     { name: "offerBanner", maxCount: 20 }
   ]),updateHome);
+
+// Clear Redis cache so website picks up latest data
+router.delete("/cache", protect, requirePermission("home", "update"), clearHomeCache);
+
+// Edit / Delete a single banner by field and banner ID
+router
+  .route("/banners/:field/:bannerId")
+  .put(
+    protect,
+    requirePermission("home", "update"),
+    upload.single("image"),
+    updateBanner
+  )
+  .delete(protect, requirePermission("home", "delete"), deleteBanner);
 
 // Only include fields that actually exist in your schema & controller
 router.post(

@@ -42,10 +42,10 @@ export const createReviewService = async ({ product, user, rating, title, commen
 /**
  * Get single review
  */
-export const getReviewService = async (slug) => {
+export const getReviewService = async (id) => {
   try {
     // 1. Find the product by slug
-    const product = await Product.findOne({ slug }).select("_id name slug");
+    const product = await Product.findOne({ _id: id }).select("_id name slug");
     if (!product) throw NotFound("Product not found");
 
     // 2. Find all reviews for that product
@@ -66,7 +66,7 @@ export const getReviewService = async (slug) => {
 /**
  * Update review – only owner or admin
  */
-export const updateReviewService = async ({ id, userId, userRole, rating, title, comment }) => {
+export const updateReviewService = async ({ id, userId, userRole, rating, title, comment, isActive }) => {
   const review = await Review.findById(id);
   if (!review) throw NotFound("Review not found");
 
@@ -77,6 +77,7 @@ export const updateReviewService = async ({ id, userId, userRole, rating, title,
   if (rating !== undefined) review.rating = rating;
   if (title !== undefined) review.title = title;
   if (comment !== undefined) review.comment = comment;
+  if (isActive !== undefined) review.isActive = isActive;
 
   try {
     await review.save();
@@ -145,11 +146,6 @@ export const getReviewsService = async (query) => {
     // base filter
     features.filter();
     let filter = features.getFilter();
-
-    // default to showing only active reviews unless explicitly specified
-    if (query.isActive === undefined) {
-      filter.isActive = true;
-    }
 
     // custom rating range
     if (query.rating_gte) {

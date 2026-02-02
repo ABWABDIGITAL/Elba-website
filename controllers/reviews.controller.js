@@ -64,7 +64,7 @@ export const getReviewsController = async (req, res, next) => {
 
 export const updateReviewController = async (req, res, next) => {
   try {
-    const { rating, title, comment } = req.body;
+    const { rating, title, comment, isActive } = req.body;
 
     const review = await updateReviewService({
       id: req.params.id,
@@ -73,6 +73,7 @@ export const updateReviewController = async (req, res, next) => {
       rating,
       title,
       comment,
+      isActive,
     });
 
     res.status(StatusCodes.OK).json({
@@ -92,10 +93,7 @@ export const deleteReviewController = async (req, res, next) => {
       userId: req.user._id,
       userRole: req.user.role,
     });
-    const review = await Review.findById(req.params.id);
-    if(!review){
-      throw NotFound("Review not found")
-    }
+
     res.status(StatusCodes.OK).json({
       status: "success",
       message: "Review deleted successfully",
