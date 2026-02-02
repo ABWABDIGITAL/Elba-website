@@ -177,15 +177,12 @@ export const createUserWithSpecificRole = async (data) => {
 export const adminDeleteUserService = async (id) => {
   if (!id) throw BadRequest("User ID is required");
 
-  const user = await User.findById(id);
+  const user = await User.findByIdAndDelete(id);
   if (!user) throw NotFound("User not found");
-
-  user.status = "inactive";      // ⬅ REPLACED
-  await user.save();
 
   return {
     OK: true,
-    message: "User deactivated successfully",
+    message: "User deleted successfully",
     data: buildAdminUserDTO(user),
   };
 };

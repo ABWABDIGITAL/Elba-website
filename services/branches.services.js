@@ -65,6 +65,27 @@ export const getBranchService = async (id, language = "ar") => {
 };
 
 /* --------------------------------------------------
+   GET BRANCH FOR EDIT (RAW DATA)
+--------------------------------------------------- */
+export const getBranchForEditService = async (id) => {
+  try {
+    const branch = await Branch.findOne({ _id: id, isActive: true })
+      .select("-__v -isActive")
+      .lean();
+
+    if (!branch) throw NotFound("Branch not found");
+
+    branch.id = branch._id;
+    delete branch._id;
+
+    return branch;
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw BadRequest("Invalid branch ID");
+  }
+};
+
+/* --------------------------------------------------
    UPDATE BRANCH
 --------------------------------------------------- */
 export const updateBranchService = async ({ id, data }) => {

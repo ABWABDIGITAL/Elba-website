@@ -1,6 +1,7 @@
 import {
   createBranchService,
   getBranchService,
+  getBranchForEditService,
   updateBranchService,
   deleteBranchService,
   getBranchesService,
@@ -29,8 +30,11 @@ export const createBranch = async (req, res, next) => {
 
 export const getBranch = async (req, res, next) => {
   try {
-    const { language = "ar" } = req.query;
-    const branch = await getBranchService(req.params.id, language);
+    const { language = "ar", mode } = req.query;
+
+    const branch = mode === "edit"
+      ? await getBranchForEditService(req.params.id)
+      : await getBranchService(req.params.id, language);
 
     res.json({
       status: "success",
