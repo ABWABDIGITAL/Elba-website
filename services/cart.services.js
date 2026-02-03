@@ -326,9 +326,7 @@ export const clearCartService = async (userId) => {
       data: cart,
     };
   } catch (err) {
-    if (err.name === "ApiError" || err instanceof NotFound) {
-      throw err;
-    }
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to clear cart", err);
   }
 };
@@ -423,9 +421,7 @@ export const removeCouponFromCartService = async (userId) => {
       data: cart,
     };
   } catch (err) {
-    if (err.name === "ApiError" || err instanceof NotFound) {
-      throw err;
-    }
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to remove coupon", err);
   }
 };

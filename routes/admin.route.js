@@ -5,6 +5,7 @@ import {
   getSalesAnalytics,
   getProductAnalytics,
   getSystemStats,
+  getAdminOverviewController,
 } from "../controllers/admin.controller.js";
 import { protect , allowTo } from "../middlewares/authMiddleware.js";
 import { requirePermission } from "../middlewares/permission.middleware.js";
@@ -13,6 +14,13 @@ const router = express.Router();
 
 // All admin routes require authentication
 router.use(protect,allowTo("superAdmin","admin"));
+
+// Comprehensive admin overview (all analytics in one endpoint)
+router.get(
+  "/overview",
+  requirePermission("analytics", "read"),
+  getAdminOverviewController
+);
 
 // Dashboard analytics (requires analytics:read permission)
 router.get(

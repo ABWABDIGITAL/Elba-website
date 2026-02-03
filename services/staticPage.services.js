@@ -1,6 +1,6 @@
 import StaticPage from "../models/staticPage.model.js";
 import {RedisHelper} from "../config/redis.js";
-import { NotFound, ServerError } from "../utlis/apiError.js";
+import ApiError, { NotFound, ServerError } from "../utlis/apiError.js";
 
 const PAGE_CACHE_PREFIX = "page:";
 const CACHE_TTL = 3600; // 1 hour
@@ -45,7 +45,7 @@ export const getPageByTypeService = async (pageType, language = "ar") => {
 
     return { fromCache: false, data: result };
   } catch (err) {
-    if (err instanceof NotFound) throw err;
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to get page", err);
   }
 };
@@ -107,7 +107,7 @@ export const getPageByIdService = async (pageId) => {
 
     return page;
   } catch (err) {
-    if (err instanceof NotFound) throw err;
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to get page", err);
   }
 };
@@ -160,7 +160,7 @@ export const updatePageService = async (pageId, updates, userId) => {
 
     return page;
   } catch (err) {
-    if (err instanceof NotFound) throw err;
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to update page", err);
   }
 };
@@ -187,7 +187,7 @@ export const deletePageService = async (pageId) => {
 
     return page;
   } catch (err) {
-    if (err instanceof NotFound) throw err;
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to delete page", err);
   }
 };

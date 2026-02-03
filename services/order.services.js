@@ -352,9 +352,7 @@ export const updateOrderStatusService = async (orderId, status, note = null, req
       data: order,
     };
   } catch (err) {
-    if (err.name === "ApiError" || err instanceof BadRequest || err instanceof NotFound) {
-      throw err;
-    }
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to update order status", err);
   }
 };
@@ -423,9 +421,7 @@ export const cancelOrderService = async (userId, orderId, reason = null) => {
   } catch (err) {
     await session.abortTransaction();
 
-    if (err.name === "ApiError" || err instanceof BadRequest || err instanceof NotFound) {
-      throw err;
-    }
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to cancel order", err);
   } finally {
     session.endSession();
@@ -479,9 +475,7 @@ export const updatePaymentStatusService = async (orderId, paymentData) => {
       data: order,
     };
   } catch (err) {
-    if (err.name === "ApiError" || err instanceof NotFound) {
-      throw err;
-    }
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to update payment status", err);
   }
 };
@@ -511,9 +505,7 @@ export const updateTrackingInfoService = async (orderId, trackingNumber, carrier
       data: order,
     };
   } catch (err) {
-    if (err.name === "ApiError" || err instanceof NotFound) {
-      throw err;
-    }
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to update tracking info", err);
   }
 };
@@ -645,9 +637,7 @@ export const bulkUpdateOrderStatusService = async (orderIds, status, note = null
       data: results,
     };
   } catch (err) {
-    if (err.name === "ApiError" || err instanceof BadRequest || err instanceof NotFound) {
-      throw err;
-    }
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to bulk update orders", err);
   }
 };
@@ -920,7 +910,7 @@ export const getOrderInvoiceService = async (orderId) => {
       data: invoice,
     };
   } catch (err) {
-    if (err instanceof NotFound) throw err;
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to generate invoice", err);
   }
 };

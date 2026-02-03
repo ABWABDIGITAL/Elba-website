@@ -310,7 +310,7 @@ export const getBlogByIdService = async (blogId) => {
 
     return blog;
   } catch (err) {
-    if (err instanceof NotFound) throw err;
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to get blog", err);
   }
 };
@@ -338,7 +338,7 @@ export const updateBlogService = async (blogId, updates) => {
 
     return blog;
   } catch (err) {
-    if (err instanceof NotFound) throw err;
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to update blog", err);
   }
 };
@@ -364,7 +364,7 @@ export const deleteBlogService = async (blogId) => {
 
     return blog;
   } catch (err) {
-    if (err instanceof NotFound) throw err;
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to delete blog", err);
   }
 };
@@ -514,7 +514,7 @@ export const incrementLikesService = async (blogId) => {
 
     return blog;
   } catch (err) {
-    if (err instanceof NotFound) throw err;
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to like blog", err);
   }
 };
@@ -539,7 +539,7 @@ export const incrementSharesService = async (blogId) => {
 
     return blog;
   } catch (err) {
-    if (err instanceof NotFound) throw err;
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to track share", err);
   }
 };

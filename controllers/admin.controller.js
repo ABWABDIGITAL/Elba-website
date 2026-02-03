@@ -5,6 +5,7 @@ import {
   getProductAnalyticsService,
   getSystemStatsService,
 } from "../services/admin.services.js";
+import { getAdminOverview } from "../services/adminOverview.services.js";
 
 export const getDashboardAnalytics = async (req, res, next) => {
   try {
@@ -68,6 +69,21 @@ export const getSystemStats = async (req, res, next) => {
     res.status(200).json({
       status: "success",
       data: stats,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getAdminOverviewController = async (req, res, next) => {
+  try {
+    const { dateFrom, dateTo, noCache } = req.query;
+    const result = await getAdminOverview({ dateFrom, dateTo, noCache });
+
+    res.status(200).json({
+      status: "success",
+      fromCache: result.fromCache,
+      data: result.data,
     });
   } catch (err) {
     next(err);
