@@ -6,6 +6,7 @@ import {
   getHomeForEditService,
   updateHomeService,
   updateBannerService,
+  addBannerService,
   deleteBannerService,
   clearHomeCacheService,
 } from "../services/home.services.js";
@@ -87,6 +88,30 @@ export const updateBanner = async (req, res, next) => {
 
     const banner = await updateBannerService(field, bannerId, updates);
     res.json({ OK: true, msg: "Banner updated successfully", data: banner });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* -----------------------------------------
+   ADD SINGLE BANNER
+------------------------------------------ */
+export const addBanner = async (req, res, next) => {
+  try {
+    const { field } = req.params;
+    const bannerData = {
+      imageUrl: req.file ? `/uploads/home/${req.file.filename}` : req.body.imageUrl,
+      redirectUrl: req.body.redirectUrl || null,
+      sortOrder: req.body.sortOrder || 0,
+      isActive: req.body.isActive !== undefined ? req.body.isActive : true,
+    };
+
+    if (!bannerData.imageUrl) {
+      return res.status(400).json({ OK: false, msg: "Image is required" });
+    }
+
+    const banner = await addBannerService(field, bannerData);
+    res.status(201).json({ OK: true, msg: "Banner added successfully", data: banner });
   } catch (err) {
     next(err);
   }

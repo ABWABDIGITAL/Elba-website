@@ -416,6 +416,28 @@ export const updateBannerService = async (field, bannerId, updates) => {
 };
 
 /* ---------------------------------------
+   ADD SINGLE BANNER
+---------------------------------------- */
+export const addBannerService = async (field, bannerData) => {
+  const BANNER_FIELDS = ["hero", "gif", "promovideo", "popupVideo","offerBanner"];
+  if (!BANNER_FIELDS.includes(field)) {
+    throw BadRequest(`Invalid banner field: ${field}`);
+  }
+
+  const config = await Home.findOne();
+  if (!config) throw NotFound("Home config not found");
+
+  config[field].push(bannerData);
+  await config.save();
+  await refreshHomeCache();
+
+  const added = config[field][config[field].length - 1];
+  const obj = added.toObject();
+  obj.imageUrl = prefixUrl(obj.imageUrl);
+  return obj;
+};
+
+/* ---------------------------------------
    DELETE SINGLE BANNER
 ---------------------------------------- */
 export const deleteBannerService = async (field, bannerId) => {

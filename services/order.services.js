@@ -198,7 +198,9 @@ export const getUserOrdersService = async (userId, query) => {
 --------------------------------------------------- */
 export const getOrderByIdService = async (userId, orderId, isAdmin = false) => {
   try {
-    const filter = { _id: orderId, isActive: true };
+    // Support lookup by both _id and orderNumber
+    const isObjectId = mongoose.Types.ObjectId.isValid(orderId) && String(new mongoose.Types.ObjectId(orderId)) === orderId;
+    const filter = isObjectId ? { _id: orderId, isActive: true } : { orderNumber: orderId, isActive: true };
 
     // Non-admin users can only see their own orders
     if (!isAdmin) {

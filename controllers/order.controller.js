@@ -53,7 +53,9 @@ export const getOrderByIdController = async (req, res, next) => {
   try {
     const userId = req.user._id;
     const { orderId } = req.params;
-    const isAdmin = req.user.role === "admin" || req.user.role === "superAdmin";
+    const roleName = req.user.role?.name;
+    const legacyRole = req.user.legacyRole;
+    const isAdmin = roleName === "admin" || roleName === "super_admin" || legacyRole === "superAdmin" || legacyRole === "admin";
 
     const result = await getOrderByIdService(userId, orderId, isAdmin);
 

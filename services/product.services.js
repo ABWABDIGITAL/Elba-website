@@ -66,6 +66,7 @@ export const buildGetAllproductDTO = (p) => {
     stock: p.stock,
     status: p.status,
     salesCount: p.salesCount,
+    tags: p.tags || [],
 
     category: p.category
       ? {
@@ -336,7 +337,7 @@ export const getAllProductsService = async (query) => {
     const [items, total] = await Promise.all([
       Product.find(filter)
     .select(
-      "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage finalPrice sizeType ratingsAverage images sku slug status stock salesCount category brand"
+      "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage finalPrice sizeType ratingsAverage images sku slug status stock salesCount category brand tags"
     )
 
 
@@ -345,7 +346,8 @@ export const getAllProductsService = async (query) => {
 
         .skip(skip)
         .limit(limit)
-        .sort({ createdAt: -1 }),
+        .sort({ createdAt: -1 }).
+        lean(),
       Product.countDocuments(filter),
     ]);
 
@@ -377,7 +379,7 @@ export const getAllProductsForAdminService = async (query) => {
     const [items, total] = await Promise.all([
       Product.find(filter)
       .select(
-        "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage finalPrice sizeType ratingsAverage images sku slug status stock salesCount category brand"
+        "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage finalPrice sizeType ratingsAverage images sku slug status stock salesCount category brand tags"
       )
         .populate("category", "ar.name ar.slug en.name en.slug image")
         .populate("brand", "ar.name ar.slug en.name en.slug logo")

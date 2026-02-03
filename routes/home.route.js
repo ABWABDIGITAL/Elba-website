@@ -6,6 +6,7 @@ import {
   getHome,
   updateHome,
   uploadHomeBanners,
+  addBanner,
   updateBanner,
   deleteBanner,
   clearHomeCache,
@@ -34,6 +35,15 @@ router.put("/", protect, requirePermission("home", "update"),upload.fields([
 
 // Clear Redis cache so website picks up latest data
 router.delete("/cache", protect, requirePermission("home", "update"), clearHomeCache);
+
+// Add a single banner to a section (hero, gif, promovideo, popupVideo)
+router.post(
+  "/banners/:field",
+  protect,
+  requirePermission("home", "create"),
+  upload.single("image"),
+  addBanner
+);
 
 // Edit / Delete a single banner by field and banner ID
 router
