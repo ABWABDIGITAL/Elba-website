@@ -1,4 +1,5 @@
 import SupportTicket from "../models/ticket.model.js";
+import { NotFound, BadRequest } from "../utlis/apiError.js";
 
 // ============================================================
 // HELPERS
@@ -12,11 +13,11 @@ function generateTicketId() {
 
 function detectPriority(query, supportType) {
   const q = query.toLowerCase();
-  
+
   if ([/عاجل/, /ضروري/, /مستعجل/].some(p => p.test(q))) return "urgent";
   if ([/ما يشتغل/, /خربان/, /فلوسي/, /ما وصل/].some(p => p.test(q))) return "high";
   if (supportType === "complaint") return "high";
-  
+
   return "medium";
 }
 
@@ -76,7 +77,7 @@ export async function checkRepeatIssue(customerId, supportType, description) {
 
   // Check if same issue
   const relatedTickets = similarTickets.map(t => t.ticketId);
-  
+
   return {
     isRepeat: true,
     relatedTickets,
@@ -161,7 +162,7 @@ export async function createTicket({
 
   await ticket.save();
 
-  console.log(`✅ Ticket created: ${ticket.ticketId} | AI Resolved: ${aiResolved} | Repeat: ${repeatCheck.isRepeat}`);
+  console.log(`Ticket created: ${ticket.ticketId} | AI Resolved: ${aiResolved} | Repeat: ${repeatCheck.isRepeat}`);
 
   return {
     ticketId: ticket.ticketId,
@@ -217,10 +218,63 @@ export async function getCustomerTickets(customerId, limit = 10) {
 }
 
 // ============================================================
+// GET CUSTOMER TICKETS (paginated)
+// ============================================================
+
+export async function getCustomerTicketsWithPagination(userId, queryString = {}) {
+  const page = parseInt(queryString.page, 10) || 1;
+  const limit = parseInt(queryString.limit, 10) || 12;
+  const skip = (page - 1) * limit;
+
+  const filter = { "customer.userId": userId };
+  if (queryString.status) filter.status = queryString.status;
+
+  const tickets = await SupportTicket.find(filter)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .select("ticketId subject status category priority aiResolved createdAt resolvedAt")
+    .lean();
+
+  const total = await SupportTicket.countDocuments(filter);
+  const pages = Math.ceil(total / limit) || 1;
+
+  return {
+    tickets,
+    pagination: {
+      total,
+      page,
+      limit,
+      pages,
+      hasNext: page < pages,
+      hasPrev: page > 1,
+    },
+  };
+}
+
+// ============================================================
+// ADD AGENT NOTE
+// ============================================================
+
+export async function addAgentNote(ticketId, noteContent, agentId) {
+  const ticket = await SupportTicket.findOne({ ticketId });
+  if (!ticket) throw NotFound("Ticket not found");
+
+  ticket.agentNotes.push({
+    content: noteContent,
+    agentId,
+    createdAt: new Date(),
+  });
+
+  await ticket.save();
+  return ticket;
+}
+
+// ============================================================
 // DASHBOARD FUNCTIONS
 // ============================================================
 
-export async function getTickets(filters = {}) {
+export async function getTickets(filters = {}, queryString = {}) {
   const query = {};
 
   if (filters.status) {
@@ -236,15 +290,46 @@ export async function getTickets(filters = {}) {
   if (filters.aiResolved !== undefined) query.aiResolved = filters.aiResolved;
   if (filters.isRepeatIssue) query.isRepeatIssue = true;
 
-  return await SupportTicket
+  // Date range filter
+  if (filters.dateFrom || filters.dateTo) {
+    query.createdAt = {};
+    if (filters.dateFrom) query.createdAt.$gte = new Date(filters.dateFrom);
+    if (filters.dateTo) query.createdAt.$lte = new Date(filters.dateTo);
+  }
+
+  const page = parseInt(queryString.page, 10) || 1;
+  const limit = parseInt(queryString.limit, 10) || 20;
+  const skip = (page - 1) * limit;
+
+  const tickets = await SupportTicket
     .find(query)
+    .select("ticketId customer.name customer.email subject category supportType status priority aiResolved aiConfidenceLevel needsHumanReview isRepeatIssue assignedTo createdAt resolvedAt resolvedBy slaDeadline")
+    .populate("assignedTo", "firstName lastName email")
     .sort({ priority: -1, createdAt: -1 })
-    .limit(filters.limit || 50)
+    .skip(skip)
+    .limit(limit)
     .lean();
+
+  const total = await SupportTicket.countDocuments(query);
+  const pages = Math.ceil(total / limit) || 1;
+
+  return {
+    tickets,
+    pagination: {
+      total,
+      page,
+      limit,
+      pages,
+      hasNext: page < pages,
+      hasPrev: page > 1,
+    },
+  };
 }
 
 export async function getTicketById(ticketId) {
-  return await SupportTicket.findOne({ ticketId });
+  return await SupportTicket.findOne({ ticketId })
+    .populate("assignedTo", "firstName lastName email")
+    .populate("agentNotes.agentId", "firstName lastName");
 }
 
 export async function updateTicket(ticketId, updates) {
@@ -296,5 +381,102 @@ export async function getStats() {
     repeatIssues: stats.repeatIssues[0]?.count || 0,
     open: stats.open[0]?.count || 0,
     urgent: stats.urgent[0]?.count || 0
+  };
+}
+
+// ============================================================
+// TICKET ANALYTICS (for admin overview)
+// ============================================================
+
+export async function getTicketAnalytics(params = {}) {
+  const dateFilter = {};
+  if (params.dateFrom) dateFilter.$gte = new Date(params.dateFrom);
+  if (params.dateTo) dateFilter.$lte = new Date(params.dateTo);
+  const hasDateFilter = Object.keys(dateFilter).length > 0;
+
+  const matchStage = hasDateFilter ? { createdAt: dateFilter } : {};
+
+  const [stats] = await SupportTicket.aggregate([
+    { $match: matchStage },
+    {
+      $facet: {
+        total: [{ $count: "count" }],
+        byStatus: [
+          { $group: { _id: "$status", count: { $sum: 1 } } },
+        ],
+        byCategory: [
+          { $group: { _id: "$category", count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+        ],
+        byPriority: [
+          { $group: { _id: "$priority", count: { $sum: 1 } } },
+        ],
+        aiResolved: [
+          { $match: { aiResolved: true } },
+          { $count: "count" },
+        ],
+        avgResolutionTime: [
+          { $match: { resolvedAt: { $ne: null } } },
+          {
+            $project: {
+              resolutionHours: {
+                $divide: [
+                  { $subtract: ["$resolvedAt", "$createdAt"] },
+                  3600000,
+                ],
+              },
+            },
+          },
+          { $group: { _id: null, avg: { $avg: "$resolutionHours" } } },
+        ],
+        repeatIssues: [
+          { $match: { isRepeatIssue: true } },
+          { $count: "count" },
+        ],
+        topComplaintCategories: [
+          { $match: { category: "complaints" } },
+          { $group: { _id: "$supportType", count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+          { $limit: 5 },
+        ],
+        ticketsPerDay: [
+          {
+            $group: {
+              _id: {
+                $dateToString: { format: "%Y-%m-%d", date: "$createdAt" },
+              },
+              count: { $sum: 1 },
+            },
+          },
+          { $sort: { _id: -1 } },
+          { $limit: 30 },
+        ],
+      },
+    },
+  ]);
+
+  const totalTickets = stats.total[0]?.count || 0;
+  const aiResolvedCount = stats.aiResolved[0]?.count || 0;
+  const aiResolutionRate =
+    totalTickets > 0 ? Math.round((aiResolvedCount / totalTickets) * 100) : 0;
+
+  return {
+    total: totalTickets,
+    byStatus: Object.fromEntries(
+      (stats.byStatus || []).map((s) => [s._id, s.count])
+    ),
+    byCategory: Object.fromEntries(
+      (stats.byCategory || []).map((c) => [c._id, c.count])
+    ),
+    byPriority: Object.fromEntries(
+      (stats.byPriority || []).map((p) => [p._id, p.count])
+    ),
+    aiResolved: aiResolvedCount,
+    aiResolutionRate: `${aiResolutionRate}%`,
+    averageResolutionTimeHours:
+      Math.round((stats.avgResolutionTime[0]?.avg || 0) * 10) / 10,
+    repeatIssues: stats.repeatIssues[0]?.count || 0,
+    topComplaintCategories: stats.topComplaintCategories || [],
+    ticketsPerDay: stats.ticketsPerDay || [],
   };
 }

@@ -197,3 +197,21 @@ export const blogUpload = () => {
     maxSizeMB: 5,
   });
 };
+
+// ================================
+// SPREADSHEET UPLOADER (Excel / CSV)
+// ================================
+const SPREADSHEET_MIME = [
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+  "application/vnd.ms-excel", // .xls
+  "text/csv", // .csv
+  "application/csv",
+];
+const SPREADSHEET_EXT = [".xlsx", ".xls", ".csv"];
+
+export const spreadsheetUpload = baseUpload({
+  folder: "imports",
+  allowedMime: SPREADSHEET_MIME,
+  allowedExt: SPREADSHEET_EXT,
+  maxSizeMB: 10,
+});

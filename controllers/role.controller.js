@@ -26,8 +26,8 @@ export const createRole = async (req, res, next) => {
 export const getAllRoles = async (req, res, next) => {
   try {
     const filters = {};
-    if (req.query.isActive !== undefined) {
-      filters.isActive = req.query.isActive === "true";
+    if (req.query.status !== undefined) {
+      filters.status = req.query.status;
     }
 
     const result = await getAllRolesService(filters);

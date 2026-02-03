@@ -11,6 +11,7 @@ import ApiFeatures from "../utlis/apiFeatures.js";
 import slugify from "slugify";
 import { trackProductView } from '../services/analytics.services.js';
 import { RedisHelper } from "../config/redis.js";
+import XLSX from "xlsx";
  const HOME_CACHE_KEY = "home:page";
  const HOME_CACHE_TTL = 3600;
 
@@ -995,3 +996,310 @@ function getArabicTagName(tag) {
   };
   return arabicNames[tag] || tag;
 }
+
+/* ============================================================
+   BULK IMPORT PRODUCTS (Excel / CSV)
+============================================================ */
+
+/**
+ * Parse uploaded spreadsheet file into rows
+ */
+const parseSpreadsheet = (filePath) => {
+  const workbook = XLSX.readFile(filePath);
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) throw BadRequest("Spreadsheet has no sheets");
+
+  const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
+    defval: "",
+  });
+
+  if (!rows.length) throw BadRequest("Spreadsheet is empty");
+  return rows;
+};
+
+/* ---------- Parsing helpers ---------- */
+
+/** Comma-separated string → array of trimmed strings */
+const parseCSV = (val) =>
+  String(val || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+/** Pipe-separated string → array of trimmed strings (for values that contain commas) */
+const parsePipe = (val) =>
+  String(val || "")
+    .split("|")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+/** Parse JSON string or return null */
+const tryParseJSON = (val) => {
+  const str = String(val || "").trim();
+  if (!str) return null;
+  try {
+    return JSON.parse(str);
+  } catch (_) {
+    return null;
+  }
+};
+
+/**
+ * Parse specifications:
+ *   - JSON array  → [{ key, value, unit, group }]
+ *   - Pipe format → "key:value:unit:group | key:value:unit:group"
+ */
+const parseSpecs = (val) => {
+  const str = String(val || "").trim();
+  if (!str) return [];
+  const json = tryParseJSON(str);
+  if (Array.isArray(json)) return json;
+  return parsePipe(str).map((entry) => {
+    const [key, value, unit, group] = entry.split(":").map((s) => s.trim());
+    return { key, value: value || "", unit: unit || "", group: group || "" };
+  });
+};
+
+/**
+ * Parse description:
+ *   - JSON array  → [{ title, content }]
+ *   - Pipe format → "title:content | title:content"
+ */
+const parseDescription = (val) => {
+  const str = String(val || "").trim();
+  if (!str) return [];
+  const json = tryParseJSON(str);
+  if (Array.isArray(json)) return json;
+  return parsePipe(str).map((entry) => {
+    const idx = entry.indexOf(":");
+    if (idx === -1) return { title: entry, content: "" };
+    return { title: entry.slice(0, idx).trim(), content: entry.slice(idx + 1).trim() };
+  });
+};
+
+/**
+ * Parse details:
+ *   - JSON array  → [{ key, value }]
+ *   - Pipe format → "key:value | key:value"
+ */
+const parseDetails = (val) => {
+  const str = String(val || "").trim();
+  if (!str) return [];
+  const json = tryParseJSON(str);
+  if (Array.isArray(json)) return json;
+  return parsePipe(str).map((entry) => {
+    const idx = entry.indexOf(":");
+    if (idx === -1) return { key: entry, value: "" };
+    return { key: entry.slice(0, idx).trim(), value: entry.slice(idx + 1).trim() };
+  });
+};
+
+/** Parse SEO object from JSON string */
+const parseSEO = (val) => {
+  const json = tryParseJSON(val);
+  if (json && typeof json === "object") return json;
+  return undefined;
+};
+
+/** Parse tags with validation */
+const VALID_TAGS = [
+  "best_seller", "hot", "new_arrival", "trending", "featured",
+  "limited_edition", "on_sale", "clearance", "top_rated",
+  "eco_friendly", "exclusive", "recommended",
+];
+const parseTags = (val) => parseCSV(val).filter((t) => VALID_TAGS.includes(t));
+
+/**
+ * Map a single spreadsheet row to product data.
+ *
+ * Supports columns for the full product schema including
+ * descriptions, specifications (key:value:unit:group),
+ * details, SEO, images, modelNumber, currencyCode, etc.
+ */
+const mapRowToProduct = (row, index, categoryMap, brandMap) => {
+  const errors = [];
+  const rowNum = index + 2; // header is row 1
+
+  // ── Required fields ──
+  const sku = String(row.sku || "").trim().toUpperCase();
+  if (!sku) errors.push(`Row ${rowNum}: sku is required`);
+
+  const price = parseFloat(row.price);
+  if (isNaN(price) || price < 0) errors.push(`Row ${rowNum}: invalid price`);
+
+  const stock = parseInt(row.stock);
+  if (isNaN(stock) || stock < 0) errors.push(`Row ${rowNum}: invalid stock`);
+
+  // Category lookup (by name or ID)
+  const categoryInput = String(row.category || "").trim();
+  let categoryId = null;
+  if (!categoryInput) {
+    errors.push(`Row ${rowNum}: category is required`);
+  } else if (mongoose.isValidObjectId(categoryInput)) {
+    categoryId = categoryInput;
+  } else {
+    categoryId = categoryMap[categoryInput.toLowerCase()];
+    if (!categoryId) errors.push(`Row ${rowNum}: category "${categoryInput}" not found`);
+  }
+
+  // Brand lookup (by name or ID)
+  const brandInput = String(row.brand || "").trim();
+  let brandId = null;
+  if (!brandInput) {
+    errors.push(`Row ${rowNum}: brand is required`);
+  } else if (mongoose.isValidObjectId(brandInput)) {
+    brandId = brandInput;
+  } else {
+    brandId = brandMap[brandInput.toLowerCase()];
+    if (!brandId) errors.push(`Row ${rowNum}: brand "${brandInput}" not found`);
+  }
+
+  // At least one title required
+  const arTitle = String(row.ar_title || "").trim();
+  const enTitle = String(row.en_title || "").trim();
+  if (!arTitle && !enTitle) errors.push(`Row ${rowNum}: ar_title or en_title is required`);
+
+  if (errors.length) return { errors };
+
+  // ── Build product data ──
+  const data = {
+    sku,
+    price,
+    stock,
+    category: categoryId,
+    brand: brandId,
+    sizeType: row.sizeType || "large",
+    status: row.status || "active",
+    tags: parseTags(row.tags),
+
+    // Bilingual content
+    ar: {
+      title: arTitle,
+      subTitle: String(row.ar_subTitle || "").trim(),
+      description: parseDescription(row.ar_description),
+      specifications: parseSpecs(row.ar_specifications),
+      features: parsePipe(row.ar_features),
+      warranty: String(row.ar_warranty || "").trim(),
+      details: parseDetails(row.ar_details),
+    },
+    en: {
+      title: enTitle,
+      subTitle: String(row.en_subTitle || "").trim(),
+      description: parseDescription(row.en_description),
+      specifications: parseSpecs(row.en_specifications),
+      features: parsePipe(row.en_features),
+      warranty: String(row.en_warranty || "").trim(),
+      details: parseDetails(row.en_details),
+    },
+  };
+
+  // Optional fields
+  if (row.modelNumber) data.modelNumber = String(row.modelNumber).trim();
+  if (row.currencyCode) data.currencyCode = String(row.currencyCode).trim().toUpperCase();
+
+  if (row.discountPrice !== undefined && row.discountPrice !== "") {
+    data.discountPrice = parseFloat(row.discountPrice) || 0;
+  }
+  if (row.discountPercentage !== undefined && row.discountPercentage !== "") {
+    data.discountPercentage = parseFloat(row.discountPercentage) || 0;
+  }
+
+  // Images (pipe-separated URLs)
+  const imageUrls = parsePipe(row.images);
+  if (imageUrls.length) {
+    data.images = imageUrls.map((url) => ({ url }));
+  }
+
+  // SEO (JSON string)
+  const arSeo = parseSEO(row.ar_seo);
+  const enSeo = parseSEO(row.en_seo);
+  if (arSeo) data.ar.seo = arSeo;
+  if (enSeo) data.en.seo = enSeo;
+
+  return { data };
+};
+
+export const bulkImportProductsService = async (filePath) => {
+  try {
+    const rows = parseSpreadsheet(filePath);
+
+    // Pre-load all categories and brands for name lookup
+    const [categories, brands] = await Promise.all([
+      Category.find({}).lean(),
+      Brand.find({}).lean(),
+    ]);
+
+    const categoryMap = {};
+    for (const cat of categories) {
+      categoryMap[String(cat._id)] = String(cat._id);
+      if (cat.en?.name) categoryMap[cat.en.name.toLowerCase()] = String(cat._id);
+      if (cat.ar?.name) categoryMap[cat.ar.name.toLowerCase()] = String(cat._id);
+    }
+
+    const brandMap = {};
+    for (const b of brands) {
+      brandMap[String(b._id)] = String(b._id);
+      if (b.en?.name) brandMap[b.en.name.toLowerCase()] = String(b._id);
+      if (b.ar?.name) brandMap[b.ar.name.toLowerCase()] = String(b._id);
+    }
+
+    // Check existing SKUs in one query
+    const allSkus = rows
+      .map((r) => String(r.sku || "").trim().toUpperCase())
+      .filter(Boolean);
+    const existingProducts = await Product.find({ sku: { $in: allSkus } })
+      .select("sku")
+      .lean();
+    const existingSkuSet = new Set(existingProducts.map((p) => p.sku));
+
+    const results = {
+      totalRows: rows.length,
+      created: 0,
+      skipped: 0,
+      errors: [],
+    };
+
+    const productsToInsert = [];
+
+    for (let i = 0; i < rows.length; i++) {
+      const { data, errors } = mapRowToProduct(rows[i], i, categoryMap, brandMap);
+
+      if (errors) {
+        results.errors.push(...errors);
+        results.skipped++;
+        continue;
+      }
+
+      if (existingSkuSet.has(data.sku)) {
+        results.errors.push(`Row ${i + 2}: SKU "${data.sku}" already exists – skipped`);
+        results.skipped++;
+        continue;
+      }
+
+      applySlugIfMissing(data);
+      applyPricingLogic(data);
+      productsToInsert.push(data);
+      existingSkuSet.add(data.sku); // prevent duplicates within the file
+    }
+
+    // Bulk insert
+    if (productsToInsert.length > 0) {
+      const inserted = await Product.insertMany(productsToInsert, {
+        ordered: false,
+      });
+      results.created = inserted.length;
+      await RedisHelper.del(HOME_CACHE_KEY);
+    }
+
+    return {
+      OK: true,
+      message: `Bulk import completed: ${results.created} created, ${results.skipped} skipped`,
+      data: results,
+    };
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw ServerError("Failed to bulk import products", {
+      message: err.message,
+    });
+  }
+};

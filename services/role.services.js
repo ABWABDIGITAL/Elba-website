@@ -30,16 +30,20 @@ export const createRoleService = async (roleData) => {
 ============================================================ */
 export const getAllRolesService = async (filters = {}) => {
   try {
-    // Fix: allow filtering even when status = "inactive"
     const hasStatusFilter = filters.status !== undefined;
 
     const cacheKey = hasStatusFilter
       ? `${ROLES_LIST_CACHE_KEY}:${filters.status}`
       : ROLES_LIST_CACHE_KEY;
 
-    const cached = await redis.get(cacheKey);
-    if (cached) {
-      return { fromCache: true, data: JSON.parse(cached) };
+    // Try cache first (graceful – don't fail if Redis is down)
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        return { fromCache: true, data: JSON.parse(cached) };
+      }
+    } catch (_) {
+      // Redis unavailable – continue to DB
     }
 
     const query = {};
@@ -51,7 +55,12 @@ export const getAllRolesService = async (filters = {}) => {
       .sort({ priority: -1, name: 1 })
       .lean();
 
-    await redis.set(cacheKey, JSON.stringify(roles), { ex: CACHE_TTL });
+    // Try to cache (graceful)
+    try {
+      await redis.set(cacheKey, JSON.stringify(roles), { ex: CACHE_TTL });
+    } catch (_) {
+      // Redis unavailable – skip caching
+    }
 
     return { fromCache: false, data: roles };
   } catch (err) {
@@ -65,16 +74,24 @@ export const getAllRolesService = async (filters = {}) => {
 export const getRoleByIdService = async (roleId) => {
   try {
     const cacheKey = `${ROLE_CACHE_PREFIX}${roleId}`;
-    const cached = await redis.get(cacheKey);
 
-    if (cached) {
-      return { fromCache: true, data: JSON.parse(cached) };
+    try {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        return { fromCache: true, data: JSON.parse(cached) };
+      }
+    } catch (_) {
+      // Redis unavailable – continue to DB
     }
 
     const role = await Role.findById(roleId).lean();
     if (!role) throw NotFound("Role not found");
 
-    await redis.set(cacheKey, JSON.stringify(role), { ex: CACHE_TTL });
+    try {
+      await redis.set(cacheKey, JSON.stringify(role), { ex: CACHE_TTL });
+    } catch (_) {
+      // Redis unavailable – skip caching
+    }
 
     return { fromCache: false, data: role };
   } catch (err) {

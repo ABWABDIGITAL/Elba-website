@@ -20,6 +20,9 @@ const permissionSchema = new mongoose.Schema(
         "analytics",
         "roles",
         "settings",
+        "tickets",
+        "chat",
+        "embeddings",
       ],
     },
     actions: {

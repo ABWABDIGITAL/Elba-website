@@ -419,7 +419,7 @@ export const updateBannerService = async (field, bannerId, updates) => {
    DELETE SINGLE BANNER
 ---------------------------------------- */
 export const deleteBannerService = async (field, bannerId) => {
-  const BANNER_FIELDS = ["hero", "gif", "promovideo", "popupVideo"];
+  const BANNER_FIELDS = ["hero", "gif", "promovideo", "popupVideo", "offerBanner"];
   if (!BANNER_FIELDS.includes(field)) {
     throw BadRequest(`Invalid banner field: ${field}`);
   }

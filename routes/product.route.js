@@ -18,7 +18,8 @@ import {
   getProductByCatalogController,
   searchProductsController,
   getAllProductsforAdminController,
-  getProductByBrandController
+  getProductByBrandController,
+  bulkImportProductsController,
 } from "../controllers/product.controller.js";
 
 import {
@@ -31,7 +32,7 @@ import {
 
 import { protect , allowTo} from "../middlewares/authMiddleware.js";
 import { requirePermission } from "../middlewares/permission.middleware.js";
-import upload, { productMediaUpload } from "../middlewares/uploadMiddleware.js"; // <-- productMediaUpload هنا
+import upload, { productMediaUpload, spreadsheetUpload } from "../middlewares/uploadMiddleware.js";
 import parseNestedJson from "../middlewares/ParseNestedDot.js";
 import {
   validateCreateProduct,
@@ -90,6 +91,16 @@ router.get("/category/:slug", getProductsByCategoryController);
 router.get("/tags/available", getAvailableTags);
 router.get("/tags", getProductsByTags);
 router.get("/search", searchProductsController);
+
+// BULK IMPORT PRODUCTS (Excel / CSV)
+router.post(
+  "/bulk-import",
+  protect,
+  requirePermission("products", "import"),
+  spreadsheetUpload.single("file"),
+  bulkImportProductsController
+);
+
 router.get("/:slug", getProductBySlugController);
 router.post(
   "/:id/manual",

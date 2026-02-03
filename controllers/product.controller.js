@@ -17,7 +17,8 @@ import {
   getProductByCatalogService,
   searchProducts,
   getAllProductsForAdminService,
-  getProductByBrandService
+  getProductByBrandService,
+  bulkImportProductsService,
 } from "../services/product.services.js";
 
 import { StatusCodes } from "http-status-codes";
@@ -514,6 +515,25 @@ export const bulkUpdateProductTags = async (req, res, next) => {
       tagsToRemove
     );
     res.status(StatusCodes.OK).json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* ============================================================
+   BULK IMPORT PRODUCTS (Excel / CSV)
+============================================================ */
+export const bulkImportProductsController = async (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        OK: false,
+        message: "Please upload an Excel (.xlsx, .xls) or CSV (.csv) file",
+      });
+    }
+
+    const result = await bulkImportProductsService(req.file.path);
+    res.status(StatusCodes.CREATED).json(result);
   } catch (err) {
     next(err);
   }

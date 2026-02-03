@@ -87,6 +87,18 @@ const defaultRoles = [
         resource: "settings",
         actions: { create: true, read: true, update: true, delete: true, export: true, import: true },
       },
+      {
+        resource: "tickets",
+        actions: { create: true, read: true, update: true, delete: true, export: true, import: false },
+      },
+      {
+        resource: "chat",
+        actions: { create: true, read: true, update: true, delete: true, export: true, import: false },
+      },
+      {
+        resource: "embeddings",
+        actions: { create: true, read: true, update: true, delete: false, export: false, import: false },
+      },
     ],
   },
   {
@@ -149,6 +161,18 @@ const defaultRoles = [
       {
         resource: "roles",
         actions: { create: false, read: true, update: false, delete: false, export: false, import: false },
+      },
+      {
+        resource: "tickets",
+        actions: { create: true, read: true, update: true, delete: false, export: true, import: false },
+      },
+      {
+        resource: "chat",
+        actions: { create: false, read: true, update: false, delete: true, export: true, import: false },
+      },
+      {
+        resource: "embeddings",
+        actions: { create: true, read: true, update: true, delete: false, export: false, import: false },
       },
     ],
   },
@@ -301,6 +325,14 @@ const defaultRoles = [
       {
         resource: "reviews",
         actions: { create: false, read: true, update: true, delete: true, export: false, import: false },
+      },
+      {
+        resource: "tickets",
+        actions: { create: true, read: true, update: true, delete: false, export: false, import: false },
+      },
+      {
+        resource: "chat",
+        actions: { create: false, read: true, update: false, delete: false, export: false, import: false },
       },
     ],
   },
