@@ -1,6 +1,6 @@
 import Role from "../models/role.model.js";
 import User from "../models/user.model.js";
-import { BadRequest, NotFound, ServerError } from "../utlis/apiError.js";
+import ApiError, { BadRequest, NotFound, ServerError } from "../utlis/apiError.js";
 import { redis } from "../config/redis.js";
 
 const ROLE_CACHE_PREFIX = "role:";
@@ -21,6 +21,7 @@ export const createRoleService = async (roleData) => {
     await redis.del(`${ROLES_LIST_CACHE_KEY}:inactive`);
     return role;
   } catch (err) {
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to create role", err.message);
   }
 };
@@ -95,6 +96,7 @@ export const getRoleByIdService = async (roleId) => {
 
     return { fromCache: false, data: role };
   } catch (err) {
+    if (err instanceof ApiError) throw err;
     if (err.name === "CastError") throw NotFound("Invalid role ID");
     throw ServerError("Failed to fetch role", err);
   }
@@ -131,6 +133,7 @@ export const updateRoleService = async (roleId, updateData) => {
 
     return updated;
   } catch (err) {
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to update role", err);
   }
 };
@@ -161,7 +164,8 @@ export const deleteRoleService = async (roleId) => {
 
     return { message: "Role deleted successfully" };
   } catch (err) {
-    throw ServerError("Failed to delete role", err);
+    if (err instanceof ApiError) throw err;
+    throw ServerError("Failed to delete role", err.message);
   }
 };
 
@@ -188,6 +192,7 @@ export const assignRoleToUserService = async (userId, roleId) => {
 
     return user;
   } catch (err) {
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to assign role", err);
   }
 };
@@ -221,6 +226,7 @@ export const getRoleUsersService = async (roleId, page = 1, limit = 20) => {
       },
     };
   } catch (err) {
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to fetch role users", err);
   }
 };
@@ -253,6 +259,7 @@ export const cloneRoleService = async (roleId, newRoleName) => {
 
     return clonedRole;
   } catch (err) {
+    if (err instanceof ApiError) throw err;
     throw ServerError("Failed to clone role", err);
   }
 };
