@@ -15,6 +15,7 @@ const defaultRoles = [
     ar: "الدور الافتراضي للمستخدمين المسجلين",
   },
   isSystemRole: true,   // cannot be deleted
+  status: "active",
   priority: 1,          // lowest priority among system roles
   permissions: [],      // no admin access
 },
@@ -29,6 +30,7 @@ const defaultRoles = [
       ar: "وصول كامل للنظام مع جميع الصلاحيات",
     },
     isSystemRole: true,
+    status: "active",
     priority: 100,
     permissions: [
       {
@@ -112,6 +114,7 @@ const defaultRoles = [
       ar: "وصول كامل لإدارة المنتجات والطلبات والمستخدمين",
     },
     isSystemRole: true,
+    status: "active",
     priority: 90,
     permissions: [
       {
@@ -187,6 +190,7 @@ const defaultRoles = [
       ar: "يمكنه إدارة المنتجات والطلبات وعرض التحليلات",
     },
     isSystemRole: true,
+    status: "active",
     priority: 70,
     permissions: [
       {
@@ -234,6 +238,7 @@ const defaultRoles = [
       ar: "يدير المنتجات والفئات ومحتوى الصفحة الرئيسية",
     },
     isSystemRole: false,
+    status: "active",
     priority: 60,
     permissions: [
       {
@@ -273,6 +278,7 @@ const defaultRoles = [
       ar: "يدير الطلبات والكوبونات ويعرض تحليلات المبيعات",
     },
     isSystemRole: false,
+    status: "active",
     priority: 65,
     permissions: [
       {
@@ -308,6 +314,7 @@ const defaultRoles = [
       ar: "يتعامل مع طلبات العملاء والمراجعات",
     },
     isSystemRole: false,
+    status: "active",
     priority: 50,
     permissions: [
       {
@@ -347,6 +354,7 @@ const defaultRoles = [
       ar: "وصول للقراءة فقط لعرض البيانات",
     },
     isSystemRole: false,
+    status: "active",
     priority: 10,
     permissions: [
       {
@@ -425,6 +433,22 @@ export const seedAdmin = async () => {
 export const seedRoles = async () => {
   try {
     console.log("🌱 Seeding default roles...");
+
+    // Migrate: convert old isActive boolean to status string
+    const migrated = await Role.updateMany(
+      { isActive: { $exists: true } },
+      [
+        {
+          $set: {
+            status: { $cond: [{ $eq: ["$isActive", true] }, "active", "inactive"] },
+          },
+        },
+        { $unset: "isActive" },
+      ]
+    );
+    if (migrated.modifiedCount > 0) {
+      console.log(`🔄 Migrated ${migrated.modifiedCount} role(s): isActive → status`);
+    }
 
     for (const roleData of defaultRoles) {
       const existing = await Role.findOne({ name: roleData.name });

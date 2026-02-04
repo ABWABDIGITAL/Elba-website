@@ -23,6 +23,9 @@ const permissionSchema = new mongoose.Schema(
         "tickets",
         "chat",
         "embeddings",
+        "blogs",
+        "static-pages",
+        "notifications",
       ],
     },
     actions: {

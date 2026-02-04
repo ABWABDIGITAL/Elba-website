@@ -107,7 +107,8 @@ export const validateCreateRole = [
     .isIn([
       "users", "products", "categories", "brands", "orders",
       "reviews", "coupons", "catalogs", "home", "branches",
-      "cart", "analytics", "roles", "settings"
+      "cart", "analytics", "roles", "settings",
+      "tickets", "chat", "embeddings", "blogs", "static-pages", "notifications"
     ])
     .withMessage("Invalid resource type"),
 
@@ -180,7 +181,8 @@ export const validateUpdateRole = [
     .isIn([
       "users", "products", "categories", "brands", "orders",
       "reviews", "coupons", "catalogs", "home", "branches",
-      "cart", "analytics", "roles", "settings"
+      "cart", "analytics", "roles", "settings",
+      "tickets", "chat", "embeddings", "blogs", "static-pages", "notifications"
     ]),
 
   ...validatePermissionActions(),
