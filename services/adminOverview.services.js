@@ -5,6 +5,14 @@ import ChatSession from "../models/chatSession.model.js";
 import SupportTicket from "../models/ticket.model.js";
 import mongoose from "mongoose";
 import { RedisHelper } from "../config/redis.js";
+import {
+  getCartAbandonmentRate,
+  getAbandonedCarts,
+  getConversionMetrics,
+  getFunnelData,
+  getTopProducts,
+  getRealtimeStats,
+} from "./metrics.services.js";
 
 const OVERVIEW_CACHE_KEY = "admin:overview";
 const OVERVIEW_CACHE_TTL = 300; // 5 minutes
@@ -50,14 +58,22 @@ export async function getAdminOverview(params = {}) {
   const dateFilter = buildDateFilter(dateFrom, dateTo);
 
   // Run all aggregations in parallel
-  const [orders, customers, products, chat, tickets, crossDomain] =
-    await Promise.all([
+  const [
+    orders, customers, products, chat, tickets, crossDomain,
+    cartAbandonment, abandonedCarts, conversion, funnel, topProductsByEvent, realtime,
+  ] = await Promise.all([
       aggregateOrders(dateFilter),
       aggregateCustomers(dateFilter),
       aggregateProducts(),
       aggregateChat(dateFilter),
       aggregateTickets(dateFilter),
       aggregateCrossDomain(dateFilter),
+      getCartAbandonmentRate("30d").catch(() => null),
+      getAbandonedCarts(10, 0).catch(() => []),
+      getConversionMetrics("30d").catch(() => null),
+      getFunnelData("30d").catch(() => null),
+      getTopProducts("30d", "revenue", 10).catch(() => []),
+      getRealtimeStats(15).catch(() => null),
     ]);
 
   const data = {
@@ -66,13 +82,21 @@ export async function getAdminOverview(params = {}) {
       from: dateFrom || null,
       to: dateTo || null,
     },
-    kpis: buildKPIs(orders, customers, chat, tickets),
+    kpis: buildKPIs(orders, customers, chat, tickets, cartAbandonment, conversion),
     orders,
     customers,
     products,
     chat,
     tickets,
     crossDomain,
+    eventAnalytics: {
+      cartAbandonment,
+      abandonedCarts,
+      conversion,
+      funnel,
+      topProductsByEvent,
+      realtime,
+    },
   };
 
   // Cache result (only when no date filter)
@@ -91,7 +115,7 @@ export async function getAdminOverview(params = {}) {
 // KPIs (Top Cards)
 // ============================================================
 
-function buildKPIs(orders, customers, chat, tickets) {
+function buildKPIs(orders, customers, chat, tickets, cartAbandonment, conversion) {
   return {
     totalRevenue: orders.totalRevenue,
     totalOrders: orders.totalOrders,
@@ -101,6 +125,8 @@ function buildKPIs(orders, customers, chat, tickets) {
     totalChatSessions: chat.totalSessions,
     totalTickets: tickets.total,
     aiResolutionRate: tickets.aiResolutionRate,
+    cartAbandonmentRate: cartAbandonment?.abandonmentRate || "0",
+    conversionRate: conversion?.overallConversionRate || "0",
   };
 }
 
