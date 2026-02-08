@@ -12,17 +12,41 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       required: true,
       enum: [
+        // User events
         "new_register",
+        "user_login",
+        "password_reset",
+        // Order events
         "order_created",
         "order_confirmed",
         "order_shipped",
         "order_delivered",
         "order_cancelled",
-        "discount_alert",
-        "flash_sale",
+        "order_refunded",
+        "order_returned",
+        // Cart events
+        "cart_abandoned",
+        // Product events
         "new_product",
         "stock_alert",
+        "low_stock",
+        "out_of_stock",
+        "price_drop",
+        // Chat/Support events
+        "new_chat",
+        "chat_message",
+        "ticket_created",
+        "ticket_replied",
+        "ticket_resolved",
+        // Payment events
+        "payment_received",
+        "payment_failed",
+        // Marketing events
+        "discount_alert",
+        "flash_sale",
         "review_reminder",
+        // System events
+        "system_alert",
         "general",
       ],
       index: true,
@@ -59,7 +83,7 @@ const notificationSchema = new mongoose.Schema(
     // Related data
     relatedModel: {
       type: String,
-      enum: ["Order", "Product", "User", "Coupon", null],
+      enum: ["Order", "Product", "User", "Coupon", "ChatSession", "SupportTicket", "Cart", null],
       default: null,
     },
     relatedId: {

@@ -5,6 +5,7 @@ import { ChatGroq } from "@langchain/groq";
 import mongoose from "mongoose";
 import ApiFeatures from "../utlis/apiFeatures.js";
 import { NotFound, BadRequest, Forbidden } from "../utlis/apiError.js";
+import { notifyNewChat } from "./notification.services.js";
 
 // ============================================================
 // HELPERS
@@ -30,6 +31,12 @@ export async function createSession(userId) {
     startedAt: new Date(),
     lastActivity: new Date(),
   });
+
+  // Notify admins about new chat session
+  const customer = await User.findById(userId).select("name email phone").lean();
+  if (customer) {
+    notifyNewChat(session, customer).catch(console.error);
+  }
 
   return {
     sessionId: session.sessionId,

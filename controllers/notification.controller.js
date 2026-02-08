@@ -6,7 +6,8 @@ import {
   deleteNotificationService,
   deleteAllNotificationsService,
   getNotificationStatsService,
-  createNotificationService
+  createNotificationService,
+  clearUserNotificationCacheService,
 } from "../services/notification.services.js";
 import {
   sendDiscountWhatsApp,
@@ -288,6 +289,21 @@ export const whatsappWebhook = async (req, res, next) => {
     res.status(StatusCodes.OK).json({
       OK: true,
       message: "Webhook received",
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* --------------------------------------------------
+   CLEAR MY NOTIFICATION CACHE
+--------------------------------------------------- */
+export const clearMyNotificationCache = async (req, res, next) => {
+  try {
+    await clearUserNotificationCacheService(req.user.id);
+    res.status(StatusCodes.OK).json({
+      OK: true,
+      message: "Notification cache cleared successfully",
     });
   } catch (err) {
     next(err);

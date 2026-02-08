@@ -9,6 +9,7 @@ import {
 import crypto from "crypto";
 import { sendRegistrationWhatsApp } from "./whatsapp.services.js";
 import { trackUserRegistration, trackUserLogin } from '../services/analytics.services.js';
+import { notifyNewUserRegistration } from './notification.services.js';
 
 /* ==========================================================
    USER DTO
@@ -64,12 +65,13 @@ export const registerService = async ({
 
   // Fire-and-forget
   sendRegistrationWhatsApp(newUser).catch(console.error);
-  
+  notifyNewUserRegistration(newUser).catch(console.error);
+
   // Only track if req is provided
   if (req) {
     await trackUserRegistration(req, newUser).catch(console.error);
   }
-  
+
   return {
     OK: true,
     message: "User registered successfully",

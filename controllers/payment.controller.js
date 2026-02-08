@@ -9,6 +9,7 @@ import {
   initiateMyFatoorahSession 
 } from "../services/myfatoorah.services.js";
 import { NotFound, BadRequest, Forbidden } from "../utlis/apiError.js";
+import { notifyLowStock, notifyOutOfStock } from "../services/notification.services.js";
 
 // ============================================
 // WEBHOOK CONTROLLER (Secured)
@@ -167,13 +168,21 @@ export const myFatoorahWebhookController = async (req, res) => {
         logEntry.status = 'stock_error';
         logEntry.productId = item.product;
         await PaymentLog.create(logEntry);
-        
+
         // Mark order for manual review instead of failing
         order.orderStatus = "pending_review";
         order.adminNotes = `Stock issue for product ${item.product} at payment time`;
-        
+
         // Don't throw - we received the payment, need manual intervention
         console.error(`CRITICAL: Stock depleted for paid order ${orderId}`);
+      } else {
+        // Check for low stock and notify admins
+        const LOW_STOCK_THRESHOLD = 10;
+        if (updated.stock === 0) {
+          notifyOutOfStock(updated).catch(console.error);
+        } else if (updated.stock <= LOW_STOCK_THRESHOLD) {
+          notifyLowStock(updated, updated.stock, LOW_STOCK_THRESHOLD).catch(console.error);
+        }
       }
     }
 

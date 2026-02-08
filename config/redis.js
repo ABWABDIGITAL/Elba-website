@@ -48,4 +48,29 @@ export const RedisHelper = {
       console.error("Redis DEL Error:", err.message);
     }
   },
+
+  /**
+   * Delete all keys matching a pattern (e.g., "notifications:user:123:*")
+   */
+  async delByPattern(pattern) {
+    if (!redis) return null;
+    try {
+      let cursor = 0;
+      let deletedCount = 0;
+      do {
+        const result = await redis.scan(cursor, { match: pattern, count: 100 });
+        // Upstash returns cursor as string, convert to number
+        cursor = parseInt(result[0], 10);
+        const keys = result[1];
+        if (keys.length > 0) {
+          await redis.del(...keys);
+          deletedCount += keys.length;
+        }
+      } while (cursor !== 0);
+      return deletedCount;
+    } catch (err) {
+      console.error("Redis DEL Pattern Error:", err.message);
+      return 0;
+    }
+  },
 };

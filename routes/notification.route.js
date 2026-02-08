@@ -11,6 +11,7 @@ import {
   getNotificationStats,
   whatsappWebhook,
   createNotification,
+  clearMyNotificationCache,
 } from "../controllers/notification.controller.js";
 import { protect } from "../middlewares/authMiddleware.js";
 import { requirePermission } from "../middlewares/permission.middleware.js";
@@ -28,6 +29,9 @@ router.use(protect);
 
 // Get user's notifications
 router.get("/", getUserNotifications);
+
+// Clear my notification cache
+router.delete("/cache", clearMyNotificationCache);
 
 // Get unread count
 router.get("/unread-count", getUnreadCount);

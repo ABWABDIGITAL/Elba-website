@@ -1,5 +1,6 @@
 import SupportTicket from "../models/ticket.model.js";
 import { NotFound, BadRequest } from "../utlis/apiError.js";
+import { notifyTicketCreated } from "./notification.services.js";
 
 // ============================================================
 // HELPERS
@@ -163,6 +164,14 @@ export async function createTicket({
   await ticket.save();
 
   console.log(`Ticket created: ${ticket.ticketId} | AI Resolved: ${aiResolved} | Repeat: ${repeatCheck.isRepeat}`);
+
+  // Notify admins about new ticket (only if not AI-resolved)
+  if (!aiResolved && customerId) {
+    notifyTicketCreated(
+      { _id: ticket._id, ticketNumber: ticket.ticketId, subject: ticket.subject, priority: ticket.priority },
+      { _id: customerId, name: customerInfo.name, email: customerInfo.email }
+    ).catch(console.error);
+  }
 
   return {
     ticketId: ticket.ticketId,

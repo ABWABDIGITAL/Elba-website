@@ -20,6 +20,7 @@ import {
   getAllProductsforAdminController,
   getProductByBrandController,
   bulkImportProductsController,
+  bulkUpdateProductsController,
 } from "../controllers/product.controller.js";
 
 import {
@@ -99,6 +100,15 @@ router.post(
   requirePermission("products", "import"),
   spreadsheetUpload.single("file"),
   bulkImportProductsController
+);
+
+// BULK UPDATE PRODUCTS BY SKU (Excel / CSV)
+router.post(
+  "/bulk-update",
+  protect,
+  requirePermission("products", "update"),
+  spreadsheetUpload.single("file"),
+  bulkUpdateProductsController
 );
 
 router.get("/:slug", getProductBySlugController);

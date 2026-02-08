@@ -7,6 +7,7 @@ import ApiError ,{ BadRequest, NotFound, ServerError, Forbidden } from "../utlis
 import mongoose from "mongoose";
 import { sendOrderUpdateWhatsApp } from "./whatsapp.services.js";
 import { trackOrderPlaced, trackOrderStatusChange } from '../services/analytics.services.js';
+import { notifyOrderCreated, notifyOrderStatusChange } from './notification.services.js';
 
 
 /* --------------------------------------------------
@@ -132,6 +133,12 @@ export const createOrderService = async (
 
     // 🔥 SIDE EFFECTS AFTER COMMIT
     trackOrderPlaced(order).catch(console.error);
+
+    // Get customer for notification
+    const customer = await User.findById(userId).select("name email phone").lean();
+    if (customer) {
+      notifyOrderCreated(order, customer).catch(console.error);
+    }
 
     return {
       OK: true,
@@ -339,13 +346,18 @@ export const updateOrderStatusService = async (orderId, status, note = null, req
     await order.save();
 
     // Send WhatsApp notification for important status changes
+    const user = order.user._id ? order.user : await User.findById(order.user);
     if (["confirmed", "shipped", "delivered", "cancelled"].includes(status)) {
-      const user = order.user._id ? order.user : await User.findById(order.user);
       sendOrderUpdateWhatsApp(order, user, status).catch(err => {
         console.error("Failed to send order update WhatsApp:", err);
       });
     }
+
+    // Track analytics and send notifications
     await trackOrderStatusChange(order, status, req);
+    const oldStatus = order.statusHistory?.slice(-2)?.[0]?.status || "pending";
+    notifyOrderStatusChange(order, user, status, oldStatus).catch(console.error);
+
     return {
       OK: true,
       message: `Order status updated to ${status}`,
@@ -412,6 +424,12 @@ export const cancelOrderService = async (userId, orderId, reason = null) => {
 
     await order.save({ session });
     await session.commitTransaction();
+
+    // Notify user about cancellation
+    const customer = await User.findById(userId).select("name email phone").lean();
+    if (customer) {
+      notifyOrderStatusChange(order, customer, "cancelled", order.statusHistory?.slice(-2)?.[0]?.status || "pending").catch(console.error);
+    }
 
     return {
       OK: true,

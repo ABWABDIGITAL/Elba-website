@@ -1305,3 +1305,217 @@ export const bulkImportProductsService = async (filePath) => {
     });
   }
 };
+
+/* ============================================================
+   BULK UPDATE PRODUCTS BY SKU (Excel / CSV)
+============================================================ */
+export const bulkUpdateProductsService = async (filePath) => {
+  try {
+    const rows = parseSpreadsheet(filePath);
+
+    const [categories, brands] = await Promise.all([
+      Category.find({}).lean(),
+      Brand.find({}).lean(),
+    ]);
+
+    const categoryMap = {};
+    for (const cat of categories) {
+      categoryMap[String(cat._id)] = String(cat._id);
+      if (cat.en?.name) categoryMap[cat.en.name.toLowerCase()] = String(cat._id);
+      if (cat.ar?.name) categoryMap[cat.ar.name.toLowerCase()] = String(cat._id);
+    }
+
+    const brandMap = {};
+    for (const b of brands) {
+      brandMap[String(b._id)] = String(b._id);
+      if (b.en?.name) brandMap[b.en.name.toLowerCase()] = String(b._id);
+      if (b.ar?.name) brandMap[b.ar.name.toLowerCase()] = String(b._id);
+    }
+
+    // Collect all SKUs from the file
+    const allSkus = rows
+      .map((r) => String(r.sku || "").trim().toUpperCase())
+      .filter(Boolean);
+
+    // Load existing products by SKU
+    const existingProducts = await Product.find({ sku: { $in: allSkus } }).lean();
+    const existingSkuMap = new Map(existingProducts.map((p) => [p.sku, p]));
+
+    const results = {
+      totalRows: rows.length,
+      updated: 0,
+      skipped: 0,
+      notFound: 0,
+      errors: [],
+    };
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const rowNum = i + 2;
+      const sku = String(row.sku || "").trim().toUpperCase();
+
+      if (!sku) {
+        results.errors.push(`Row ${rowNum}: sku is required`);
+        results.skipped++;
+        continue;
+      }
+
+      const existing = existingSkuMap.get(sku);
+      if (!existing) {
+        results.errors.push(`Row ${rowNum}: SKU "${sku}" not found – skipped`);
+        results.notFound++;
+        continue;
+      }
+
+      // Build partial update from non-empty fields
+      const updateData = buildPartialUpdate(row, categoryMap, brandMap, rowNum);
+
+      if (updateData.errors.length) {
+        results.errors.push(...updateData.errors);
+        results.skipped++;
+        continue;
+      }
+
+      if (Object.keys(updateData.data).length === 0) {
+        results.errors.push(`Row ${rowNum}: no fields to update`);
+        results.skipped++;
+        continue;
+      }
+
+      // Apply pricing logic if price-related fields changed
+      if (updateData.data.price || updateData.data.discountPrice != null || updateData.data.discountPercentage != null) {
+        const priceData = {
+          price: updateData.data.price || existing.price,
+          discountPrice: updateData.data.discountPrice ?? existing.discountPrice,
+          discountPercentage: updateData.data.discountPercentage ?? existing.discountPercentage,
+        };
+        applyPricingLogic(priceData);
+        Object.assign(updateData.data, priceData);
+      }
+
+      try {
+        await Product.findByIdAndUpdate(existing._id, { $set: updateData.data });
+        results.updated++;
+      } catch (err) {
+        results.errors.push(`Row ${rowNum}: update failed – ${err.message}`);
+        results.skipped++;
+      }
+    }
+
+    if (results.updated > 0) {
+      await RedisHelper.del(HOME_CACHE_KEY);
+    }
+
+    return {
+      OK: true,
+      message: `Bulk update completed: ${results.updated} updated, ${results.skipped} skipped, ${results.notFound} not found`,
+      data: results,
+    };
+  } catch (err) {
+    if (err instanceof ApiError) throw err;
+    throw ServerError("Failed to bulk update products", {
+      message: err.message,
+    });
+  }
+};
+
+/**
+ * Build a partial update object from a spreadsheet row.
+ * Only includes fields that have non-empty values.
+ */
+const buildPartialUpdate = (row, categoryMap, brandMap, rowNum) => {
+  const errors = [];
+  const data = {};
+
+  // Price
+  if (row.price !== undefined && row.price !== "") {
+    const price = parseFloat(row.price);
+    if (isNaN(price) || price < 0) errors.push(`Row ${rowNum}: invalid price`);
+    else data.price = price;
+  }
+
+  // Stock
+  if (row.stock !== undefined && row.stock !== "") {
+    const stock = parseInt(row.stock);
+    if (isNaN(stock) || stock < 0) errors.push(`Row ${rowNum}: invalid stock`);
+    else data.stock = stock;
+  }
+
+  // Category
+  const categoryInput = String(row.category || "").trim();
+  if (categoryInput) {
+    if (mongoose.isValidObjectId(categoryInput)) {
+      data.category = categoryInput;
+    } else {
+      const catId = categoryMap[categoryInput.toLowerCase()];
+      if (!catId) errors.push(`Row ${rowNum}: category "${categoryInput}" not found`);
+      else data.category = catId;
+    }
+  }
+
+  // Brand
+  const brandInput = String(row.brand || "").trim();
+  if (brandInput) {
+    if (mongoose.isValidObjectId(brandInput)) {
+      data.brand = brandInput;
+    } else {
+      const bId = brandMap[brandInput.toLowerCase()];
+      if (!bId) errors.push(`Row ${rowNum}: brand "${brandInput}" not found`);
+      else data.brand = bId;
+    }
+  }
+
+  // Simple optional fields
+  if (row.status && ["active", "inactive", "draft"].includes(row.status)) data.status = row.status;
+  if (row.sizeType) data.sizeType = row.sizeType;
+  if (row.modelNumber) data.modelNumber = String(row.modelNumber).trim();
+  if (row.currencyCode) data.currencyCode = String(row.currencyCode).trim().toUpperCase();
+
+  // Discount
+  if (row.discountPrice !== undefined && row.discountPrice !== "") {
+    data.discountPrice = parseFloat(row.discountPrice) || 0;
+  }
+  if (row.discountPercentage !== undefined && row.discountPercentage !== "") {
+    data.discountPercentage = parseFloat(row.discountPercentage) || 0;
+  }
+
+  // Tags
+  const tagsStr = String(row.tags || "").trim();
+  if (tagsStr) data.tags = parseTags(tagsStr);
+
+  // Images
+  const imageUrls = parsePipe(String(row.images || ""));
+  if (imageUrls.length) data.images = imageUrls.map((url) => ({ url }));
+
+  // Arabic content
+  const arTitle = String(row.ar_title || "").trim();
+  if (arTitle) data["ar.title"] = arTitle;
+  const arSubTitle = String(row.ar_subTitle || "").trim();
+  if (arSubTitle) data["ar.subTitle"] = arSubTitle;
+  if (String(row.ar_description || "").trim()) data["ar.description"] = parseDescription(row.ar_description);
+  if (String(row.ar_specifications || "").trim()) data["ar.specifications"] = parseSpecs(row.ar_specifications);
+  if (String(row.ar_features || "").trim()) data["ar.features"] = parsePipe(row.ar_features);
+  const arWarranty = String(row.ar_warranty || "").trim();
+  if (arWarranty) data["ar.warranty"] = arWarranty;
+  if (String(row.ar_details || "").trim()) data["ar.details"] = parseDetails(row.ar_details);
+
+  // English content
+  const enTitle = String(row.en_title || "").trim();
+  if (enTitle) data["en.title"] = enTitle;
+  const enSubTitle = String(row.en_subTitle || "").trim();
+  if (enSubTitle) data["en.subTitle"] = enSubTitle;
+  if (String(row.en_description || "").trim()) data["en.description"] = parseDescription(row.en_description);
+  if (String(row.en_specifications || "").trim()) data["en.specifications"] = parseSpecs(row.en_specifications);
+  if (String(row.en_features || "").trim()) data["en.features"] = parsePipe(row.en_features);
+  const enWarranty = String(row.en_warranty || "").trim();
+  if (enWarranty) data["en.warranty"] = enWarranty;
+  if (String(row.en_details || "").trim()) data["en.details"] = parseDetails(row.en_details);
+
+  // SEO
+  const arSeo = parseSEO(row.ar_seo);
+  const enSeo = parseSEO(row.en_seo);
+  if (arSeo) data["ar.seo"] = arSeo;
+  if (enSeo) data["en.seo"] = enSeo;
+
+  return { data, errors };
+};
