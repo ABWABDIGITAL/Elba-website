@@ -1,6 +1,7 @@
 import Product from "../models/product.model.js";
 import Category from "../models/category.model.js";
 import Brand from "../models/brand.model.js";
+import Tag from "../models/tag.model.js";
 import mongoose from "mongoose";
 import ApiError, {
   BadRequest,
@@ -11,12 +12,88 @@ import ApiFeatures from "../utlis/apiFeatures.js";
 import slugify from "slugify";
 import { trackProductView } from '../services/analytics.services.js';
 import { RedisHelper } from "../config/redis.js";
+import { toAbsoluteUrl } from "../utlis/urlHelper.js";
 import XLSX from "xlsx";
  const HOME_CACHE_KEY = "home:page";
  const HOME_CACHE_TTL = 3600;
 
+/* =========================================================================
+   URL & DTO TRANSFORM HELPERS
+=========================================================================== */
+const transformImages = (images) => {
+  if (!Array.isArray(images)) return [];
+  return images.map((img) => ({
+    ...img,
+    url: toAbsoluteUrl(img.url),
+  }));
+};
+
+const transformBrandLogo = (brand) => {
+  if (!brand) return null;
+  return {
+    ...brand,
+    logo: toAbsoluteUrl(brand.logo),
+  };
+};
+
+const transformCategoryImage = (category) => {
+  if (!category) return null;
+  return {
+    ...category,
+    image: toAbsoluteUrl(category.image),
+  };
+};
+
+const transformCatalog = (catalog) => {
+  if (!catalog) return null;
+  return {
+    ...catalog,
+    pdfUrl: toAbsoluteUrl(catalog?.pdfUrl),
+  };
+};
+
+const transformTags = (tags) => {
+  if (!Array.isArray(tags)) return [];
+  return tags.map((t) => {
+    if (!t || typeof t !== "object" || !t._id) return t;
+    return {
+      id: t._id,
+      name: t.name,
+      slug: t.slug,
+      type: t.type,
+      icon: t.icon ? toAbsoluteUrl(t.icon) : null,
+    };
+  });
+};
+
+/**
+ * Build standardized pricing block (works with both lean and non-lean docs).
+ */
+const buildPricingDTO = (p) => {
+  const price = p.price || 0;
+  const discountPercentage = p.discountPercentage || 0;
+  const discountPrice = p.discountPrice || 0;
+  const discountedPrice =
+    discountPrice > 0 && discountPrice < price
+      ? Number((price - discountPrice).toFixed(2))
+      : price;
+  const taxPercentage = p.taxPercentage ?? 15;
+  const taxAmount = Number(((discountedPrice * taxPercentage) / 100).toFixed(2));
+  const finalPrice = Number((discountedPrice + taxAmount).toFixed(2));
+
+  return {
+    price,
+    discountPercentage,
+    discountedPrice,
+    taxPercentage,
+    taxAmount,
+    finalPrice,
+  };
+};
+
 export const buildCompareDTO = (p) => {
   if (!p) return null;
+  const pricing = buildPricingDTO(p);
   return {
     id: p._id,
     ar: {
@@ -32,48 +109,50 @@ export const buildCompareDTO = (p) => {
       reference: p.en?.reference,
       seo: p.en?.seo,
     },
-    images: p.images || [],
+    images: transformImages(p.images),
     sku: p.sku,
     slug: p.slug,
-    price: p.price,
-    finalPrice: p.finalPrice,
+    ...pricing,
+    discountPrice: p.discountPrice || 0,
     stock: p.stock,
-    brand: p.brand,
+    colors: p.colors || [],
+    brand: p.brand?._id
+      ? transformBrandLogo(typeof p.brand.toObject === "function" ? p.brand.toObject() : p.brand)
+      : p.brand,
     ratingsAverage: p.ratingsAverage,
     ratingsQuantity: p.ratingsQuantity,
+    tags: transformTags(p.tags),
   };
 };
 
 export const buildGetAllproductDTO = (p) => {
   if (!p) return null;
+  const pricing = buildPricingDTO(p);
   return {
     id: p._id,
-    ar: {
-      title: p.ar?.title,
-    },
-    en: {
-      title: p.en?.title,
-    },
-    images: p.images || [],
+    ar: { title: p.ar?.title },
+    en: { title: p.en?.title },
+    images: transformImages(p.images),
     sku: p.sku,
     slug: p.slug,
-    price: p.price,
-    discountPrice: p.discountPrice,
-    discountPercentage: p.discountPercentage,
-    finalPrice: p.finalPrice,
+    ...pricing,
+    discountPrice: p.discountPrice || 0,
     ratingsAverage: p.ratingsAverage,
     sizeType: p.sizeType || null,
     stock: p.stock,
     status: p.status,
     salesCount: p.salesCount,
-    tags: p.tags || [],
+    colors: p.colors || [],
+    hasInstallation: p.hasInstallation || false,
+    hasDelivery: p.hasDelivery ?? true,
+    tags: transformTags(p.tags),
 
     category: p.category
       ? {
           id: p.category._id,
           ar: p.category.ar,
           en: p.category.en,
-          image: p.category.image,
+          image: toAbsoluteUrl(p.category.image),
         }
       : null,
 
@@ -82,7 +161,7 @@ export const buildGetAllproductDTO = (p) => {
           id: p.brand._id,
           ar: p.brand.ar,
           en: p.brand.en,
-          logo: p.brand.logo,
+          logo: toAbsoluteUrl(p.brand.logo),
         }
       : null,
   };
@@ -91,6 +170,7 @@ export const buildGetAllproductDTO = (p) => {
 
 export const buildProductDTO = (p) => {
   if (!p) return null;
+  const pricing = buildPricingDTO(p);
   return {
     id: p._id,
     ar: {
@@ -101,7 +181,7 @@ export const buildProductDTO = (p) => {
       warranty: p.ar?.warranty,
       description: p.ar?.description,
       details: p.ar?.details,
-      catalog:p.ar?.catalog,
+      catalog: transformCatalog(p.ar?.catalog),
       seo: p.ar?.seo,
     },
     en: {
@@ -112,28 +192,35 @@ export const buildProductDTO = (p) => {
       warranty: p.en?.warranty,
       description: p.en?.description,
       details: p.en?.details,
-      catalog:p.en?.catalog,
+      catalog: transformCatalog(p.en?.catalog),
       seo: p.en?.seo,
     },
-    images: p.images || [],
+    images: transformImages(p.images),
     sku: p.sku,
     slug: p.slug,
-    price: p.price,
-    discountPrice: p.discountPrice,
-    discountPercentage: p.discountPercentage,
-    finalPrice: p.finalPrice,
+    ...pricing,
+    discountPrice: p.discountPrice || 0,
+    currencyCode: p.currencyCode || "SAR",
     stock: p.stock,
     status: p.status,
-    category: p.category,
-    brand: p.brand,
+    category: p.category?._id
+      ? transformCategoryImage(typeof p.category.toObject === "function" ? p.category.toObject() : p.category)
+      : p.category,
+    brand: p.brand?._id
+      ? transformBrandLogo(typeof p.brand.toObject === "function" ? p.brand.toObject() : p.brand)
+      : p.brand,
+    colors: p.colors || [],
+    hasInstallation: p.hasInstallation || false,
+    hasDelivery: p.hasDelivery ?? true,
+    installationPrice: p.installationPrice || 0,
+    tags: transformTags(p.tags),
     ratingsAverage: p.ratingsAverage,
     ratingsQuantity: p.ratingsQuantity,
-    installments:p.installments,
+    installments: p.installments,
     views: p.views,
-    sizeType:p.sizeType,
+    sizeType: p.sizeType,
     salesCount: p.salesCount,
-    isFav:p.isFav,
-    tags: p.tags || [],
+    isFav: p.isFav,
   };
 };
 export const buildGetCatalogProductDTO = (p) => {
@@ -143,17 +230,17 @@ export const buildGetCatalogProductDTO = (p) => {
     ar: {
       title: p.ar?.title,
       subTitle: p.ar?.subTitle,
-      catalog:p.ar?.catalog,
+      catalog: transformCatalog(p.ar?.catalog),
     },
     en: {
       title: p.en?.title,
       subTitle: p.en?.subTitle,
-      catalog:p.en?.catalog,
+      catalog: transformCatalog(p.en?.catalog),
     },
-    images: p.images || [],
+    images: transformImages(p.images),
     sku: p.sku,
     slug: p.slug,
-    ratingsAverage:p.ratingsAverage,
+    ratingsAverage: p.ratingsAverage,
   };
 };
 
@@ -179,37 +266,53 @@ const applySlugIfMissing = (data) => {
 
 function applyPricingLogic(data) {
   const price = data.price;
-
   if (price == null) return;
 
-  // لو فيه discountPrice (قيمة الخصم)
-  if (data.discountPrice != null) {
-    if (data.discountPrice < 0) data.discountPrice = 0;
-    if (data.discountPrice > price) data.discountPrice = price;
-
-    data.finalPrice = Number((price - data.discountPrice).toFixed(2));
-    data.discountPercentage = Number(
-      ((data.discountPrice / price) * 100).toFixed(2)
-    );
-    return;
-  }
-
-  // لو فيه discountPercentage
-  if (data.discountPercentage != null) {
+  // Percentage-based discount (source of truth)
+  if (data.discountPercentage != null && data.discountPercentage > 0) {
     if (data.discountPercentage < 0) data.discountPercentage = 0;
     if (data.discountPercentage > 100) data.discountPercentage = 100;
 
     data.discountPrice = Number(
       ((price * data.discountPercentage) / 100).toFixed(2)
     );
-    data.finalPrice = Number((price - data.discountPrice).toFixed(2));
     return;
   }
 
-  // لا يوجد خصم
+  // Backward compat: if discountPrice sent directly (e.g. bulk import), convert to percentage
+  if (data.discountPrice != null && data.discountPrice > 0) {
+    if (data.discountPrice > price) data.discountPrice = price;
+    data.discountPercentage = Number(
+      ((data.discountPrice / price) * 100).toFixed(2)
+    );
+    data.discountPrice = Number(
+      ((price * data.discountPercentage) / 100).toFixed(2)
+    );
+    return;
+  }
+
+  // No discount
   data.discountPrice = 0;
   data.discountPercentage = 0;
-  data.finalPrice = price;
+}
+
+/**
+ * Auto-attach or detach the "special_offer" tag based on discountPercentage.
+ */
+async function syncSpecialOfferTag(product) {
+  const specialOfferTag = await Tag.findOne({ automationKey: "special_offer" });
+  if (!specialOfferTag) return;
+
+  const tagId = specialOfferTag._id.toString();
+  const currentTags = (product.tags || []).map((t) => t.toString());
+  const hasTag = currentTags.includes(tagId);
+  const shouldHaveTag = product.discountPercentage > 0;
+
+  if (shouldHaveTag && !hasTag) {
+    product.tags.push(specialOfferTag._id);
+  } else if (!shouldHaveTag && hasTag) {
+    product.tags = product.tags.filter((t) => t.toString() !== tagId);
+  }
 }
 
 export const createProductService = async (data) => {
@@ -223,7 +326,14 @@ export const createProductService = async (data) => {
     const product = new Product(data);
     validateProductDomain(product);
 
+    await syncSpecialOfferTag(product);
     await product.save();
+
+    // Populate tags for response
+    await product.populate("tags", "name slug type icon");
+    await product.populate("category", "ar.name ar.slug en.name en.slug image");
+    await product.populate("brand", "ar.name ar.slug en.name en.slug logo");
+
     await RedisHelper.del(HOME_CACHE_KEY);
     return {
       OK: true,
@@ -231,15 +341,11 @@ export const createProductService = async (data) => {
       data: buildProductDTO(product),
     };
   } catch (err) {
-     console.error("CREATE PRODUCT ERROR 👉", err);
-
-  if (err instanceof ApiError) throw err;
-
-  throw ServerError("Failed to create product", {
-    message: err.message,
-    name: err.name,
-    stack: err.stack,
-  });
+    if (err instanceof ApiError) throw err;
+    throw ServerError("Failed to create product", {
+      message: err.message,
+      name: err.name,
+    });
   }
 };
 
@@ -271,13 +377,13 @@ export const updateProductService = async (slug, data) => {
 
     // Create a copy of the existing document
     const updatedProduct = product.toObject();
-    
+
     // Deep merge the updates with the existing document
     deepMerge(updatedProduct, data);
-    
+
     // Apply the merged data back to the product
     for (const key in updatedProduct) {
-      if (key !== '_id' && key !== '__v') { // Skip special fields
+      if (key !== '_id' && key !== '__v') {
         product.set(key, updatedProduct[key]);
       }
     }
@@ -293,8 +399,15 @@ export const updateProductService = async (slug, data) => {
     }
 
     validateProductDomain(product);
+    await syncSpecialOfferTag(product);
 
-    const updated = await product.save();
+    await product.save();
+
+    // Populate tags for response
+    await product.populate("tags", "name slug type icon");
+    await product.populate("category", "ar.name ar.slug en.name en.slug image");
+    await product.populate("brand", "ar.name ar.slug en.name en.slug logo");
+
     await RedisHelper.del(HOME_CACHE_KEY);
     return {
       OK: true,
@@ -334,20 +447,47 @@ export const getAllProductsService = async (query) => {
     if (query.category) filter.category = query.category;
     if (query.brand) filter.brand = query.brand;
 
+    // Color filter
+    if (query.color) {
+      const colors = query.color.split(",").map((c) => c.trim().toLowerCase()).filter(Boolean);
+      if (colors.length) filter.colors = { $in: colors };
+    }
+
+    // Price range filter
+    if (query.minPrice || query.maxPrice) {
+      filter.price = {};
+      if (query.minPrice) filter.price.$gte = Number(query.minPrice);
+      if (query.maxPrice) filter.price.$lte = Number(query.maxPrice);
+    }
+
+    // Tag filter (by ObjectId)
+    if (query.tag) {
+      const tagIds = query.tag.split(",").map((t) => t.trim()).filter(Boolean);
+      if (tagIds.length) filter.tags = { $in: tagIds };
+    }
+
+    // Boolean filters
+    if (query.hasInstallation !== undefined) {
+      filter.hasInstallation = query.hasInstallation === "true";
+    }
+    if (query.hasDelivery !== undefined) {
+      filter.hasDelivery = query.hasDelivery === "true";
+    }
+    if (query.status) filter.status = query.status;
+
+    const selectFields =
+      "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage taxPercentage sizeType ratingsAverage images sku slug status stock salesCount category brand tags colors hasInstallation hasDelivery";
+
     const [items, total] = await Promise.all([
       Product.find(filter)
-    .select(
-      "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage finalPrice sizeType ratingsAverage images sku slug status stock salesCount category brand tags"
-    )
-
-
+        .select(selectFields)
         .populate("category", "ar.name ar.slug en.name en.slug image")
         .populate("brand", "ar.name ar.slug en.name en.slug logo")
-
+        .populate("tags", "name slug type icon")
         .skip(skip)
         .limit(limit)
-        .sort({ createdAt: -1 }).
-        lean(),
+        .sort({ createdAt: -1 })
+        .lean(),
       Product.countDocuments(filter),
     ]);
 
@@ -368,22 +508,24 @@ export const getAllProductsService = async (query) => {
 };
 export const getAllProductsForAdminService = async (query) => {
   try {
-    const page = Number(query.page) ||1;
-    const limit = Number(query.limit)||20;
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 20;
     const skip = (page - 1) * limit;
 
     const filter = {};
     if (query.category) filter.category = query.category;
     if (query.brand) filter.brand = query.brand;
+    if (query.status) filter.status = query.status;
+
+    const selectFields =
+      "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage taxPercentage sizeType ratingsAverage images sku slug status stock salesCount category brand tags colors hasInstallation hasDelivery";
 
     const [items, total] = await Promise.all([
       Product.find(filter)
-      .select(
-        "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage finalPrice sizeType ratingsAverage images sku slug status stock salesCount category brand tags"
-      )
+        .select(selectFields)
         .populate("category", "ar.name ar.slug en.name en.slug image")
         .populate("brand", "ar.name ar.slug en.name en.slug logo")
-
+        .populate("tags", "name slug type icon")
         .skip(skip)
         .limit(limit)
         .sort({ createdAt: -1 }),
@@ -406,27 +548,30 @@ export const getAllProductsForAdminService = async (query) => {
   }
 };
     
-export const getProductByslugService = async (req , slug) => {
+export const getProductByslugService = async (req, slug) => {
   const product = await Product.findOneAndUpdate(
     { slug },
     { $inc: { views: 1 } },
     { new: true }
   )
     .populate("category", "ar.name ar.slug en.name en.slug image")
-    .populate("brand", "ar.name ar.slug en.name en.slug logo");
+    .populate("brand", "ar.name ar.slug en.name en.slug logo")
+    .populate("tags", "name slug type icon");
 
   if (!product) throw NotFound("Product not found");
 
   const similarProducts = await Product.find({
     category: product.category?._id || null,
     _id: { $ne: product._id },
-    status: "active"
+    status: "active",
   })
     .populate("category", "ar.name ar.slug en.name en.slug image")
     .populate("brand", "ar.name ar.slug en.name en.slug logo")
+    .populate("tags", "name slug type icon")
     .limit(10)
     .sort({ ratingsAverage: -1, salesCount: -1 });
-await trackProductView(req, product);
+
+  await trackProductView(req, product);
   return {
     OK: true,
     message: "Product fetched successfully",
@@ -450,7 +595,10 @@ export const getProductByBrandService = async (slug) => {
     };
   }
 
-  const products = await Product.find({ brand: brand._id });
+  const products = await Product.find({ brand: brand._id })
+    .populate("category", "ar.name ar.slug en.name en.slug image")
+    .populate("brand", "ar.name ar.slug en.name en.slug logo")
+    .populate("tags", "name slug type icon");
 
   return {
     OK: true,
@@ -525,8 +673,9 @@ export const getCategoryAndProductsByType = async (categoryType) => {
 export const getCompareProductsService = async (skus) => {
   try {
     const products = await Product.find({ sku: { $in: skus } })
-   .populate("category", "ar.name ar.slug en.name en.slug image")
-    .populate("brand", "ar.name ar.slug en.name en.slug logo")
+      .populate("category", "ar.name ar.slug en.name en.slug image")
+      .populate("brand", "ar.name ar.slug en.name en.slug logo")
+      .populate("tags", "name slug type icon")
 
     if (!products.length) throw NotFound("Products not found");
 
@@ -608,7 +757,8 @@ export const getBestSellingByCategoryService = async (categoryId, query) => {
 
     let mongooseQuery = Product.find({ category: { $in: categoryIds } })
       .populate("category", "ar.name ar.slug en.name en.slug image")
-.populate("brand", "ar.name ar.slug en.name en.slug logo")
+      .populate("brand", "ar.name ar.slug en.name en.slug logo")
+      .populate("tags", "name slug type icon")
 
     if (top) {
       const items = await mongooseQuery
@@ -660,7 +810,7 @@ export const getBestOffersService = async (query) => {
     let mongooseQuery = Product.find({})
       .populate("category", "ar.name ar.slug en.name en.slug image")
       .populate("brand", "ar.name ar.slug en.name en.slug logo")
-
+      .populate("tags", "name slug type icon")
 
     if (top) {
       const items = await mongooseQuery
@@ -723,13 +873,14 @@ export const getProductsByCategory = async (slug) => {
     console.log("Finding products for category:", slug);
 
     const products = await Product.find({
-      category: category._id 
+      category: category._id,
     })
-    .select(
-        "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage finalPrice sizeType ratingsAverage images sku slug status stock salesCount category brand"
-    )
-    .populate("category", "ar.name ar.slug en.name en.slug image")
-    .populate("brand", "ar.name ar.slug en.name en.slug logo")
+      .select(
+        "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage taxPercentage sizeType ratingsAverage images sku slug status stock salesCount category brand tags colors hasInstallation hasDelivery"
+      )
+      .populate("category", "ar.name ar.slug en.name en.slug image")
+      .populate("brand", "ar.name ar.slug en.name en.slug logo")
+      .populate("tags", "name slug type icon")
 
     console.log("Products result:", products.length);
 
@@ -752,30 +903,16 @@ export const getProductsByCategory = async (slug) => {
   }
 };
 
-export const getProductsByTagService = async (tag, query) => {
+export const getProductsByTagService = async (tagSlug, query) => {
   try {
-    const validTags = [
-      "best_seller",
-      "hot",
-      "new_arrival",
-      "trending",
-      "featured",
-      "limited_edition",
-      "on_sale",
-      "clearance",
-      "top_rated",
-      "eco_friendly",
-      "exclusive",
-      "recommended",
-    ];
+    // Look up tag by slug
+    const tag = await Tag.findOne({ slug: tagSlug, status: "active" });
+    if (!tag) throw BadRequest(`Tag "${tagSlug}" not found`);
 
-    if (!validTags.includes(tag)) {
-      throw BadRequest(`Invalid tag. Valid tags: ${validTags.join(", ")}`);
-    }
-
-    let mongooseQuery = Product.find({ tags: tag })
-      .populate("category", "en.name ar.name en.slug ar.slug")
-      .populate("brand", "en.name ar.name en.slug ar.slug");
+    let mongooseQuery = Product.find({ tags: tag._id })
+      .populate("category", "en.name ar.name en.slug ar.slug image")
+      .populate("brand", "en.name ar.name en.slug ar.slug logo")
+      .populate("tags", "name slug type icon");
 
     const features = new ApiFeatures(mongooseQuery, query, {
       allowedFilterFields: ["category", "brand", "status"],
@@ -790,12 +927,12 @@ export const getProductsByTagService = async (tag, query) => {
     const items = await features.mongooseQuery;
     const total = await Product.countDocuments({
       ...features.getFilter(),
-      tags: tag,
+      tags: tag._id,
     });
 
     return {
       OK: true,
-      message: `Products with tag '${tag}' fetched successfully`,
+      message: `Products with tag '${tagSlug}' fetched successfully`,
       data: items.map(buildProductDTO),
       pagination: features.buildPaginationResult(total),
     };
@@ -805,37 +942,20 @@ export const getProductsByTagService = async (tag, query) => {
   }
 };
 
-export const getProductsByTagsService = async (tags, query) => {
+export const getProductsByTagsService = async (tagSlugs, query) => {
   try {
-    const validTags = [
-      "best_seller",
-      "hot",
-      "new_arrival",
-      "trending",
-      "featured",
-      "limited_edition",
-      "on_sale",
-      "clearance",
-      "top_rated",
-      "eco_friendly",
-      "exclusive",
-      "recommended",
-    ];
+    const slugArray = Array.isArray(tagSlugs) ? tagSlugs : tagSlugs.split(",").map((s) => s.trim());
 
-    const tagArray = Array.isArray(tags) ? tags : tags.split(",");
+    // Look up all tags by slug
+    const tags = await Tag.find({ slug: { $in: slugArray }, status: "active" });
+    if (!tags.length) throw BadRequest("No valid tags found");
 
-    const invalidTags = tagArray.filter((t) => !validTags.includes(t));
-    if (invalidTags.length > 0) {
-      throw BadRequest(
-        `Invalid tags: ${invalidTags.join(
-          ", "
-        )}. Valid tags: ${validTags.join(", ")}`
-      );
-    }
+    const tagIds = tags.map((t) => t._id);
 
-    let mongooseQuery = Product.find({ tags: { $all: tagArray } })
-      .populate("category", "en.name ar.name en.slug ar.slug")
-      .populate("brand", "en.name ar.name en.slug ar.slug");
+    let mongooseQuery = Product.find({ tags: { $all: tagIds } })
+      .populate("category", "en.name ar.name en.slug ar.slug image")
+      .populate("brand", "en.name ar.name en.slug ar.slug logo")
+      .populate("tags", "name slug type icon");
 
     const features = new ApiFeatures(mongooseQuery, query, {
       allowedFilterFields: ["category", "brand", "status"],
@@ -850,12 +970,12 @@ export const getProductsByTagsService = async (tags, query) => {
     const items = await features.mongooseQuery;
     const total = await Product.countDocuments({
       ...features.getFilter(),
-      tags: { $all: tagArray },
+      tags: { $all: tagIds },
     });
 
     return {
       OK: true,
-      message: `Products with tags fetched successfully`,
+      message: "Products with tags fetched successfully",
       data: items.map(buildProductDTO),
       pagination: features.buildPaginationResult(total),
     };
@@ -867,45 +987,22 @@ export const getProductsByTagsService = async (tags, query) => {
 
 export const getAvailableTagsService = async () => {
   try {
-    const tagStats = await Product.aggregate([
-      { $unwind: "$tags" },
-      {
-        $group: {
-          _id: "$tags",
-          count: { $sum: 1 },
-        },
-      },
-      {
-        $sort: { count: -1 },
-      },
-    ]);
+    const tags = await Tag.find({ status: "active" }).lean();
 
-    const allTags = [
-      "best_seller",
-      "hot",
-      "new_arrival",
-      "trending",
-      "featured",
-      "limited_edition",
-      "on_sale",
-      "clearance",
-      "top_rated",
-      "eco_friendly",
-      "exclusive",
-      "recommended",
-    ];
-
-    const tagData = allTags.map((tag) => {
-      const stat = tagStats.find((s) => s._id === tag);
-      return {
-        tag,
-        count: stat ? stat.count : 0,
-        displayName: {
-          en: tag.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
-          ar: getArabicTagName(tag),
-        },
-      };
-    });
+    const tagData = await Promise.all(
+      tags.map(async (tag) => {
+        const count = await Product.countDocuments({ tags: tag._id });
+        return {
+          id: tag._id,
+          name: tag.name,
+          slug: tag.slug,
+          type: tag.type,
+          icon: tag.icon ? toAbsoluteUrl(tag.icon) : null,
+          automationKey: tag.automationKey || null,
+          count,
+        };
+      })
+    );
 
     return {
       OK: true,
@@ -923,35 +1020,14 @@ export const bulkUpdateProductTagsService = async (
   tagsToRemove
 ) => {
   try {
-    const validTags = [
-      "best_seller",
-      "hot",
-      "new_arrival",
-      "trending",
-      "featured",
-      "limited_edition",
-      "on_sale",
-      "clearance",
-      "top_rated",
-      "eco_friendly",
-      "exclusive",
-      "recommended",
-    ];
-
+    // Validate tag ObjectIds
     if (tagsToAdd) {
-      const invalidAdd = tagsToAdd.filter((t) => !validTags.includes(t));
-      if (invalidAdd.length > 0) {
-        throw BadRequest(`Invalid tags to add: ${invalidAdd.join(", ")}`);
-      }
+      const invalidAdd = tagsToAdd.filter((t) => !mongoose.isValidObjectId(t));
+      if (invalidAdd.length) throw BadRequest(`Invalid tag IDs to add: ${invalidAdd.join(", ")}`);
     }
-
     if (tagsToRemove) {
-      const invalidRemove = tagsToRemove.filter((t) => !validTags.includes(t));
-      if (invalidRemove.length > 0) {
-        throw BadRequest(
-          `Invalid tags to remove: ${invalidRemove.join(", ")}`
-        );
-      }
+      const invalidRemove = tagsToRemove.filter((t) => !mongoose.isValidObjectId(t));
+      if (invalidRemove.length) throw BadRequest(`Invalid tag IDs to remove: ${invalidRemove.join(", ")}`);
     }
 
     const updateOps = {};
@@ -980,24 +1056,6 @@ export const bulkUpdateProductTagsService = async (
     throw ServerError("Failed to bulk update product tags", err);
   }
 };
-
-function getArabicTagName(tag) {
-  const arabicNames = {
-    best_seller: "الأكثر مبيعاً",
-    hot: "ساخن",
-    new_arrival: "وصل حديثاً",
-    trending: "رائج",
-    featured: "مميز",
-    limited_edition: "إصدار محدود",
-    on_sale: "تخفيضات",
-    clearance: "تصفية",
-    top_rated: "الأعلى تقييماً",
-    eco_friendly: "صديق للبيئة",
-    exclusive: "حصري",
-    recommended: "موصى به",
-  };
-  return arabicNames[tag] || tag;
-}
 
 /* ============================================================
    BULK IMPORT PRODUCTS (Excel / CSV)
@@ -1103,13 +1161,11 @@ const parseSEO = (val) => {
   return undefined;
 };
 
-/** Parse tags with validation */
-const VALID_TAGS = [
-  "best_seller", "hot", "new_arrival", "trending", "featured",
-  "limited_edition", "on_sale", "clearance", "top_rated",
-  "eco_friendly", "exclusive", "recommended",
-];
-const parseTags = (val) => parseCSV(val).filter((t) => VALID_TAGS.includes(t));
+/**
+ * Parse tags: accepts comma-separated ObjectIds or slugs.
+ * Returns array of strings (will be resolved to ObjectIds during import).
+ */
+const parseTags = (val) => parseCSV(val).filter(Boolean);
 
 /**
  * Map a single spreadsheet row to product data.
@@ -1245,6 +1301,15 @@ export const bulkImportProductsService = async (filePath) => {
       if (b.ar?.name) brandMap[b.ar.name.toLowerCase()] = String(b._id);
     }
 
+    // Pre-load tags for slug lookup
+    const allTags = await Tag.find({}).lean();
+    const tagSlugMap = {};
+    for (const t of allTags) {
+      tagSlugMap[t.slug] = String(t._id);
+      if (t.automationKey) tagSlugMap[t.automationKey] = String(t._id);
+      tagSlugMap[String(t._id)] = String(t._id);
+    }
+
     // Check existing SKUs in one query
     const allSkus = rows
       .map((r) => String(r.sku || "").trim().toUpperCase())
@@ -1276,6 +1341,13 @@ export const bulkImportProductsService = async (filePath) => {
         results.errors.push(`Row ${i + 2}: SKU "${data.sku}" already exists – skipped`);
         results.skipped++;
         continue;
+      }
+
+      // Resolve tag slugs/keys to ObjectIds
+      if (data.tags && data.tags.length) {
+        data.tags = data.tags
+          .map((t) => tagSlugMap[t] || tagSlugMap[t.toLowerCase()])
+          .filter(Boolean);
       }
 
       applySlugIfMissing(data);
