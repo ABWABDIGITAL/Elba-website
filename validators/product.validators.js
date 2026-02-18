@@ -43,19 +43,11 @@ export const validateCreateProduct = [
     .isFloat({ min: 0 })
     .withMessage("price must be a positive number"),
 
-  // Discount value (optional)
-  body("discountPrice")
+  // Discount percentage (optional – source of truth; system calculates discountPrice)
+  body("discountPercentage")
     .optional()
-    .isFloat({ min: 0 })
-    .withMessage("discountPrice must be >= 0")
-    .custom((value, { req }) => {
-      const price = Number(req.body.price);
-      const discount = Number(value);
-      if (price && discount > price) {
-        throw new Error("discountPrice cannot exceed price");
-      }
-      return true;
-    }),
+    .isFloat({ min: 0, max: 100 })
+    .withMessage("discountPercentage must be between 0 and 100"),
 
   // Currency (optional)
   body("currencyCode")
@@ -83,6 +75,36 @@ export const validateCreateProduct = [
   body("brand")
     .notEmpty().withMessage("brand is required")
     .isMongoId().withMessage("Invalid brand ID"),
+
+  // Colors (optional)
+  body("colors")
+    .optional()
+    .isArray().withMessage("colors must be an array"),
+  body("colors.*")
+    .isString().withMessage("Each color must be a string"),
+
+  // Installation & Delivery (optional)
+  body("hasInstallation")
+    .optional()
+    .isBoolean().withMessage("hasInstallation must be a boolean"),
+  body("hasDelivery")
+    .optional()
+    .isBoolean().withMessage("hasDelivery must be a boolean"),
+  body("installationPrice")
+    .optional()
+    .isFloat({ min: 0 }).withMessage("installationPrice must be >= 0"),
+
+  // Tax (optional)
+  body("taxPercentage")
+    .optional()
+    .isFloat({ min: 0, max: 100 }).withMessage("taxPercentage must be between 0 and 100"),
+
+  // Tags (optional – array of ObjectIds)
+  body("tags")
+    .optional()
+    .isArray().withMessage("tags must be an array"),
+  body("tags.*")
+    .isMongoId().withMessage("Each tag must be a valid ObjectId"),
 
   handleValidation,
 ];

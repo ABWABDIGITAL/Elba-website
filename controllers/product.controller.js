@@ -185,6 +185,22 @@ export const normalizeCreatePayload = (req) => {
   if (req.body.category) payload.category = req.body.category;
   if (req.body.brand) payload.brand = req.body.brand;
 
+  // ---------- New Fields ----------
+  const colors = safeJSON(req.body.colors);
+  if (Array.isArray(colors)) payload.colors = colors.map(String);
+
+  if (req.body.hasInstallation !== undefined)
+    payload.hasInstallation = req.body.hasInstallation === true || req.body.hasInstallation === "true";
+  if (req.body.hasDelivery !== undefined)
+    payload.hasDelivery = req.body.hasDelivery === true || req.body.hasDelivery === "true";
+  if (req.body.installationPrice !== undefined && req.body.installationPrice !== "")
+    payload.installationPrice = Number(req.body.installationPrice);
+  if (req.body.taxPercentage !== undefined && req.body.taxPercentage !== "")
+    payload.taxPercentage = Number(req.body.taxPercentage);
+
+  const tags = safeJSON(req.body.tags);
+  if (Array.isArray(tags)) payload.tags = tags;
+
   return payload;
 };
 /* ============================================================
@@ -251,6 +267,22 @@ if (catalog !== undefined) {
   if (isMeaningful(req.body.status)) payload.status = req.body.status;
   if (isMeaningful(req.body.category)) payload.category = req.body.category;
   if (isMeaningful(req.body.brand)) payload.brand = req.body.brand;
+
+  // ---------- New Fields ----------
+  const colors = safeJSON(req.body.colors);
+  if (Array.isArray(colors)) payload.colors = colors.map(String);
+
+  if (req.body.hasInstallation !== undefined)
+    payload.hasInstallation = req.body.hasInstallation === true || req.body.hasInstallation === "true";
+  if (req.body.hasDelivery !== undefined)
+    payload.hasDelivery = req.body.hasDelivery === true || req.body.hasDelivery === "true";
+  if (isMeaningful(req.body.installationPrice))
+    payload.installationPrice = Number(req.body.installationPrice);
+  if (isMeaningful(req.body.taxPercentage))
+    payload.taxPercentage = Number(req.body.taxPercentage);
+
+  const tags = safeJSON(req.body.tags);
+  if (Array.isArray(tags)) payload.tags = tags;
 
   return payload;
 };
