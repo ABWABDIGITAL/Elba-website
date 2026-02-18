@@ -1,0 +1,550 @@
+{
+  "info": {
+    "name": "Alba - New Features (Tags, Pricing, Filters)",
+    "_postman_id": "alba-new-features-2026",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api/v1" },
+    { "key": "token", "value": "" },
+    { "key": "tagId", "value": "" },
+    { "key": "productSlug", "value": "" },
+    { "key": "categoryId", "value": "" },
+    { "key": "brandId", "value": "" },
+    { "key": "productId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "0. Auth - Login (get token)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "const res = pm.response.json();",
+              "if (res.token) pm.collectionVariables.set('token', res.token);",
+              "if (res.data?.token) pm.collectionVariables.set('token', res.data.token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"admin@alba.com\",\n  \"password\": \"your_password\"\n}"
+        }
+      }
+    },
+    {
+      "name": "--- TAG CRUD ---",
+      "item": [
+        {
+          "name": "Get All Tags",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/tags",
+              "host": ["{{baseUrl}}"],
+              "path": ["tags"]
+            }
+          }
+        },
+        {
+          "name": "Get All Tags (filtered)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/tags?status=active&type=manual",
+              "host": ["{{baseUrl}}"],
+              "path": ["tags"],
+              "query": [
+                { "key": "status", "value": "active" },
+                { "key": "type", "value": "manual" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Tag By ID",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/tags/{{tagId}}"
+          }
+        },
+        {
+          "name": "Create Tag (manual)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data?.id) pm.collectionVariables.set('tagId', res.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/tags",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": {\n    \"en\": \"Summer Sale\",\n    \"ar\": \"تخفيضات الصيف\"\n  },\n  \"type\": \"manual\",\n  \"icon\": \"sale-icon\",\n  \"status\": \"active\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Update Tag",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/tags/{{tagId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": {\n    \"en\": \"Summer Sale 2026\"\n  },\n  \"status\": \"active\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Tag (fails for system tags)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/tags/{{tagId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "--- PRODUCT CREATE (new fields) ---",
+      "item": [
+        {
+          "name": "Create Product (JSON - all new fields)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.data?.slug) pm.collectionVariables.set('productSlug', res.data.slug);",
+                  "if (res.data?.id) pm.collectionVariables.set('productId', res.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"en\": {\n    \"title\": \"Smart AC Unit X200\",\n    \"subTitle\": \"Energy Efficient Cooling\"\n  },\n  \"ar\": {\n    \"title\": \"مكيف ذكي X200\",\n    \"subTitle\": \"تبريد موفر للطاقة\"\n  },\n  \"sku\": \"AC-TEST-001\",\n  \"price\": 2000,\n  \"discountPercentage\": 15,\n  \"stock\": 50,\n  \"category\": \"{{categoryId}}\",\n  \"brand\": \"{{brandId}}\",\n  \"colors\": [\"white\", \"silver\", \"black\"],\n  \"hasInstallation\": true,\n  \"hasDelivery\": true,\n  \"installationPrice\": 150,\n  \"taxPercentage\": 15,\n  \"tags\": [\"{{tagId}}\"]\n}"
+            },
+            "description": "Creates product with new fields.\n\nExpected pricing in response:\n- discountPrice = 2000 * 15/100 = 300\n- discountedPrice = 2000 - 300 = 1700\n- taxAmount = 1700 * 15/100 = 255\n- finalPrice = 1700 + 255 = 1955\n- special_offer tag auto-attached (discountPercentage > 0)\n- All image URLs are absolute"
+          }
+        },
+        {
+          "name": "Create Product (no discount - no special_offer tag)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/products",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"en\": {\n    \"title\": \"Basic Fan Model F100\",\n    \"subTitle\": \"Simple and reliable\"\n  },\n  \"ar\": {\n    \"title\": \"مروحة أساسية F100\",\n    \"subTitle\": \"بسيطة وموثوقة\"\n  },\n  \"sku\": \"FAN-TEST-001\",\n  \"price\": 300,\n  \"discountPercentage\": 0,\n  \"stock\": 100,\n  \"category\": \"{{categoryId}}\",\n  \"brand\": \"{{brandId}}\",\n  \"colors\": [\"white\"],\n  \"hasInstallation\": false,\n  \"hasDelivery\": true,\n  \"taxPercentage\": 15\n}"
+            },
+            "description": "No discount => no special_offer tag auto-attached.\nfinalPrice = 300 + (300*15/100) = 345"
+          }
+        }
+      ]
+    },
+    {
+      "name": "--- PRODUCT UPDATE (new fields) ---",
+      "item": [
+        {
+          "name": "Update - Add colors & installation",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/products/{{productSlug}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"colors\": [\"red\", \"blue\", \"green\"],\n  \"hasInstallation\": true,\n  \"installationPrice\": 200\n}"
+            }
+          }
+        },
+        {
+          "name": "Update - Change discount (triggers special_offer tag)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/products/{{productSlug}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"discountPercentage\": 25\n}"
+            },
+            "description": "Setting discountPercentage > 0 auto-attaches special_offer tag."
+          }
+        },
+        {
+          "name": "Update - Remove discount (removes special_offer tag)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/products/{{productSlug}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"discountPercentage\": 0\n}"
+            },
+            "description": "Setting discountPercentage to 0 auto-removes special_offer tag."
+          }
+        },
+        {
+          "name": "Update - Change tax percentage",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/products/{{productSlug}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taxPercentage\": 10\n}"
+            }
+          }
+        },
+        {
+          "name": "Update - Assign tags manually",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/products/{{productSlug}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tags\": [\"{{tagId}}\"]\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "--- PRODUCT FILTERS (new query params) ---",
+      "item": [
+        {
+          "name": "Filter by color",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/products?color=white",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "color", "value": "white" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filter by multiple colors",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/products?color=white,silver",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "color", "value": "white,silver" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filter by price range",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/products?minPrice=500&maxPrice=3000",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "minPrice", "value": "500" },
+                { "key": "maxPrice", "value": "3000" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filter by hasInstallation",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/products?hasInstallation=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "hasInstallation", "value": "true" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filter by hasDelivery",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/products?hasDelivery=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "hasDelivery", "value": "false" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filter by tag (ObjectId)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/products?tag={{tagId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "tag", "value": "{{tagId}}" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filter combined (color + price + installation)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/products?color=white&minPrice=100&maxPrice=5000&hasInstallation=true",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "color", "value": "white" },
+                { "key": "minPrice", "value": "100" },
+                { "key": "maxPrice", "value": "5000" },
+                { "key": "hasInstallation", "value": "true" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Filter by status",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/products?status=active",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "status", "value": "active" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "--- PRODUCT TAG QUERIES ---",
+      "item": [
+        {
+          "name": "Get products by tag slug",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/products/tag/best-seller",
+            "description": "Uses tag slug (not ObjectId). Slug examples: best-seller, new-arrival, featured, trending, on-sale, top-rated, eco-friendly, special-offer"
+          }
+        },
+        {
+          "name": "Get products by multiple tag slugs",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/products/tags?tags=best-seller,featured",
+              "host": ["{{baseUrl}}"],
+              "path": ["products", "tags"],
+              "query": [
+                { "key": "tags", "value": "best-seller,featured" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get available tags (with product counts)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/products/tags/available"
+          }
+        },
+        {
+          "name": "Bulk update product tags",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/products/tags/bulk-update",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productIds\": [\"{{productId}}\"],\n  \"tagsToAdd\": [\"{{tagId}}\"],\n  \"tagsToRemove\": []\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "--- TAG AUTOMATION ---",
+      "item": [
+        {
+          "name": "Run tag auto-assign",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/products/tags/auto-assign",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dryRun\": true\n}"
+            },
+            "description": "Set dryRun: false to actually apply changes. Can also pass specific tags and productIds:\n{\n  \"dryRun\": false,\n  \"tags\": [\"best_seller\", \"new_arrival\"],\n  \"productIds\": [\"id1\", \"id2\"]\n}"
+          }
+        },
+        {
+          "name": "Run tag auto-assign (apply changes)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/products/tags/auto-assign",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dryRun\": false\n}"
+            }
+          }
+        },
+        {
+          "name": "Cleanup expired tags",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/products/tags/cleanup"
+          }
+        },
+        {
+          "name": "Get automation rules",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/products/tags/rules"
+          }
+        },
+        {
+          "name": "Update automation rule",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/products/tags/rules/best_seller",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"minSales\": 20\n}"
+            }
+          }
+        },
+        {
+          "name": "Preview tag assignment for product",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" }
+            ],
+            "url": "{{baseUrl}}/products/{{productId}}/tags/preview"
+          }
+        }
+      ]
+    },
+    {
+      "name": "--- VERIFY RESPONSES ---",
+      "item": [
+        {
+          "name": "Get single product (check full response)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/products/{{productSlug}}",
+            "description": "Verify response includes:\n- pricing block: price, discountPercentage, discountedPrice, taxPercentage, taxAmount, finalPrice\n- colors array\n- hasInstallation, hasDelivery, installationPrice\n- tags as populated objects [{id, name, slug, type, icon}]\n- All image URLs are absolute (https://elba.abwabdigital.com/...)\n- Brand logo is absolute URL\n- Category image is absolute URL\n- Catalog pdfUrl is absolute URL"
+          }
+        },
+        {
+          "name": "Get all products (check list response)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/products?page=1&limit=5",
+              "host": ["{{baseUrl}}"],
+              "path": ["products"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "5" }
+              ]
+            },
+            "description": "Verify each product has:\n- pricing block (price, discountedPrice, taxAmount, finalPrice)\n- colors, hasInstallation, hasDelivery\n- tags as objects\n- absolute image URLs"
+          }
+        },
+        {
+          "name": "Get home page (check populated tags)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/home",
+            "description": "Verify products and bestOffers have populated tags and new fields"
+          }
+        }
+      ]
+    }
+  ]
+}
