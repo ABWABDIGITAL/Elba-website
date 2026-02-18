@@ -37,6 +37,7 @@ import whatsappRoutes from "./routes/whatsapp.route.js";
 import embeddingsRoutes from "./routes/embeddings.route.js";
 import tagRoutes from "./routes/tag.route.js";
 import seedRoles , { seedAdmin } from "./config/seedRoles.js";
+import { initializeEmbeddingJobs } from "./jobs/embedding.jobs.js";
 import runSeeder from "./config/seeder.js";
 import {
   globalRateLimit,
@@ -65,6 +66,8 @@ connectDB().then(async () => {
   if (RUN_SEEDER) {
     await runSeeder();
   }
+  // Initialize embedding queue processor (cron every 2 min)
+  initializeEmbeddingJobs();
 });
 
 const app = express();
