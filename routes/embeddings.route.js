@@ -6,6 +6,7 @@ import {
   syncAllController,
   embedSingleController,
   forceSyncController,
+  queueStatusController,
 } from "../controllers/embeddings.controller.js";
 
 const router = express.Router();
@@ -42,6 +43,14 @@ router.post(
   protect,
   requirePermission("embeddings", "create"),
   forceSyncController
+);
+
+// Get embedding queue status (pending + failed counts)
+router.get(
+  "/queue-status",
+  protect,
+  requirePermission("embeddings", "read"),
+  queueStatusController
 );
 
 export default router;
