@@ -14,6 +14,7 @@ import { trackProductView } from '../services/analytics.services.js';
 import { RedisHelper } from "../config/redis.js";
 import { toAbsoluteUrl } from "../utlis/urlHelper.js";
 import XLSX from "xlsx";
+import { queueProductForEmbedding, queueProductsForEmbedding } from "./embeddingQueue.services.js";
  const HOME_CACHE_KEY = "home:page";
  const HOME_CACHE_TTL = 3600;
 
@@ -335,6 +336,12 @@ export const createProductService = async (data) => {
     await product.populate("brand", "ar.name ar.slug en.name en.slug logo");
 
     await RedisHelper.del(HOME_CACHE_KEY);
+
+    // Queue async embedding generation for chatbot
+    queueProductForEmbedding(product._id).catch((err) =>
+      console.error("[Embedding] Queue error on create:", err.message)
+    );
+
     return {
       OK: true,
       message: "Product created successfully",
@@ -409,6 +416,12 @@ export const updateProductService = async (slug, data) => {
     await product.populate("brand", "ar.name ar.slug en.name en.slug logo");
 
     await RedisHelper.del(HOME_CACHE_KEY);
+
+    // Queue async embedding re-generation for chatbot
+    queueProductForEmbedding(product._id).catch((err) =>
+      console.error("[Embedding] Queue error on update:", err.message)
+    );
+
     return {
       OK: true,
       message: "Product updated successfully",
@@ -475,6 +488,22 @@ export const getAllProductsService = async (query) => {
     }
     if (query.status) filter.status = query.status;
 
+    // Full text search (ar + en)
+    if (query.keyword) {
+      const kw = query.keyword.trim();
+      if (kw) {
+        const regex = { $regex: kw, $options: "i" };
+        filter.$or = [
+          { "ar.title": regex },
+          { "ar.subTitle": regex },
+          { "en.title": regex },
+          { "en.subTitle": regex },
+          { sku: regex },
+          { slug: regex },
+        ];
+      }
+    }
+
     const selectFields =
       "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage taxPercentage sizeType ratingsAverage images sku slug status stock salesCount category brand tags colors hasInstallation hasDelivery";
 
@@ -516,6 +545,22 @@ export const getAllProductsForAdminService = async (query) => {
     if (query.category) filter.category = query.category;
     if (query.brand) filter.brand = query.brand;
     if (query.status) filter.status = query.status;
+
+    // Full text search (ar + en)
+    if (query.keyword) {
+      const kw = query.keyword.trim();
+      if (kw) {
+        const regex = { $regex: kw, $options: "i" };
+        filter.$or = [
+          { "ar.title": regex },
+          { "ar.subTitle": regex },
+          { "en.title": regex },
+          { "en.subTitle": regex },
+          { sku: regex },
+          { slug: regex },
+        ];
+      }
+    }
 
     const selectFields =
       "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage taxPercentage sizeType ratingsAverage images sku slug status stock salesCount category brand tags colors hasInstallation hasDelivery";
@@ -722,10 +767,12 @@ export const searchProducts = async (queryString) => {
       "stock",
     ],
     searchFields: [
-      "name",
+      "en.title",
+      "en.subTitle",
+      "ar.title",
+      "ar.subTitle",
       "slug",
-      "description",
-      "category.name",
+      "sku",
     ],
     arraySearchFields: ["tags"],
   })
@@ -1363,6 +1410,12 @@ export const bulkImportProductsService = async (filePath) => {
       });
       results.created = inserted.length;
       await RedisHelper.del(HOME_CACHE_KEY);
+
+      // Queue embedding generation for all imported products
+      const insertedIds = inserted.map((p) => p._id);
+      queueProductsForEmbedding(insertedIds).catch((err) =>
+        console.error("[Embedding] Queue error on bulk import:", err.message)
+      );
     }
 
     return {
@@ -1420,6 +1473,7 @@ export const bulkUpdateProductsService = async (filePath) => {
       notFound: 0,
       errors: [],
     };
+    const updatedIds = [];
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
@@ -1468,6 +1522,7 @@ export const bulkUpdateProductsService = async (filePath) => {
       try {
         await Product.findByIdAndUpdate(existing._id, { $set: updateData.data });
         results.updated++;
+        updatedIds.push(existing._id);
       } catch (err) {
         results.errors.push(`Row ${rowNum}: update failed – ${err.message}`);
         results.skipped++;
@@ -1476,6 +1531,11 @@ export const bulkUpdateProductsService = async (filePath) => {
 
     if (results.updated > 0) {
       await RedisHelper.del(HOME_CACHE_KEY);
+
+      // Queue embedding re-generation for all updated products
+      queueProductsForEmbedding(updatedIds).catch((err) =>
+        console.error("[Embedding] Queue error on bulk update:", err.message)
+      );
     }
 
     return {
