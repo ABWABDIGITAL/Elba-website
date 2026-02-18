@@ -96,6 +96,8 @@ const productSchema = new mongoose.Schema(
 
     currencyCode: { type: String, enum: ["SAR", "USD", "AED"], default: "SAR" },
 
+    taxPercentage: { type: Number, default: 15, min: 0, max: 100 },
+
     /* ------------------------ STOCK ------------------------------- */
     stock: { type: Number, required: true, min: 0 },
 
@@ -108,6 +110,17 @@ const productSchema = new mongoose.Schema(
     /* ------------------------ RELATIONS ---------------------------- */
     category: { type: mongoose.Schema.Types.ObjectId, ref: "Category", required: true },
     brand: { type: mongoose.Schema.Types.ObjectId, ref: "Brand", required: true },
+
+    /* ------------------------ PRODUCT OPTIONS ----------------------- */
+    colors: {
+      type: [String],
+      default: [],
+      index: true,
+    },
+
+    hasInstallation: { type: Boolean, default: false, index: true },
+    hasDelivery: { type: Boolean, default: true, index: true },
+    installationPrice: { type: Number, default: 0, min: 0 },
 
     /* ------------------------ NEW TYPE FIELD ------------------------ */
     sizeType: {
@@ -129,21 +142,7 @@ const productSchema = new mongoose.Schema(
     views: { type: Number, default: 0 },
 
     tags: {
-      type: [String],
-      enum: [
-        "best_seller",
-        "hot",
-        "new_arrival",
-        "trending",
-        "featured",
-        "limited_edition",
-        "on_sale",
-        "clearance",
-        "top_rated",
-        "eco_friendly",
-        "exclusive",
-        "recommended",
-      ],
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: "Tag" }],
       default: [],
       index: true,
     },
@@ -166,14 +165,16 @@ productSchema.pre("save", function (next) {
 });
 
 /* =========================================================================
-   AUTO DISCOUNT CALC
+   AUTO DISCOUNT CALC (percentage-based: percentage is source of truth)
 =========================================================================== */
 productSchema.pre("save", function (next) {
-  if (this.price > 0 && this.discountPrice > 0 && this.discountPrice < this.price) {
-    this.discountPercentage = Number(((this.discountPrice / this.price) * 100).toFixed(2));
+  if (this.price > 0 && this.discountPercentage > 0) {
+    this.discountPrice = Number(
+      ((this.price * this.discountPercentage) / 100).toFixed(2)
+    );
   } else {
-    this.discountPrice = this.discountPrice || 0;
-    this.discountPercentage = 0;
+    this.discountPercentage = this.discountPercentage || 0;
+    this.discountPrice = 0;
   }
   next();
 });
@@ -212,27 +213,35 @@ productSchema.post("findOneAndDelete", async function (doc) {
 /* =========================================================================
    VIRTUALS
 =========================================================================== */
-productSchema.virtual("finalPrice").get(function () {
+productSchema.virtual("discountedPrice").get(function () {
   if (this.discountPrice > 0 && this.discountPrice < this.price) {
     return Number((this.price - this.discountPrice).toFixed(2));
   }
   return this.price;
 });
 
+productSchema.virtual("taxAmount").get(function () {
+  const discounted = this.discountedPrice ?? this.price;
+  const tax = this.taxPercentage || 0;
+  return Number(((discounted * tax) / 100).toFixed(2));
+});
+
+productSchema.virtual("finalPrice").get(function () {
+  const discounted = this.discountedPrice ?? this.price;
+  const taxAmt = this.taxAmount ?? 0;
+  return Number((discounted + taxAmt).toFixed(2));
+});
+
 productSchema.virtual("installments").get(function () {
-  const finalPrice =
-    this.finalPrice ||
+  // Installments based on discounted price (before VAT)
+  const basePrice = this.discountedPrice ??
     (this.discountPrice > 0 && this.discountPrice < this.price
       ? this.price - this.discountPrice
       : this.price);
 
   const providers = [];
-// SAFE helper
   const safeToFixed = (value, digits = 2) =>
     typeof value === "number" ? Number(value.toFixed(digits)) : 0;
-
-  // If finalPrice is missing, fallback to price
-  const basePrice = typeof finalPrice === "number" ? finalPrice : this.price || 0;
 
 
   // ----- Tabby -----
