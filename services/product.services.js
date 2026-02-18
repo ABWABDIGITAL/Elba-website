@@ -488,18 +488,20 @@ export const getAllProductsService = async (query) => {
     }
     if (query.status) filter.status = query.status;
 
-    // Full text search (ar + en)
+    // Full text search (ar + en) with Arabic normalization
     if (query.keyword) {
       const kw = query.keyword.trim();
       if (kw) {
-        const regex = { $regex: kw, $options: "i" };
+        const arPattern = normalizeArabicForSearch(kw);
+        const arRegex = { $regex: arPattern, $options: "i" };
+        const enRegex = { $regex: kw, $options: "i" };
         filter.$or = [
-          { "ar.title": regex },
-          { "ar.subTitle": regex },
-          { "en.title": regex },
-          { "en.subTitle": regex },
-          { sku: regex },
-          { slug: regex },
+          { "ar.title": arRegex },
+          { "ar.subTitle": arRegex },
+          { "en.title": enRegex },
+          { "en.subTitle": enRegex },
+          { sku: enRegex },
+          { slug: enRegex },
         ];
       }
     }
@@ -546,18 +548,20 @@ export const getAllProductsForAdminService = async (query) => {
     if (query.brand) filter.brand = query.brand;
     if (query.status) filter.status = query.status;
 
-    // Full text search (ar + en)
+    // Full text search (ar + en) with Arabic normalization
     if (query.keyword) {
       const kw = query.keyword.trim();
       if (kw) {
-        const regex = { $regex: kw, $options: "i" };
+        const arPattern = normalizeArabicForSearch(kw);
+        const arRegex = { $regex: arPattern, $options: "i" };
+        const enRegex = { $regex: kw, $options: "i" };
         filter.$or = [
-          { "ar.title": regex },
-          { "ar.subTitle": regex },
-          { "en.title": regex },
-          { "en.subTitle": regex },
-          { sku: regex },
-          { slug: regex },
+          { "ar.title": arRegex },
+          { "ar.subTitle": arRegex },
+          { "en.title": enRegex },
+          { "en.subTitle": enRegex },
+          { sku: enRegex },
+          { slug: enRegex },
         ];
       }
     }
@@ -753,47 +757,87 @@ const getCategoryTreeIds = async (rootCategoryId) => {
   return Array.from(ids);
 };
 
+/**
+ * Normalize Arabic text for flexible search.
+ * Strips tashkeel, normalizes letter variants,
+ * and removes common suffixes so "ثلاجات" matches "ثلاجة".
+ */
+const normalizeArabicForSearch = (keyword) => {
+  let kw = keyword
+    .replace(/[َُِّْٰٓٔ]/g, "");             // strip tashkeel
+
+  // Strip common Arabic plural/suffix endings to get the stem
+  // ات (feminine plural), ون/ين (masculine plural), ة/ه (feminine singular)
+  kw = kw.replace(/(ات|ون|ين|ة|ه)$/g, "");
+
+  // Normalize letter variants in the stem
+  let pattern = kw
+    .replace(/[أإآٱ]/g, "[أإآٱا]")
+    .replace(/ة/g, "[ةه]")
+    .replace(/ه/g, "[ةه]")
+    .replace(/ى/g, "[يى]")
+    .replace(/ي/g, "[يى]");
+
+  return pattern;
+};
+
 export const searchProducts = async (queryString) => {
-  // Base query
-  const baseQuery = Product.find({ status: "active" });
+  try {
+    const page = Number(queryString.page) || 1;
+    const limit = Number(queryString.limit) || 20;
+    const skip = (page - 1) * limit;
 
-  // Apply API features
-  const features = new ApiFeatures(baseQuery, queryString, {
-    allowedFilterFields: [
-      "price",
-      "category",
-      "brand",
-      "tags",
-      "stock",
-    ],
-    searchFields: [
-      "en.title",
-      "en.subTitle",
-      "ar.title",
-      "ar.subTitle",
-      "slug",
-      "sku",
-    ],
-    arraySearchFields: ["tags"],
-  })
-    .filter()
-    .search()
-    .sort()
-    .limitFields()
-    .paginate();
+    const filter = { status: "active" };
 
-  // Execute main query
-  const products = await features.mongooseQuery;
+    if (queryString.category) filter.category = queryString.category;
+    if (queryString.brand) filter.brand = queryString.brand;
 
-  // Count total for pagination
-  const total = await Product.countDocuments(features.getFilter());
+    // Keyword search with Arabic normalization
+    if (queryString.keyword) {
+      const kw = queryString.keyword.trim();
+      if (kw) {
+        const arPattern = normalizeArabicForSearch(kw);
+        const arRegex = { $regex: arPattern, $options: "i" };
+        const enRegex = { $regex: kw, $options: "i" };
+        filter.$or = [
+          { "ar.title": arRegex },
+          { "ar.subTitle": arRegex },
+          { "en.title": enRegex },
+          { "en.subTitle": enRegex },
+          { sku: enRegex },
+          { slug: enRegex },
+        ];
+      }
+    }
 
-  const pagination = features.buildPaginationResult(total);
+    const selectFields =
+      "en.title en.subTitle ar.title ar.subTitle price discountPrice discountPercentage taxPercentage sizeType ratingsAverage images sku slug status stock salesCount category brand tags colors hasInstallation hasDelivery";
 
-  return {
-    products,
-    pagination,
-  };
+    const [items, total] = await Promise.all([
+      Product.find(filter)
+        .select(selectFields)
+        .populate("category", "ar.name ar.slug en.name en.slug image")
+        .populate("brand", "ar.name ar.slug en.name en.slug logo")
+        .populate("tags", "name slug type icon")
+        .skip(skip)
+        .limit(limit)
+        .sort({ createdAt: -1 })
+        .lean(),
+      Product.countDocuments(filter),
+    ]);
+
+    return {
+      products: items.map(buildGetAllproductDTO),
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    };
+  } catch (err) {
+    throw ServerError("Failed to search products", err);
+  }
 };
 
 export const getBestSellingByCategoryService = async (categoryId, query) => {
