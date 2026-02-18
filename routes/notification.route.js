@@ -1,6 +1,7 @@
 import express from "express";
 import {
   getUserNotifications,
+  getNotificationById,
   getUnreadCount,
   markAsRead,
   markAllAsRead,
@@ -35,6 +36,9 @@ router.delete("/cache", clearMyNotificationCache);
 
 // Get unread count
 router.get("/unread-count", getUnreadCount);
+
+// Get notification by ID (detailed + marks as read)
+router.get("/:notificationId", getNotificationById);
 
 // Mark notification as read
 router.patch("/:notificationId/read", markAsRead);

@@ -1,5 +1,6 @@
 import {
   getUserNotificationsService,
+  getNotificationByIdService,
   getUnreadCountService,
   markAsReadService,
   markAllAsReadService,
@@ -18,7 +19,7 @@ import { StatusCodes } from "http-status-codes";
 import User from "../models/user.model.js";
 
 /* --------------------------------------------------
-   GET USER NOTIFICATIONS
+   GET USER NOTIFICATIONS (Lightweight List)
 --------------------------------------------------- */
 export const getUserNotifications = async (req, res, next) => {
   try {
@@ -27,8 +28,40 @@ export const getUserNotifications = async (req, res, next) => {
     res.status(StatusCodes.OK).json({
       OK: true,
       message: "Notifications fetched successfully",
-      fromCache: result.fromCache,
-      ...result.data,
+      notifications: result.notifications,
+      pagination: result.pagination,
+      unreadCount: result.unreadCount,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/* --------------------------------------------------
+   GET NOTIFICATION BY ID (Detailed + Mark as Read)
+--------------------------------------------------- */
+export const getNotificationById = async (req, res, next) => {
+  try {
+    const { notificationId } = req.params;
+    const { language = "ar" } = req.query;
+
+    const notification = await getNotificationByIdService(
+      notificationId,
+      req.user.id,
+      language
+    );
+
+    if (!notification) {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        OK: false,
+        message: "Notification not found",
+      });
+    }
+
+    res.status(StatusCodes.OK).json({
+      OK: true,
+      message: "Notification fetched successfully",
+      data: notification,
     });
   } catch (err) {
     next(err);

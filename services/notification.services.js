@@ -6,21 +6,39 @@ const NOTIFICATIONS_CACHE_PREFIX = "notifications:user:";
 const CACHE_TTL = 300; // 5 minutes
 
 /* --------------------------------------------------
-   BUILD NOTIFICATION DTO
+   BUILD NOTIFICATION DTO (Lightweight - for list)
 --------------------------------------------------- */
-const buildNotificationDTO = (notification, language = "ar") => {
+const buildNotificationListDTO = (notification, language = "ar") => {
   const langData = notification[language] || notification.ar;
 
   return {
     id: notification._id,
-    title: langData.title,
-    message: langData.message,
+    title: langData?.title,
+    message: langData?.message,
     type: notification.type,
     priority: notification.priority,
-    inApp: notification.inApp,
-    whatsapp: notification.whatsapp,
-    relatedDocument: notification.relatedDocument,
+    read: notification.inApp?.read || false,
+    createdAt: notification.createdAt,
+  };
+};
+
+/* --------------------------------------------------
+   BUILD NOTIFICATION DETAIL DTO (Full - for single view)
+--------------------------------------------------- */
+const buildNotificationDetailDTO = (notification, language = "ar") => {
+  const langData = notification[language] || notification.ar;
+
+  return {
+    id: notification._id,
+    title: langData?.title,
+    message: langData?.message,
+    type: notification.type,
+    priority: notification.priority,
+    read: notification.inApp?.read || false,
+    readAt: notification.inApp?.readAt,
     relatedModel: notification.relatedModel,
+    relatedId: notification.relatedId,
+    relatedDocument: notification.relatedDocument || null,
     metadata: notification.metadata,
     createdAt: notification.createdAt,
     updatedAt: notification.updatedAt,
@@ -49,71 +67,94 @@ export const clearUserNotificationCacheService = async (userId) => {
 };
 
 /* --------------------------------------------------
-   GET USER NOTIFICATIONS
+   GET USER NOTIFICATIONS (Lightweight - No Populate)
+   Optimized for dashboard listing
 --------------------------------------------------- */
 export const getUserNotificationsService = async (userId, query = {}) => {
-  try {
-    const {
-      page = 1,
-      limit = 20,
-      type,
-      read,
-      priority,
-      language = "ar",
-      noCache,
-    } = query;
+  const {
+    page = 1,
+    limit = 20,
+    type,
+    read,
+    priority,
+    language = "ar",
+  } = query;
 
-    const skip = (page - 1) * limit;
+  const pageNum = Math.max(1, parseInt(page));
+  const limitNum = Math.min(50, Math.max(1, parseInt(limit))); // Cap at 50
+  const skip = (pageNum - 1) * limitNum;
 
-    const filter = { user: userId };
-    if (type) filter.type = type;
-    if (read !== undefined) filter["inApp.read"] = read === "true";
-    if (priority) filter.priority = priority;
+  // Build filter
+  const filter = { user: userId };
+  if (type) filter.type = type;
+  if (read !== undefined) filter["inApp.read"] = read === "true";
+  if (priority) filter.priority = priority;
 
-    const cacheKey = `${NOTIFICATIONS_CACHE_PREFIX}${userId}:${page}:${limit}:${language}:${JSON.stringify(filter)}`;
-
-    // Skip cache if noCache=true
-    const skipCache = noCache === true || noCache === "true";
-    if (!skipCache) {
-      const cached = await RedisHelper.get(cacheKey);
-      if (cached) {
-        const data = typeof cached === "string" ? JSON.parse(cached) : cached;
-        return { fromCache: true, data };
-      }
-    }
-
-
-    const notifications = await Notification.find(filter)
+  // Parallel queries for better performance
+  const [notifications, total, unreadCount] = await Promise.all([
+    Notification.find(filter)
+      .select("type priority inApp.read ar.title ar.message en.title en.message createdAt")
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(parseInt(limit))
-      .populate("relatedDocument")
-      .lean();
+      .limit(limitNum)
+      .lean(),
+    Notification.countDocuments(filter),
+    Notification.countDocuments({ user: userId, "inApp.read": false }),
+  ]);
 
-    const total = await Notification.countDocuments(filter);
-    const unreadCount = await Notification.getUnreadCount(userId);
+  return {
+    notifications: notifications.map((n) => buildNotificationListDTO(n, language)),
+    pagination: {
+      page: pageNum,
+      limit: limitNum,
+      total,
+      pages: Math.ceil(total / limitNum),
+      hasNext: pageNum < Math.ceil(total / limitNum),
+      hasPrev: pageNum > 1,
+    },
+    unreadCount,
+  };
+};
 
-    const transformedNotifications = notifications.map((n) =>
-      buildNotificationDTO(n, language)
-    );
+/* --------------------------------------------------
+   GET NOTIFICATION BY ID (Detailed + Mark as Read)
+   Populates related document and marks as read
+--------------------------------------------------- */
+export const getNotificationByIdService = async (notificationId, userId, language = "ar") => {
+  // Find notification and verify ownership
+  const notification = await Notification.findOne({
+    _id: notificationId,
+    user: userId,
+  });
 
-    const result = {
-      notifications: transformedNotifications,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total,
-        pages: Math.ceil(total / limit),
-      },
-      unreadCount,
-    };
-
-    await RedisHelper.set(cacheKey, JSON.stringify(result), { ex: CACHE_TTL });
-
-    return { fromCache: false, data: result };
-  } catch (error) {
-    throw new Error(`Get notifications error: ${error.message}`);
+  if (!notification) {
+    return null;
   }
+
+  // Mark as read if not already
+  if (!notification.inApp.read) {
+    notification.inApp.read = true;
+    notification.inApp.readAt = new Date();
+    await notification.save();
+    // Clear cache since read status changed
+    await clearUserNotificationCache(userId);
+  }
+
+  // Populate related document based on relatedModel
+  let populatedNotification = notification.toObject();
+
+  if (notification.relatedModel && notification.relatedId) {
+    try {
+      const Model = (await import(`../models/${notification.relatedModel.toLowerCase()}.model.js`)).default;
+      const relatedDoc = await Model.findById(notification.relatedId).lean();
+      populatedNotification.relatedDocument = relatedDoc;
+    } catch {
+      // Model not found or error populating - continue without related doc
+      populatedNotification.relatedDocument = null;
+    }
+  }
+
+  return buildNotificationDetailDTO(populatedNotification, language);
 };
 
 /* --------------------------------------------------
@@ -154,7 +195,7 @@ export const markAsReadService = async (notificationId, userId, language = "ar")
     await notification.markAsRead();
     await clearUserNotificationCache(userId);
 
-    return buildNotificationDTO(notification.toObject(), language);
+    return buildNotificationListDTO(notification.toObject(), language);
   } catch (error) {
     throw new Error(`Mark as read error: ${error.message}`);
   }
@@ -188,7 +229,7 @@ export const deleteNotificationService = async (notificationId, userId, language
     }
 
     await clearUserNotificationCache(userId);
-    return buildNotificationDTO(notification.toObject(), language);
+    return buildNotificationListDTO(notification.toObject(), language);
   } catch (error) {
     throw new Error(`Delete notification error: ${error.message}`);
   }
