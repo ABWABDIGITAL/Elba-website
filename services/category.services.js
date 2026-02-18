@@ -1,6 +1,8 @@
 import Category from "../models/category.model.js";
+import Product from "../models/product.model.js";
 import path from "path";
 import fs from "fs";
+import { queueProductsForEmbedding } from "./embeddingQueue.services.js";
 
 export const createCategory = async ({ ar, en, image, sizeType, status }) => {
   try {
@@ -61,9 +63,12 @@ export const getCategory = async ({ id }) => {
 export const updateCategory = async ({ id, ar, en, sizeType, image, status }) => {
   try {
     const category = await Category.findById(id);
-    console.log(id);
-    console.log(category);
     if (!category) return { OK: false, error: "Category not found" };
+
+    // Track if name changed (for re-embedding products)
+    const nameChanged =
+      (ar?.name && ar.name !== category.ar?.name) ||
+      (en?.name && en.name !== category.en?.name);
 
     if (category.image) {
       const oldPath = path.join(process.cwd(), category.image);
@@ -76,6 +81,19 @@ export const updateCategory = async ({ id, ar, en, sizeType, image, status }) =>
     if (image) category.image = image;
     if (status) category.status = status;
     await category.save();
+
+    // Re-embed products in this category when name changes
+    if (nameChanged) {
+      Product.find({ category: id }).select("_id").lean()
+        .then((products) => {
+          if (products.length) {
+            queueProductsForEmbedding(products.map((p) => p._id)).catch((err) =>
+              console.error("[Embedding] Queue error on category update:", err.message)
+            );
+          }
+        })
+        .catch((err) => console.error("[Embedding] Find products error:", err.message));
+    }
 
     return { OK: true,msg:"Category updated successfully", data: category };
 
