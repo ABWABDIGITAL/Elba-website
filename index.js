@@ -35,6 +35,7 @@ import supportRoutes from "./routes/support.route.js";
 import ticketRoutes from "./routes/ticket.route.js";
 import whatsappRoutes from "./routes/whatsapp.route.js";
 import embeddingsRoutes from "./routes/embeddings.route.js";
+import tagRoutes from "./routes/tag.route.js";
 import seedRoles , { seedAdmin } from "./config/seedRoles.js";
 import runSeeder from "./config/seeder.js";
 import {
@@ -133,6 +134,7 @@ app.use("/api/v1/support", supportRoutes);
 app.use("/api/v1/tickets", ticketRoutes);
 app.use("/api/v1/whatsapp", whatsappRoutes);
 app.use("/api/v1/embeddings", embeddingsRoutes);
+app.use("/api/v1/tags", tagRoutes);
 
 
 app.use("/uploads" , express.static(path.join(process.cwd(), "uploads")));
