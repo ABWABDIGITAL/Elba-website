@@ -1,64 +1,50 @@
 import Product from "../models/product.model.js";
+import Tag from "../models/tag.model.js";
 import { ServerError } from "../utlis/apiError.js";
 
 /* --------------------------------------------------
    TAG AUTOMATION RULES AND THRESHOLDS
 --------------------------------------------------- */
 const TAG_RULES = {
-  // Best Seller: Top 20% of products by sales count
   best_seller: {
     enabled: true,
     rule: "salesCount",
     threshold: "top20percent",
-    minSales: 10, // Minimum sales to qualify
+    minSales: 10,
   },
-
-  // Hot: Products with high views in last 7 days AND good conversion
   hot: {
     enabled: true,
     rule: "trending",
     viewsThreshold: 100,
     daysRange: 7,
   },
-
-  // New Arrival: Products created in last 30 days
   new_arrival: {
     enabled: true,
     rule: "age",
     daysThreshold: 30,
   },
-
-  // Trending: High growth in sales/views recently
   trending: {
     enabled: true,
     rule: "growth",
-    growthRate: 50, // 50% increase in last week
+    growthRate: 50,
     daysRange: 7,
   },
-
-  // On Sale: Products with discount > 10%
   on_sale: {
     enabled: true,
     rule: "discount",
     minDiscountPercentage: 10,
   },
-
-  // Clearance: Products with discount > 30%
   clearance: {
     enabled: true,
     rule: "discount",
     minDiscountPercentage: 30,
   },
-
-  // Top Rated: Products with rating >= 4.5 and min reviews
   top_rated: {
     enabled: true,
     rule: "rating",
     minRating: 4.5,
     minReviews: 5,
   },
-
-  // Limited Edition: Low stock (< 10 units)
   limited_edition: {
     enabled: true,
     rule: "stock",
@@ -68,15 +54,33 @@ const TAG_RULES = {
 };
 
 /* --------------------------------------------------
-   AUTO TAG ASSIGNMENT - MAIN FUNCTION
+   AUTO TAG ASSIGNMENT - MAIN FUNCTION (ObjectId-based)
 --------------------------------------------------- */
 export const autoAssignTagsService = async (options = {}) => {
   try {
     const {
       dryRun = false,
-      tags = Object.keys(TAG_RULES),
+      tags: requestedTags = null,
       productIds = null,
     } = options;
+
+    // Load all system tags with automation keys
+    const systemTags = await Tag.find({
+      automationKey: { $ne: null },
+      status: "active",
+    }).lean();
+
+    const tagKeyToId = {};
+    const tagIdToKey = {};
+    for (const t of systemTags) {
+      tagKeyToId[t.automationKey] = t._id;
+      tagIdToKey[t._id.toString()] = t.automationKey;
+    }
+
+    // Filter to only requested tags (if specified)
+    const activeRuleKeys = requestedTags
+      ? requestedTags.filter((k) => TAG_RULES[k] && tagKeyToId[k])
+      : Object.keys(TAG_RULES).filter((k) => tagKeyToId[k]);
 
     const results = {
       processed: 0,
@@ -87,45 +91,38 @@ export const autoAssignTagsService = async (options = {}) => {
       dryRun,
     };
 
-    // Initialize tag counters
-    tags.forEach((tag) => {
-      results.tagsAdded[tag] = 0;
-      results.tagsRemoved[tag] = 0;
+    activeRuleKeys.forEach((k) => {
+      results.tagsAdded[k] = 0;
+      results.tagsRemoved[k] = 0;
     });
 
-    // Get all products or specific ones
     const query = productIds ? { _id: { $in: productIds } } : {};
     const products = await Product.find(query);
-
     results.processed = products.length;
 
     for (const product of products) {
+      const currentTagIds = (product.tags || []).map((t) => t.toString());
       const tagsToAdd = new Set();
-      const tagsToRemove = new Set(product.tags || []);
+      const tagsToRemove = new Set();
 
-      // Apply each enabled rule
-      for (const tag of tags) {
-        const rule = TAG_RULES[tag];
+      for (const key of activeRuleKeys) {
+        const rule = TAG_RULES[key];
         if (!rule || !rule.enabled) continue;
 
-        const shouldHaveTag = await evaluateRule(product, tag, rule);
+        const tagId = tagKeyToId[key].toString();
+        const shouldHaveTag = await evaluateRule(product, key, rule);
 
-        if (shouldHaveTag) {
-          tagsToAdd.add(tag);
-          tagsToRemove.delete(tag);
-        } else {
-          tagsToRemove.add(tag);
-          tagsToAdd.delete(tag);
+        if (shouldHaveTag && !currentTagIds.includes(tagId)) {
+          tagsToAdd.add(tagId);
+        } else if (!shouldHaveTag && currentTagIds.includes(tagId)) {
+          tagsToRemove.add(tagId);
         }
       }
 
-      // Update product if changes needed
       if (tagsToAdd.size > 0 || tagsToRemove.size > 0) {
         const newTags = [
-          ...new Set([
-            ...(product.tags || []).filter((t) => !tagsToRemove.has(t)),
-            ...tagsToAdd,
-          ]),
+          ...currentTagIds.filter((id) => !tagsToRemove.has(id)),
+          ...tagsToAdd,
         ];
 
         if (!dryRun) {
@@ -133,17 +130,14 @@ export const autoAssignTagsService = async (options = {}) => {
           results.updated++;
         }
 
-        // Count changes
-        tagsToAdd.forEach((tag) => {
-          if (!product.tags?.includes(tag)) {
-            results.tagsAdded[tag]++;
-          }
+        tagsToAdd.forEach((id) => {
+          const key = tagIdToKey[id];
+          if (key) results.tagsAdded[key]++;
         });
 
-        tagsToRemove.forEach((tag) => {
-          if (product.tags?.includes(tag)) {
-            results.tagsRemoved[tag]++;
-          }
+        tagsToRemove.forEach((id) => {
+          const key = tagIdToKey[id];
+          if (key) results.tagsRemoved[key]++;
         });
       }
     }
@@ -167,25 +161,18 @@ async function evaluateRule(product, tag, rule) {
   switch (rule.rule) {
     case "salesCount":
       return await evaluateBestSellerRule(product, rule);
-
     case "trending":
       return evaluateHotRule(product, rule);
-
     case "age":
       return evaluateNewArrivalRule(product, rule);
-
     case "growth":
       return evaluateTrendingRule(product, rule);
-
     case "discount":
       return evaluateDiscountRule(product, rule);
-
     case "rating":
       return evaluateRatingRule(product, rule);
-
     case "stock":
       return evaluateStockRule(product, rule);
-
     default:
       return false;
   }
@@ -194,46 +181,31 @@ async function evaluateRule(product, tag, rule) {
 /* --------------------------------------------------
    INDIVIDUAL RULE EVALUATORS
 --------------------------------------------------- */
-
-// Best Seller: Top 20% by sales count
 async function evaluateBestSellerRule(product, rule) {
   if (product.salesCount < rule.minSales) return false;
-
-  // Get total products count
-  const totalProducts = await Product.countDocuments({
-    status: "active",
-  });
-
-  // Get count of products with higher sales
+  const totalProducts = await Product.countDocuments({ status: "active" });
   const higherSalesCount = await Product.countDocuments({
     status: "active",
     salesCount: { $gt: product.salesCount },
   });
-
-  // Product is in top 20%?
   const percentile = (higherSalesCount / totalProducts) * 100;
   return percentile <= 20;
 }
 
-// Hot: High views recently
 function evaluateHotRule(product, rule) {
   return product.views >= rule.viewsThreshold;
 }
 
-// New Arrival: Created recently
 function evaluateNewArrivalRule(product, rule) {
   const daysOld =
     (Date.now() - new Date(product.createdAt)) / (1000 * 60 * 60 * 24);
   return daysOld <= rule.daysThreshold;
 }
 
-// Trending: Would need historical data - simplified version
 function evaluateTrendingRule(product, rule) {
-  // Simplified: High sales + high views
   return product.salesCount > 5 && product.views > 50;
 }
 
-// Discount rules
 function evaluateDiscountRule(product, rule) {
   return (
     product.discountPercentage >= rule.minDiscountPercentage &&
@@ -241,7 +213,6 @@ function evaluateDiscountRule(product, rule) {
   );
 }
 
-// Rating rule
 function evaluateRatingRule(product, rule) {
   return (
     product.ratingsAverage >= rule.minRating &&
@@ -249,13 +220,12 @@ function evaluateRatingRule(product, rule) {
   );
 }
 
-// Stock rule
 function evaluateStockRule(product, rule) {
   return product.stock > 0 && product.stock <= rule.maxStock;
 }
 
 /* --------------------------------------------------
-   SCHEDULED TAG CLEANUP
+   SCHEDULED TAG CLEANUP (ObjectId-based)
 --------------------------------------------------- */
 export const cleanupExpiredTagsService = async () => {
   try {
@@ -265,37 +235,34 @@ export const cleanupExpiredTagsService = async () => {
       tagsRemoved: {},
     };
 
+    // Load system tags by automationKey
+    const newArrivalTag = await Tag.findOne({ automationKey: "new_arrival" });
+    const onSaleTag = await Tag.findOne({ automationKey: "on_sale" });
+    const clearanceTag = await Tag.findOne({ automationKey: "clearance" });
+
     // Remove 'new_arrival' from products older than 30 days
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-
-    const oldProducts = await Product.find({
-      tags: "new_arrival",
-      createdAt: { $lt: thirtyDaysAgo },
-    });
-
-    results.processed = oldProducts.length;
-
-    for (const product of oldProducts) {
-      const newTags = product.tags.filter((t) => t !== "new_arrival");
-      await Product.findByIdAndUpdate(product._id, { tags: newTags });
-      results.updated++;
-      results.tagsRemoved.new_arrival =
-        (results.tagsRemoved.new_arrival || 0) + 1;
+    if (newArrivalTag) {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const result = await Product.updateMany(
+        { tags: newArrivalTag._id, createdAt: { $lt: thirtyDaysAgo } },
+        { $pull: { tags: newArrivalTag._id } }
+      );
+      results.updated += result.modifiedCount;
+      results.tagsRemoved.new_arrival = result.modifiedCount;
     }
 
     // Remove sale tags from products with no discount
-    const nonSaleProducts = await Product.find({
-      tags: { $in: ["on_sale", "clearance"] },
-      $or: [{ discountPercentage: 0 }, { discountPrice: 0 }],
-    });
-
-    for (const product of nonSaleProducts) {
-      const newTags = product.tags.filter(
-        (t) => t !== "on_sale" && t !== "clearance"
+    const saleTagIds = [onSaleTag?._id, clearanceTag?._id].filter(Boolean);
+    if (saleTagIds.length) {
+      const result = await Product.updateMany(
+        {
+          tags: { $in: saleTagIds },
+          $or: [{ discountPercentage: 0 }, { discountPrice: 0 }],
+        },
+        { $pull: { tags: { $in: saleTagIds } } }
       );
-      await Product.findByIdAndUpdate(product._id, { tags: newTags });
-      results.updated++;
-      results.tagsRemoved.on_sale = (results.tagsRemoved.on_sale || 0) + 1;
+      results.updated += result.modifiedCount;
+      results.tagsRemoved.on_sale = result.modifiedCount;
     }
 
     return {
@@ -337,37 +304,47 @@ export const updateTagAutomationRulesService = (tag, updates) => {
 };
 
 /* --------------------------------------------------
-   TAG ASSIGNMENT PREVIEW (DRY RUN)
+   TAG ASSIGNMENT PREVIEW (ObjectId-based)
 --------------------------------------------------- */
 export const previewTagAssignmentService = async (productId) => {
   try {
     const product = await Product.findById(productId);
-    if (!product) {
-      throw new Error("Product not found");
+    if (!product) throw new Error("Product not found");
+
+    // Load system tags
+    const systemTags = await Tag.find({
+      automationKey: { $ne: null },
+      status: "active",
+    }).lean();
+
+    const tagKeyToId = {};
+    for (const t of systemTags) {
+      tagKeyToId[t.automationKey] = t._id.toString();
     }
 
-    const currentTags = product.tags || [];
+    const currentTagIds = (product.tags || []).map((t) => t.toString());
     const suggestedTags = [];
     const tagsToRemove = [];
     const reasoning = {};
 
-    for (const [tag, rule] of Object.entries(TAG_RULES)) {
-      if (!rule.enabled) continue;
+    for (const [key, rule] of Object.entries(TAG_RULES)) {
+      if (!rule.enabled || !tagKeyToId[key]) continue;
 
-      const shouldHaveTag = await evaluateRule(product, tag, rule);
-      const hasTag = currentTags.includes(tag);
+      const tagId = tagKeyToId[key];
+      const shouldHaveTag = await evaluateRule(product, key, rule);
+      const hasTag = currentTagIds.includes(tagId);
 
-      reasoning[tag] = {
+      reasoning[key] = {
         shouldHaveTag,
         hasTag,
         rule: rule.rule,
-        reason: getReasonText(tag, rule, shouldHaveTag, product),
+        reason: getReasonText(key, rule, shouldHaveTag, product),
       };
 
       if (shouldHaveTag && !hasTag) {
-        suggestedTags.push(tag);
+        suggestedTags.push(key);
       } else if (!shouldHaveTag && hasTag) {
-        tagsToRemove.push(tag);
+        tagsToRemove.push(key);
       }
     }
 
@@ -376,8 +353,8 @@ export const previewTagAssignmentService = async (productId) => {
       message: "Tag preview generated successfully",
       data: {
         productId: product._id,
-        productName: product.en.name,
-        currentTags,
+        productName: product.en?.title,
+        currentTags: currentTagIds,
         suggestedTags,
         tagsToRemove,
         reasoning,
@@ -399,11 +376,12 @@ function getReasonText(tag, rule, shouldHaveTag, product) {
       return `In top 20% with ${product.salesCount} sales`;
     case "trending":
       return `High views: ${product.views}`;
-    case "age":
+    case "age": {
       const days = Math.floor(
         (Date.now() - new Date(product.createdAt)) / (1000 * 60 * 60 * 24)
       );
       return `Created ${days} days ago`;
+    }
     case "discount":
       return `${product.discountPercentage}% discount`;
     case "rating":
