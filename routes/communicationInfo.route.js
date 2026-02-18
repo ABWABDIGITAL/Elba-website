@@ -4,7 +4,7 @@ import {
   getMyCommunicationInfoController
 } from "../controllers/communicationInfo.controller.js";
 
-import { validateCreateCommunicationInfo } from "../validators/communicationInfo.Validators.js";
+import { validateCreateCommunicationInfo } from "../validators/communicationInfo.validators.js";
 import { protect } from "../middlewares/authMiddleware.js";
 
 const router = express.Router();
